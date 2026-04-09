@@ -1,0 +1,10 @@
+{
+  "state": "GA",
+  "people": [
+    { "kind": "adult", "age": 33 },
+    { "kind": "child", "age": 6 },
+    { "kind": "child", "age": 10 }
+  ],
+  "earned_income": 30000,
+  "year": 2026
+}
