@@ -429,9 +429,21 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         year,
         map_to="household",
     )
-    healthcare = _calculate_variable(
+    medicaid_value = _calculate_variable(
         simulation,
-        "healthcare_benefit_value",
+        "medicaid",
+        year,
+        map_to="household",
+    )
+    chip_value = _calculate_variable(
+        simulation,
+        "chip",
+        year,
+        map_to="household",
+    )
+    aca_ptc = _calculate_variable(
+        simulation,
+        "premium_tax_credit",
         year,
         map_to="household",
     )
@@ -496,7 +508,9 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         "wic": wic,
         "free_school_meals": free_school_meals,
         "refundables": refundable_credits,
-        "healthcare": healthcare,
+        "medicaid": medicaid_value,
+        "chip": chip_value,
+        "aca_ptc": aca_ptc,
     }
     core_support = sum(programs.values())
     net_resources = market_income + core_support - taxes
@@ -756,8 +770,16 @@ def calculate_income_series(
                     2,
                 ),
                 "taxes_monthly": round(result["totals"]["taxes"] / 12, 2),
-                "healthcare_monthly": round(
-                    result["programs"]["healthcare"] / 12,
+                "medicaid_monthly": round(
+                    result["programs"]["medicaid"] / 12,
+                    2,
+                ),
+                "chip_monthly": round(
+                    result["programs"]["chip"] / 12,
+                    2,
+                ),
+                "aca_ptc_monthly": round(
+                    result["programs"]["aca_ptc"] / 12,
                     2,
                 ),
                 "snap_monthly": round(result["programs"]["snap"] / 12, 2),

@@ -210,9 +210,21 @@ PROGRAM_DEFINITIONS = [
         "description": "Aggregate refundable federal and state tax credits.",
     },
     {
-        "key": "healthcare",
-        "label": "Healthcare value",
-        "short_label": "Health",
-        "description": "Aggregate value of ACA premium tax credits, Medicaid, and CHIP.",
+        "key": "medicaid",
+        "label": "Medicaid",
+        "short_label": "Medicaid",
+        "description": "Public health coverage for eligible low-income individuals.",
+    },
+    {
+        "key": "chip",
+        "label": "CHIP",
+        "short_label": "CHIP",
+        "description": "Children's Health Insurance Program coverage.",
+    },
+    {
+        "key": "aca_ptc",
+        "label": "ACA premium tax credits",
+        "short_label": "ACA",
+        "description": "Marketplace premium subsidies for eligible households.",
     },
 ]
