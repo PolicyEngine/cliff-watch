@@ -18,7 +18,7 @@ function ProgramBreakdown({ programs }) {
       ))}
       <div className="breakdown-divider" />
       <div className="breakdown-row total">
-        <span className="breakdown-label">Total modeled support</span>
+        <span className="breakdown-label">Total benefits + refundable tax credits</span>
         <span className="breakdown-value positive">
           {formatCurrency(displayPrograms.reduce((sum, item) => sum + item.annual, 0))}/yr
         </span>

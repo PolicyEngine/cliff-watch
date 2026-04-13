@@ -248,11 +248,11 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
 
 function describeHousehold(people) {
   const numAdults = people.filter((person) => person.kind === 'adult').length
-  const numChildren = people.filter((person) => person.kind === 'child').length
+  const numDependants = people.filter((person) => person.kind === 'child').length
   const adultAges = people
     .filter((person) => person.kind === 'adult')
     .map((person) => String(person.age))
-  const childAges = people
+  const dependantAges = people
     .filter((person) => person.kind === 'child')
     .map((person) => String(person.age))
 
@@ -260,21 +260,21 @@ function describeHousehold(people) {
   if (adultAges.length) {
     description.push(`Adult ages: ${adultAges.join(', ')}`)
   }
-  if (childAges.length) {
-    description.push(`Child ages: ${childAges.join(', ')}`)
+  if (dependantAges.length) {
+    description.push(`Dependant ages: ${dependantAges.join(', ')}`)
   }
 
   return {
     id: 'custom_household',
-    label: `${numAdults} ${numAdults === 1 ? 'adult' : 'adults'} + ${numChildren} ${numChildren === 1 ? 'child' : 'children'}`,
-    short_label: `${numAdults}A/${numChildren}C`,
+    label: `${numAdults} ${numAdults === 1 ? 'adult' : 'adults'} + ${numDependants} ${numDependants === 1 ? 'dependant' : 'dependants'}`,
+    short_label: `${numAdults}A/${numDependants}D`,
     description: description.join('. ') || 'Custom household.',
-    summary: 'The first adult is treated as the primary earner. When filing jointly or separately, the second adult is treated as a spouse.',
+    summary: 'The first adult is treated as the primary earner. The second adult joins the tax unit, and any other household members are treated as dependants.',
     people,
     counts: {
       num_adults: numAdults,
-      num_children: numChildren,
-      household_size: numAdults + numChildren,
+      num_children: numDependants,
+      household_size: numAdults + numDependants,
     },
   }
 }

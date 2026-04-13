@@ -74,7 +74,7 @@ function StateRanking({ data, selectedState, onStateSelect }) {
         <div className="selected-state-rank">
           <span className="rank-badge">#{selectedStateData.rank}</span>
           <span className="rank-text">
-            <strong>{selectedStateData.state_name}</strong> provides the {getOrdinal(selectedStateData.rank)} highest modeled annual net resources for this household
+            <strong>{selectedStateData.state_name}</strong> provides the {getOrdinal(selectedStateData.rank)} highest modeled annual net income for this household
             {selectedStateData.net_resources_annual > 0 && (
               <> (<strong>{formatCurrency(selectedStateData.net_resources_annual)}/yr</strong>)</>
             )}

@@ -44,8 +44,11 @@ function HouseholdComparison({ households, currentType }) {
           <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#4FD1C5' }}>
             {fmt(item.net_resources_annual)}/yr
           </p>
+          <p style={{ fontSize: '0.8rem', opacity: 0.75, marginTop: '4px' }}>
+            Annual net income
+          </p>
           <p style={{ fontSize: '0.8rem', opacity: 0.75, marginTop: '6px' }}>
-            {item.counts.num_adults} adult(s), {item.counts.num_children} child(ren)
+            {item.counts.num_adults} adult(s), {item.counts.num_children} dependant(s)
           </p>
         </div>
       )

@@ -184,13 +184,13 @@ function StateMap({ selectedState, availableStates, onStateSelect, comparisonDat
 
       {isHeatmapMode && (
         <div className="heatmap-legend">
-          <span className="legend-label">Lower resources</span>
+          <span className="legend-label">Lower net income</span>
           <div className="gradient-bar">
             {HEATMAP_COLORS.map((color, index) => (
               <div key={index} className="gradient-step" style={{ background: color }} />
             ))}
           </div>
-          <span className="legend-label">Higher resources</span>
+          <span className="legend-label">Higher net income</span>
         </div>
       )}
     </div>

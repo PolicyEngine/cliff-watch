@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Area,
+  CartesianGrid,
   ComposedChart,
   Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceArea,
   ReferenceDot,
   ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts'
 import { niceTicks } from '../utils/niceTicks'
 import { buildCliffReport } from '../utils/cliffReport'
@@ -21,10 +20,21 @@ const fmt = (value) => value.toLocaleString('en-US', {
   maximumFractionDigits: 0,
 })
 
-const NET_LINE_SERIES = [
+const CHART_MODE_OPTIONS = [
+  {
+    key: 'net_income',
+    label: 'Net income',
+  },
+  {
+    key: 'program_detail',
+    label: 'Program detail',
+  },
+]
+
+const NET_VIEW_SERIES = [
   {
     key: 'net_resources_annual',
-    label: 'Net resources',
+    label: 'Net income',
     type: 'line',
     stroke: '#111827',
     strokeWidth: 2.8,
@@ -36,152 +46,141 @@ const NET_LINE_SERIES = [
     type: 'line',
     stroke: '#64748B',
     strokeWidth: 2,
-    strokeDasharray: '6 4',
     defaultVisible: true,
   },
 ]
 
-const DETAIL_VIEW_OPTIONS = [
+const PROGRAM_DETAIL_LINE_SERIES = [
   {
-    key: 'support',
-    label: 'Support only',
-  },
-  {
-    key: 'net_income',
+    key: 'detail_net_income_annual',
     label: 'Net income',
-  },
-]
-
-const SUPPORT_DETAIL_LINE_SERIES = [
-  {
-    key: 'net_support_after_taxes_annual',
-    label: 'Net support after taxes',
     type: 'line',
     stroke: '#111827',
-    strokeWidth: 2.6,
+    strokeWidth: 2.8,
     defaultVisible: true,
   },
 ]
 
-const NET_INCOME_DETAIL_LINE_SERIES = [
+const PROGRAM_DETAIL_AREA_SERIES = [
   {
-    key: 'detail_net_resources_annual',
-    label: 'Net resources',
-    type: 'line',
-    stroke: '#111827',
-    strokeWidth: 2.6,
+    key: 'earned_income_annual',
+    label: 'Earnings',
+    type: 'area',
+    stroke: '#6B7B93',
+    fill: '#D8E1EC',
     defaultVisible: true,
   },
   {
-    key: 'taxes_annual',
+    key: 'tax_cost_annual',
     label: 'Taxes',
-    type: 'line',
-    stroke: '#B45309',
-    strokeWidth: 2,
-    strokeDasharray: '5 4',
+    type: 'area',
+    stroke: '#DC2626',
+    fill: '#FECACA',
     defaultVisible: true,
   },
-]
-
-const EARNINGS_AREA_SERIES = {
-  key: 'earnings_after_taxes_annual',
-  label: 'Earnings',
-  type: 'area',
-  stroke: '#6B7B93',
-  fill: '#D8E1EC',
-}
-
-const BASE_DETAIL_AREA_SERIES = [
   {
     key: 'eitc_annual',
     label: 'Federal EITC',
     type: 'area',
-    stroke: '#7A5CC8',
-    fill: '#D8CAF5',
+    stroke: '#7C3AED',
+    fill: '#DDD6FE',
+    defaultVisible: true,
   },
   {
     key: 'ctc_annual',
     label: 'Federal CTC',
     type: 'area',
-    stroke: '#6653BE',
-    fill: '#CFC8F6',
+    stroke: '#6D28D9',
+    fill: '#C4B5FD',
+    defaultVisible: true,
   },
   {
     key: 'refundable_american_opportunity_credit_annual',
     label: 'Refundable American Opportunity Credit',
     type: 'area',
     stroke: '#8B5CF6',
-    fill: '#E7D9FF',
+    fill: '#E9D5FF',
+    defaultVisible: true,
   },
   {
     key: 'recovery_rebate_credit_annual',
     label: 'Recovery Rebate Credit',
     type: 'area',
     stroke: '#A855F7',
-    fill: '#F0D9FF',
+    fill: '#F3E8FF',
+    defaultVisible: true,
   },
   {
     key: 'refundable_payroll_tax_credit_annual',
     label: 'Refundable Payroll Tax Credit',
     type: 'area',
-    stroke: '#9333EA',
-    fill: '#EAD7FA',
+    stroke: '#7E22CE',
+    fill: '#E9D8FD',
+    defaultVisible: true,
   },
   {
     key: 'state_eitc_annual',
     label: 'State EITC',
     type: 'area',
-    stroke: '#6D28D9',
-    fill: '#DCCEF9',
+    stroke: '#5B21B6',
+    fill: '#C4B5FD',
+    defaultVisible: true,
   },
   {
     key: 'state_ctc_annual',
     label: 'State CTC',
     type: 'area',
-    stroke: '#5B46B2',
-    fill: '#CCC5F1',
+    stroke: '#4C1D95',
+    fill: '#C7D2FE',
+    defaultVisible: true,
   },
   {
     key: 'state_cdcc_annual',
     label: 'State CDCC',
     type: 'area',
-    stroke: '#805AD5',
-    fill: '#E4D7F8',
+    stroke: '#6D28D9',
+    fill: '#DDD6FE',
+    defaultVisible: true,
   },
   {
     key: 'state_property_tax_credit_annual',
     label: 'State property tax credit',
     type: 'area',
-    stroke: '#A16207',
-    fill: '#F9DB84',
+    stroke: '#7C3AED',
+    fill: '#EDE9FE',
+    defaultVisible: true,
   },
   {
     key: 'vt_renter_credit_annual',
     label: 'Vermont renter credit',
     type: 'area',
-    stroke: '#A16207',
-    fill: '#F3D18D',
+    stroke: '#6D28D9',
+    fill: '#E9E5FF',
+    defaultVisible: true,
   },
   {
     key: 'va_refundable_eitc_if_claimed_annual',
     label: 'Virginia refundable EITC',
     type: 'area',
-    stroke: '#6D28D9',
-    fill: '#D9CFFB',
+    stroke: '#5B21B6',
+    fill: '#DDD6FE',
+    defaultVisible: true,
   },
   {
     key: 'va_low_income_tax_credit_annual',
     label: 'Virginia low income tax credit',
     type: 'area',
-    stroke: '#0F766E',
-    fill: '#A7E4DB',
+    stroke: '#6D28D9',
+    fill: '#EDE9FE',
+    defaultVisible: true,
   },
   {
     key: 'nm_low_income_comprehensive_tax_rebate_annual',
     label: 'New Mexico low income tax rebate',
     type: 'area',
-    stroke: '#0F766E',
-    fill: '#91DDD3',
+    stroke: '#7C3AED',
+    fill: '#F3E8FF',
+    defaultVisible: true,
   },
   {
     key: 'tanf_annual',
@@ -189,6 +188,7 @@ const BASE_DETAIL_AREA_SERIES = [
     type: 'area',
     stroke: '#9A5A3C',
     fill: '#D7AE8E',
+    defaultVisible: true,
   },
   {
     key: 'snap_annual',
@@ -196,6 +196,7 @@ const BASE_DETAIL_AREA_SERIES = [
     type: 'area',
     stroke: '#4A9B68',
     fill: '#9BD3A8',
+    defaultVisible: true,
   },
   {
     key: 'wic_annual',
@@ -203,6 +204,7 @@ const BASE_DETAIL_AREA_SERIES = [
     type: 'area',
     stroke: '#D17AA4',
     fill: '#F1C4D8',
+    defaultVisible: true,
   },
   {
     key: 'free_school_meals_annual',
@@ -210,59 +212,44 @@ const BASE_DETAIL_AREA_SERIES = [
     type: 'area',
     stroke: '#C9963E',
     fill: '#F0D29E',
+    defaultVisible: true,
   },
   {
     key: 'medicaid_annual',
     label: 'Medicaid',
     type: 'area',
-    stroke: '#D66D7F',
-    fill: '#F2B7C1',
+    stroke: '#0F766E',
+    fill: '#A7E4DB',
+    defaultVisible: true,
   },
   {
     key: 'chip_annual',
     label: 'CHIP',
     type: 'area',
-    stroke: '#7684D6',
-    fill: '#C7CEF5',
+    stroke: '#6366F1',
+    fill: '#C7D2FE',
+    defaultVisible: true,
   },
   {
     key: 'aca_ptc_annual',
     label: 'ACA',
     type: 'area',
-    stroke: '#4F83CC',
-    fill: '#B7D1F2',
+    stroke: '#3B82F6',
+    fill: '#BFDBFE',
+    defaultVisible: true,
   },
 ]
 
-const REFUNDABLE_CREDIT_AREA_KEYS = new Set([
-  'eitc_annual',
-  'ctc_annual',
-  'refundable_american_opportunity_credit_annual',
-  'recovery_rebate_credit_annual',
-  'refundable_payroll_tax_credit_annual',
-  'state_eitc_annual',
-  'state_ctc_annual',
-  'state_cdcc_annual',
-  'state_property_tax_credit_annual',
-  'vt_renter_credit_annual',
-  'va_refundable_eitc_if_claimed_annual',
-  'va_low_income_tax_credit_annual',
-  'nm_low_income_comprehensive_tax_rebate_annual',
-])
-
 const CLIFF_HIGHLIGHT_STYLES = {
   severe: {
-    fill: '#F8B4B4',
     stroke: '#DC2626',
     dotFill: '#DC2626',
   },
   moderate: {
-    fill: '#F7D08A',
     stroke: '#D97706',
     dotFill: '#D97706',
   },
   mild: {
-    fill: '#FDE68A',
     stroke: '#CA8A04',
     dotFill: '#CA8A04',
   },
@@ -279,7 +266,7 @@ function chooseNiceStep(rawStep) {
   return 10 * magnitude
 }
 
-function signedNiceTicks(minValue, maxValue, targetCount = 6) {
+function signedNiceTicks(minValue, maxValue, targetCount = 10) {
   const min = Math.min(0, minValue)
   const max = Math.max(0, maxValue)
   const span = max - min
@@ -300,25 +287,25 @@ function signedNiceTicks(minValue, maxValue, targetCount = 6) {
   return ticks
 }
 
-function BenefitChart({ data, currentIncome }) {
+function BenefitChart({ data }) {
+  const [chartMode, setChartMode] = useState('net_income')
   const [netVisibleKeys, setNetVisibleKeys] = useState({})
   const [detailVisibleKeys, setDetailVisibleKeys] = useState({})
-  const [detailView, setDetailView] = useState('support')
   const [showCliffHighlights, setShowCliffHighlights] = useState(true)
 
-  const annualizedData = useMemo(() => (
-    (data || []).map((point) => {
+  const annualizedData = useMemo(() => {
+    const basePoints = (data || []).map((point) => {
       const taxesAnnual = Number(point.taxes || 0)
-      const coreSupportAnnual = Number(point.core_support || 0)
+      const coreBenefitsAnnual = Number(point.core_support || 0)
 
       return {
         ...point,
         earned_income_annual: Number(point.earned_income || 0),
-        earnings_after_taxes_annual: Math.max(0, Number(point.earned_income || 0) - taxesAnnual),
         net_resources_annual: Number(point.net_resources || 0),
-        detail_net_resources_annual: Number(point.net_resources || 0),
-        core_support_annual: coreSupportAnnual,
-        net_support_after_taxes_annual: coreSupportAnnual - taxesAnnual,
+        detail_net_income_annual: Number(point.net_resources || 0),
+        benefits_and_credits_annual: coreBenefitsAnnual,
+        taxes_annual: taxesAnnual,
+        tax_cost_annual: -taxesAnnual,
         medicaid_annual: Number(point.medicaid || 0),
         chip_annual: Number(point.chip || 0),
         aca_ptc_annual: Number(point.aca_ptc || 0),
@@ -339,59 +326,53 @@ function BenefitChart({ data, currentIncome }) {
         tanf_annual: Number(point.tanf || 0),
         free_school_meals_annual: Number(point.free_school_meals || 0),
         wic_annual: Number(point.wic || 0),
-        taxes_annual: taxesAnnual,
         net_change_annual_display: Number(point.net_change_annual || 0),
         cliff_drop_annual: Number(point.cliff_drop_annual || 0),
       }
     })
-  ), [data])
 
-  const detailLineSeries = useMemo(() => (
-    detailView === 'net_income' ? NET_INCOME_DETAIL_LINE_SERIES : SUPPORT_DETAIL_LINE_SERIES
-  ), [detailView])
+    return basePoints.map((point, index) => {
+      const nextPoint = basePoints[index + 1]
+      if (!nextPoint?.is_cliff) {
+        return point
+      }
 
-  const detailAreaCatalog = useMemo(() => (
-    detailView === 'net_income'
-      ? [EARNINGS_AREA_SERIES, ...BASE_DETAIL_AREA_SERIES]
-      : BASE_DETAIL_AREA_SERIES
-  ), [detailView])
+      return {
+        ...point,
+        has_upcoming_cliff: true,
+        upcoming_cliff_drop_annual: Number(nextPoint.cliff_drop_annual || 0),
+        upcoming_cliff_income_annual: Number(nextPoint.earned_income_annual || 0),
+        upcoming_cliff_drivers: nextPoint.cliff_drivers || [],
+      }
+    })
+  }, [data])
 
-  const detailAreaSeries = useMemo(() => {
-    if (!annualizedData.length) {
-      return []
-    }
+  const detailAreaSeries = useMemo(() => (
+    PROGRAM_DETAIL_AREA_SERIES.filter((series) => (
+      annualizedData.some((item) => Math.abs(Number(item[series.key] || 0)) > 0)
+    ))
+  ), [annualizedData])
 
-    const activeAreaKeys = new Set(
-      detailAreaCatalog
-        .map((series) => ({
-          key: series.key,
-          maxValue: Math.max(...annualizedData.map((item) => Math.abs(Number(item[series.key] || 0)))),
-        }))
-        .filter((series) => series.maxValue > 0)
-        .sort((left, right) => right.maxValue - left.maxValue)
-        .slice(0, 6)
-        .map((series) => series.key),
-    )
+  const detailLegendSeries = useMemo(() => {
+    const earningsSeries = detailAreaSeries.find((series) => series.key === 'earned_income_annual')
+    const taxesSeries = detailAreaSeries.find((series) => series.key === 'tax_cost_annual')
+    const remainingAreaSeries = detailAreaSeries.filter((series) => (
+      series.key !== 'earned_income_annual'
+      && series.key !== 'tax_cost_annual'
+    ))
 
-    return detailAreaCatalog
-      .filter((series) => annualizedData.some((item) => Math.abs(Number(item[series.key] || 0)) > 0))
-      .map((series) => ({
-        ...series,
-        defaultVisible:
-          series.key === 'earnings_after_taxes_annual'
-          || REFUNDABLE_CREDIT_AREA_KEYS.has(series.key)
-          || activeAreaKeys.has(series.key),
-      }))
-  }, [annualizedData, detailAreaCatalog])
-
-  const allDetailSeries = useMemo(() => (
-    [...detailLineSeries, ...detailAreaSeries]
-  ), [detailLineSeries, detailAreaSeries])
+    return [
+      PROGRAM_DETAIL_LINE_SERIES[0],
+      earningsSeries,
+      taxesSeries,
+      ...remainingAreaSeries,
+    ].filter(Boolean)
+  }, [detailAreaSeries])
 
   useEffect(() => {
     setNetVisibleKeys((current) => {
       const next = {}
-      NET_LINE_SERIES.forEach((series) => {
+      NET_VIEW_SERIES.forEach((series) => {
         next[series.key] = current[series.key] ?? series.defaultVisible
       })
       return next
@@ -399,94 +380,61 @@ function BenefitChart({ data, currentIncome }) {
   }, [])
 
   useEffect(() => {
-    if (!allDetailSeries.length) {
-      setDetailVisibleKeys({})
-      return
-    }
-
     setDetailVisibleKeys((current) => {
       const next = {}
-      allDetailSeries.forEach((series) => {
+      detailLegendSeries.forEach((series) => {
         next[series.key] = current[series.key] ?? series.defaultVisible
       })
       return next
     })
-  }, [allDetailSeries])
+  }, [detailLegendSeries])
 
   const visibleNetSeries = useMemo(() => (
-    NET_LINE_SERIES.filter((series) => netVisibleKeys[series.key])
+    NET_VIEW_SERIES.filter((series) => netVisibleKeys[series.key])
   ), [netVisibleKeys])
+
+  const visibleDetailLineSeries = useMemo(() => (
+    PROGRAM_DETAIL_LINE_SERIES.filter((series) => detailVisibleKeys[series.key])
+  ), [detailVisibleKeys])
 
   const visibleDetailAreaSeries = useMemo(() => (
     detailAreaSeries.filter((series) => detailVisibleKeys[series.key])
   ), [detailAreaSeries, detailVisibleKeys])
 
-  const visibleDetailLineSeries = useMemo(() => (
-    detailLineSeries.filter((series) => detailVisibleKeys[series.key])
-  ), [detailLineSeries, detailVisibleKeys])
-
-  const detailLegendSeries = useMemo(() => {
-    if (detailView !== 'net_income') {
-      return [...detailLineSeries, ...detailAreaSeries]
-    }
-
-    const netResourcesSeries = detailLineSeries.find((series) => series.key === 'detail_net_resources_annual')
-    const taxesSeries = detailLineSeries.find((series) => series.key === 'taxes_annual')
-    const earningsSeries = detailAreaSeries.find((series) => series.key === 'earnings_after_taxes_annual')
-    const remainingAreas = detailAreaSeries.filter((series) => series.key !== 'earnings_after_taxes_annual')
-
-    return [
-      netResourcesSeries,
-      earningsSeries,
-      taxesSeries,
-      ...remainingAreas,
-    ].filter(Boolean)
-  }, [detailAreaSeries, detailLineSeries, detailView])
-
   const cliffReport = useMemo(() => buildCliffReport(annualizedData), [annualizedData])
-  const highlightedZones = cliffReport.zones || []
   const highlightedCliffs = cliffReport.cliffs || []
 
-  const {
-    xTicks,
-    mainYTicks,
-    detailYTicks,
-    detailDomain,
-  } = useMemo(() => {
+  const { xTicks, netYTicks, detailYTicks, detailDomain } = useMemo(() => {
     if (!annualizedData.length) {
       return {
         xTicks: [0],
-        mainYTicks: [0],
+        netYTicks: [0],
         detailYTicks: [0],
         detailDomain: [0, 0],
       }
     }
 
     const xMax = Math.max(...annualizedData.map((item) => item.earned_income_annual))
-    const mainYMax = Math.max(
+    const netYMax = Math.max(
       0,
       ...annualizedData.map((item) => Math.max(
+        0,
         ...visibleNetSeries.map((series) => Number(item[series.key] || 0)),
       )),
     )
-
     let detailMax = 0
     let detailMin = 0
 
-    annualizedData.forEach((point) => {
-      let positiveStack = 0
-      let negativeStack = 0
-
-      visibleDetailAreaSeries.forEach((series) => {
-        const value = Number(point[series.key] || 0)
-        if (value >= 0) {
-          positiveStack += value
-        } else {
-          negativeStack += value
-        }
-      })
-
-      const lineValues = visibleDetailLineSeries.map((series) => Number(point[series.key] || 0))
+    annualizedData.forEach((item) => {
+      const positiveStack = visibleDetailAreaSeries.reduce(
+        (sum, series) => sum + Math.max(0, Number(item[series.key] || 0)),
+        0,
+      )
+      const negativeStack = visibleDetailAreaSeries.reduce(
+        (sum, series) => sum + Math.min(0, Number(item[series.key] || 0)),
+        0,
+      )
+      const lineValues = visibleDetailLineSeries.map((series) => Number(item[series.key] || 0))
 
       detailMax = Math.max(detailMax, positiveStack, ...lineValues, 0)
       detailMin = Math.min(detailMin, negativeStack, ...lineValues, 0)
@@ -496,14 +444,14 @@ function BenefitChart({ data, currentIncome }) {
 
     return {
       xTicks: niceTicks(xMax),
-      mainYTicks: niceTicks(mainYMax),
+      netYTicks: niceTicks(netYMax),
       detailYTicks: computedDetailYTicks,
       detailDomain: [
         computedDetailYTicks[0],
         computedDetailYTicks[computedDetailYTicks.length - 1],
       ],
     }
-  }, [annualizedData, visibleNetSeries, visibleDetailAreaSeries, visibleDetailLineSeries])
+  }, [annualizedData, visibleDetailAreaSeries, visibleDetailLineSeries, visibleNetSeries])
 
   const toggleNetSeries = (key) => {
     setNetVisibleKeys((current) => ({
@@ -519,29 +467,74 @@ function BenefitChart({ data, currentIncome }) {
     }))
   }
 
+  const getTooltipCliff = (point) => {
+    if (point?.has_upcoming_cliff) {
+      return {
+        kind: 'upcoming',
+        dropAnnual: Number(point.upcoming_cliff_drop_annual || 0),
+        targetIncomeAnnual: Number(point.upcoming_cliff_income_annual || 0),
+        drivers: point.upcoming_cliff_drivers || [],
+      }
+    }
+
+    if (point?.is_cliff) {
+      return {
+        kind: 'current',
+        dropAnnual: Number(point.cliff_drop_annual || 0),
+        targetIncomeAnnual: Number(point.earned_income_annual || 0),
+        drivers: point.cliff_drivers || [],
+      }
+    }
+
+    return null
+  }
+
   const NetTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) {
       return null
     }
 
     const point = payload[0].payload
+    const tooltipCliff = getTooltipCliff(point)
 
     return (
       <div className="chart-tooltip">
         <p className="chart-tooltip-kicker">Earnings: {fmt(label)}/yr</p>
-        <p className="chart-tooltip-highlight">Net resources: {fmt(point.net_resources_annual)}/yr</p>
-        <p className="chart-tooltip-subtle">
-          Net support after taxes: {fmt(point.net_support_after_taxes_annual)}/yr
-        </p>
-        {point.has_previous_point ? (
-          <p className="chart-tooltip-subtle">
-            Change vs prior point: {fmt(point.net_change_annual_display)}/yr
-          </p>
-        ) : null}
-        {point.is_cliff ? (
+        <p className="chart-tooltip-highlight">Net income: {fmt(point.net_resources_annual)}/yr</p>
+        <div className="chart-tooltip-divider">
+          <div className="chart-tooltip-row">
+            <span>Earnings</span>
+            <span>{fmt(point.earned_income_annual)}/yr</span>
+          </div>
+          <div className="chart-tooltip-row">
+            <span>Benefits + refundable tax credits</span>
+            <span>{fmt(point.benefits_and_credits_annual)}/yr</span>
+          </div>
+          <div className="chart-tooltip-row">
+            <span>Taxes</span>
+            <span>{fmt(point.taxes_annual)}/yr</span>
+          </div>
+          {tooltipCliff ? (
+            <div className="chart-tooltip-row">
+              <span>{tooltipCliff.kind === 'upcoming' ? 'Cliff on next step' : 'Cliff loss at this step'}</span>
+              <span>{fmt(-tooltipCliff.dropAnnual)}/yr</span>
+            </div>
+          ) : point.has_previous_point ? (
+            <div className="chart-tooltip-row">
+              <span>Change vs prior point</span>
+              <span>{fmt(point.net_change_annual_display)}/yr</span>
+            </div>
+          ) : null}
+        </div>
+        {tooltipCliff ? (
           <div className="chart-tooltip-divider">
+            {tooltipCliff.kind === 'upcoming' ? (
+              <p className="chart-tooltip-subtle">
+                At {fmt(tooltipCliff.targetIncomeAnnual)}/yr earnings
+              </p>
+            ) : null}
             <p className="chart-tooltip-label">Main cliff drivers</p>
-            {(point.cliff_drivers || []).slice(0, 3).map((driver) => (
+            {tooltipCliff.drivers.slice(0, 3).map((driver) => (
               <div key={driver.key} className="chart-tooltip-row">
                 <span>{driver.label}</span>
                 <span>{fmt(Math.abs(driver.resource_effect_annual))}/yr</span>
@@ -559,9 +552,9 @@ function BenefitChart({ data, currentIncome }) {
     }
 
     const point = payload[0].payload
+    const tooltipCliff = getTooltipCliff(point)
     const activeSeries = detailLegendSeries.filter((series) => {
-      const isVisible = detailVisibleKeys[series.key]
-      if (!isVisible) {
+      if (!detailVisibleKeys[series.key]) {
         return false
       }
       return series.type === 'line' || Math.abs(Number(point[series.key] || 0)) > 0
@@ -570,16 +563,7 @@ function BenefitChart({ data, currentIncome }) {
     return (
       <div className="chart-tooltip">
         <p className="chart-tooltip-kicker">Earnings: {fmt(label)}/yr</p>
-        <p className="chart-tooltip-highlight">
-          {detailView === 'net_income' ? 'Net resources' : 'Net support after taxes'}:
-          {' '}
-          {fmt(
-            detailView === 'net_income'
-              ? point.detail_net_resources_annual
-              : point.net_support_after_taxes_annual,
-          )}
-          /yr
-        </p>
+        <p className="chart-tooltip-highlight">Net income: {fmt(point.detail_net_income_annual)}/yr</p>
         <div className="chart-tooltip-divider">
           {activeSeries.map((series) => (
             <div key={series.key} className="chart-tooltip-row">
@@ -588,145 +572,197 @@ function BenefitChart({ data, currentIncome }) {
             </div>
           ))}
         </div>
+        {tooltipCliff ? (
+          <div className="chart-tooltip-divider">
+            {tooltipCliff.kind === 'upcoming' ? (
+              <p className="chart-tooltip-subtle">
+                At {fmt(tooltipCliff.targetIncomeAnnual)}/yr earnings
+              </p>
+            ) : null}
+            <p className="chart-tooltip-label">Main cliff drivers</p>
+            {tooltipCliff.drivers.slice(0, 3).map((driver) => (
+              <div key={driver.key} className="chart-tooltip-row">
+                <span>{driver.label}</span>
+                <span>{fmt(Math.abs(driver.resource_effect_annual))}/yr</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     )
   }
 
+  const legendSeries = chartMode === 'net_income'
+    ? NET_VIEW_SERIES
+    : detailLegendSeries
+
   return (
-    <div className="chart-stack">
-      <div className="chart-wrapper chart-wrapper--primary">
-        <div className="chart-legend">
-          {NET_LINE_SERIES.map((series) => {
-            const isActive = Boolean(netVisibleKeys[series.key])
+    <div className="chart-wrapper chart-wrapper--full">
+      <div className="chart-panel-header">
+        <div>
+          <h4>{chartMode === 'net_income' ? 'Net income by earnings' : 'Program detail'}</h4>
+          <p>
+            {chartMode === 'net_income'
+              ? 'Track how annual net income changes as earnings rise, with cliff markers placed at the last earnings level before a drop.'
+              : 'Turn programs on and off to see gross earnings and benefits above zero, taxes below zero, and the black line showing final annual net income.'}
+          </p>
+        </div>
+        <div className="chart-view-toggle" role="tablist" aria-label="Chart view">
+          {CHART_MODE_OPTIONS.map((option) => {
+            const isActive = chartMode === option.key
             return (
               <button
-                key={series.key}
+                key={option.key}
                 type="button"
-                className={`chart-toggle ${isActive ? 'active' : ''}`}
-                onClick={() => toggleNetSeries(series.key)}
-                style={{
-                  '--legend-stroke': series.stroke,
-                }}
+                role="tab"
+                aria-selected={isActive}
+                className={`chart-view-button ${isActive ? 'active' : ''}`}
+                onClick={() => setChartMode(option.key)}
               >
-                <span
-                  className="chart-legend-swatch chart-legend-swatch--line"
-                  style={{
-                    '--legend-stroke': series.stroke,
-                    '--legend-fill': 'transparent',
-                    '--legend-dash': series.strokeDasharray || 'none',
-                  }}
-                />
-                <span>{series.label}</span>
+                {option.label}
               </button>
             )
           })}
-          {highlightedZones.length ? (
+        </div>
+      </div>
+
+      <div className="chart-legend">
+        {legendSeries.map((series) => {
+          const isActive = chartMode === 'net_income'
+            ? Boolean(netVisibleKeys[series.key])
+            : Boolean(detailVisibleKeys[series.key])
+
+          return (
             <button
+              key={series.key}
               type="button"
-              className={`chart-toggle ${showCliffHighlights ? 'active' : ''}`}
-              onClick={() => setShowCliffHighlights((current) => !current)}
+              className={`chart-toggle ${isActive ? 'active' : ''}`}
+              onClick={() => (
+                chartMode === 'net_income'
+                  ? toggleNetSeries(series.key)
+                  : toggleDetailSeries(series.key)
+              )}
               style={{
-                '--legend-stroke': CLIFF_HIGHLIGHT_STYLES.severe.stroke,
+                '--legend-stroke': series.stroke,
               }}
             >
               <span
-                className="chart-legend-swatch"
+                className={`chart-legend-swatch ${series.type === 'line' ? 'chart-legend-swatch--line' : ''}`}
                 style={{
-                  '--legend-stroke': CLIFF_HIGHLIGHT_STYLES.severe.stroke,
-                  '--legend-fill': CLIFF_HIGHLIGHT_STYLES.severe.fill,
+                  '--legend-stroke': series.stroke,
+                  '--legend-fill': series.fill || 'transparent',
                 }}
               />
-              <span>Cliff highlights</span>
+              <span>{series.label}</span>
             </button>
-          ) : null}
-        </div>
+          )
+        })}
+        {highlightedCliffs.length ? (
+          <button
+            type="button"
+            className={`chart-toggle ${showCliffHighlights ? 'active' : ''}`}
+            onClick={() => setShowCliffHighlights((current) => !current)}
+            style={{
+              '--legend-stroke': CLIFF_HIGHLIGHT_STYLES.severe.stroke,
+            }}
+          >
+            <span
+              className="chart-legend-swatch chart-legend-swatch--line"
+              style={{
+                '--legend-stroke': CLIFF_HIGHLIGHT_STYLES.severe.stroke,
+                '--legend-fill': 'transparent',
+              }}
+            />
+            <span>Cliff highlights</span>
+          </button>
+        ) : null}
+      </div>
 
-        <div className="chart-canvas">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={annualizedData}
-              margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e2dd" />
-              <XAxis
-                dataKey="earned_income_annual"
-                type="number"
-                domain={[0, xTicks[xTicks.length - 1]]}
-                ticks={xTicks}
-                tickFormatter={fmt}
-                label={{ value: 'Annual household earnings', position: 'bottom', offset: -5, fill: '#6b7280', fontSize: 11 }}
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                axisLine={{ stroke: '#e5e2dd' }}
-                tickLine={{ stroke: '#e5e2dd' }}
-              />
-              <YAxis
-                domain={[0, mainYTicks[mainYTicks.length - 1]]}
-                ticks={mainYTicks}
-                tickFormatter={fmt}
-                label={{ value: 'Annual dollars', angle: -90, position: 'insideLeft', dx: -5, style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 11 } }}
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                axisLine={{ stroke: '#e5e2dd' }}
-                tickLine={{ stroke: '#e5e2dd' }}
-              />
-              <Tooltip content={<NetTooltip />} />
-              <ReferenceLine y={0} stroke="#e5e2dd" />
-              {showCliffHighlights
-                ? highlightedZones.map((zone) => {
-                  const style = CLIFF_HIGHLIGHT_STYLES[zone.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
-                  return (
-                    <ReferenceArea
-                      key={`net-zone-${zone.id}`}
-                      x1={zone.startIncomeAnnual}
-                      x2={zone.endIncomeAnnual}
-                      ifOverflow="extendDomain"
-                      isFront={false}
-                      fill={style.fill}
-                      fillOpacity={0.12}
-                      strokeOpacity={0}
-                    />
-                  )
-                })
-                : null}
-              {showCliffHighlights && netVisibleKeys.net_resources_annual
-                ? highlightedCliffs.map((cliff) => {
-                  const style = CLIFF_HIGHLIGHT_STYLES[cliff.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
-                  return (
-                    <ReferenceDot
-                      key={`net-point-${cliff.startIncomeAnnual}-${cliff.endIncomeAnnual}`}
-                      x={cliff.endIncomeAnnual}
-                      y={cliff.afterResourcesAnnual}
-                      r={4.5}
-                      fill={style.dotFill}
-                      stroke="#ffffff"
-                      strokeWidth={2}
-                      ifOverflow="extendDomain"
-                      isFront
-                    />
-                  )
-                })
-                : null}
-              {showCliffHighlights
-                ? highlightedZones.map((zone) => {
-                  const style = CLIFF_HIGHLIGHT_STYLES[zone.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
-                  return (
-                    <ReferenceLine
-                      key={`net-line-${zone.id}`}
-                      x={zone.highestRiskIncomeAnnual}
-                      stroke={style.stroke}
-                      strokeDasharray="3 4"
-                      strokeOpacity={0.55}
-                    />
-                  )
-                })
-                : null}
-              {visibleNetSeries.map((series) => (
+      <div className="chart-canvas">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={annualizedData}
+            margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+            stackOffset={chartMode === 'program_detail' ? 'sign' : undefined}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e2dd" vertical={false} />
+            <XAxis
+              dataKey="earned_income_annual"
+              type="number"
+              domain={[0, xTicks[xTicks.length - 1]]}
+              ticks={xTicks}
+              tickFormatter={fmt}
+              label={{ value: 'Annual household earnings', position: 'bottom', offset: -5, fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#6b7280', fontSize: 11 }}
+              axisLine={{ stroke: '#e5e2dd' }}
+              tickLine={{ stroke: '#e5e2dd' }}
+            />
+            <YAxis
+              domain={chartMode === 'net_income'
+                ? [0, netYTicks[netYTicks.length - 1]]
+                : detailDomain}
+              ticks={chartMode === 'net_income' ? netYTicks : detailYTicks}
+              tickFormatter={fmt}
+              label={{
+                value: 'Annual dollars',
+                angle: -90,
+                position: 'insideLeft',
+                dx: -5,
+                style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 11 },
+              }}
+              tick={{ fill: '#6b7280', fontSize: 11 }}
+              axisLine={{ stroke: '#e5e2dd' }}
+              tickLine={{ stroke: '#e5e2dd' }}
+            />
+            <Tooltip content={chartMode === 'net_income' ? <NetTooltip /> : <DetailTooltip />} />
+            <ReferenceLine
+              y={0}
+              stroke={chartMode === 'program_detail' ? '#475569' : '#cbd5e1'}
+              strokeWidth={chartMode === 'program_detail' ? 2.2 : 1.1}
+            />
+
+            {showCliffHighlights
+              ? highlightedCliffs.map((cliff) => {
+                const style = CLIFF_HIGHLIGHT_STYLES[cliff.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
+                return (
+                  <ReferenceLine
+                    key={`cliff-line-${cliff.startIncomeAnnual}-${cliff.endIncomeAnnual}`}
+                    x={cliff.startIncomeAnnual}
+                    stroke={style.stroke}
+                    strokeDasharray="3 4"
+                    strokeOpacity={0.45}
+                  />
+                )
+              })
+              : null}
+
+            {showCliffHighlights
+              ? highlightedCliffs.map((cliff) => {
+                const style = CLIFF_HIGHLIGHT_STYLES[cliff.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
+                return (
+                  <ReferenceDot
+                    key={`cliff-dot-${cliff.startIncomeAnnual}-${cliff.endIncomeAnnual}`}
+                    x={cliff.startIncomeAnnual}
+                    y={cliff.beforeResourcesAnnual}
+                    r={4.5}
+                    fill={style.dotFill}
+                    stroke="#ffffff"
+                    strokeWidth={2}
+                    ifOverflow="extendDomain"
+                    isFront
+                  />
+                )
+              })
+              : null}
+
+            {chartMode === 'net_income' ? (
+              visibleNetSeries.map((series) => (
                 <Line
                   key={series.key}
                   type="monotone"
                   dataKey={series.key}
                   stroke={series.stroke}
                   strokeWidth={series.strokeWidth}
-                  strokeDasharray={series.strokeDasharray}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   dot={false}
@@ -735,153 +771,41 @@ function BenefitChart({ data, currentIncome }) {
                     ? { r: 6, fill: '#111827', stroke: '#ffffff', strokeWidth: 2 }
                     : false}
                 />
-              ))}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="chart-wrapper chart-wrapper--detail">
-        <div className="chart-panel-header">
-          <div>
-            <h4>{detailView === 'net_income' ? 'Net income composition' : 'Program decomposition'}</h4>
-            <p>
-              {detailView === 'net_income'
-                ? 'Colored bands stack after-tax earnings and modeled supports. The orange line shows annual taxes, and the black line shows final net resources.'
-                : 'Colored bands show modeled supports. The black line is the household\'s net support after taxes, relative to earnings alone.'}
-            </p>
-          </div>
-          <div className="chart-view-toggle" role="tablist" aria-label="Decomposition view">
-            {DETAIL_VIEW_OPTIONS.map((option) => {
-              const isActive = detailView === option.key
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  className={`chart-view-button ${isActive ? 'active' : ''}`}
-                  onClick={() => setDetailView(option.key)}
-                >
-                  {option.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="chart-legend chart-legend--detail">
-          {detailLegendSeries.map((series) => {
-            const isActive = Boolean(detailVisibleKeys[series.key])
-            return (
-              <button
-                key={series.key}
-                type="button"
-                className={`chart-toggle ${isActive ? 'active' : ''}`}
-                onClick={() => toggleDetailSeries(series.key)}
-                style={{
-                  '--legend-stroke': series.stroke,
-                }}
-              >
-                <span
-                  className={`chart-legend-swatch ${series.type === 'line' ? 'chart-legend-swatch--line' : ''}`}
-                  style={{
-                    '--legend-stroke': series.stroke,
-                    '--legend-fill': series.fill || 'transparent',
-                    '--legend-dash': series.strokeDasharray || 'none',
-                  }}
-                />
-                <span>{series.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="chart-canvas">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={annualizedData}
-              margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
-              stackOffset="sign"
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e2dd" />
-              <XAxis
-                dataKey="earned_income_annual"
-                type="number"
-                domain={[0, xTicks[xTicks.length - 1]]}
-                ticks={xTicks}
-                tickFormatter={fmt}
-                label={{ value: 'Annual household earnings', position: 'bottom', offset: -5, fill: '#6b7280', fontSize: 11 }}
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                axisLine={{ stroke: '#e5e2dd' }}
-                tickLine={{ stroke: '#e5e2dd' }}
-              />
-              <YAxis
-                domain={detailDomain}
-                ticks={detailYTicks}
-                tickFormatter={fmt}
-                label={{
-                  value: detailView === 'net_income' ? 'Annual dollars' : 'Gain or loss beyond earnings',
-                  angle: -90,
-                  position: 'insideLeft',
-                  dx: -5,
-                  style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 11 },
-                }}
-                tick={{ fill: '#6b7280', fontSize: 11 }}
-                axisLine={{ stroke: '#e5e2dd' }}
-                tickLine={{ stroke: '#e5e2dd' }}
-              />
-              <Tooltip content={<DetailTooltip />} />
-              <ReferenceLine y={0} stroke="#cbd5e1" strokeWidth={1.2} />
-              {showCliffHighlights
-                ? highlightedZones.map((zone) => {
-                  const style = CLIFF_HIGHLIGHT_STYLES[zone.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
-                  return (
-                    <ReferenceArea
-                      key={`detail-zone-${zone.id}`}
-                      x1={zone.startIncomeAnnual}
-                      x2={zone.endIncomeAnnual}
-                      ifOverflow="extendDomain"
-                      isFront={false}
-                      fill={style.fill}
-                      fillOpacity={0.08}
-                      strokeOpacity={0}
-                    />
-                  )
-                })
-                : null}
-              {visibleDetailAreaSeries.map((series) => (
-                <Area
-                  key={series.key}
-                  type="stepAfter"
-                  dataKey={series.key}
-                  stackId="impact-stack"
-                  stroke={series.stroke}
-                  fill={series.fill}
-                  fillOpacity={0.92}
-                  strokeWidth={1.2}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              ))}
-              {visibleDetailLineSeries.map((series) => (
-                <Line
-                  key={series.key}
-                  type={series.key === 'taxes_annual' ? 'monotone' : 'stepAfter'}
-                  dataKey={series.key}
-                  stroke={series.stroke}
-                  strokeWidth={series.strokeWidth}
-                  strokeDasharray={series.strokeDasharray}
-                  dot={false}
-                  isAnimationActive={false}
-                  activeDot={series.key === 'taxes_annual'
-                    ? { r: 4, fill: '#B45309', stroke: '#ffffff', strokeWidth: 2 }
-                    : { r: 5, fill: '#111827', stroke: '#ffffff', strokeWidth: 2 }}
-                />
-              ))}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+              ))
+            ) : (
+              <>
+                {visibleDetailAreaSeries.map((series) => (
+                  <Area
+                    key={series.key}
+                    type="linear"
+                    dataKey={series.key}
+                    stackId="income-stack"
+                    stroke={series.stroke}
+                    fill={series.fill}
+                    fillOpacity={series.key === 'tax_cost_annual' ? 0.78 : 0.9}
+                    strokeWidth={series.key === 'tax_cost_annual' ? 1 : 1.15}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                ))}
+                {visibleDetailLineSeries.map((series) => (
+                  <Line
+                    key={series.key}
+                    type="monotone"
+                    dataKey={series.key}
+                    stroke={series.stroke}
+                    strokeWidth={series.strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    dot={false}
+                    isAnimationActive={false}
+                    activeDot={{ r: 5, fill: '#111827', stroke: '#ffffff', strokeWidth: 2 }}
+                  />
+                ))}
+              </>
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
       </div>
     </div>
   )

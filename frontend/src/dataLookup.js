@@ -4,15 +4,6 @@ import {
   calculateSeriesViaPolicyEngine,
 } from './policyengineApi'
 
-const VALID_FILING_STATUSES = new Set([
-  'SINGLE',
-  'HEAD_OF_HOUSEHOLD',
-  'JOINT',
-  'SEPARATE',
-])
-
-const MARRIED_FILING_STATUSES = new Set(['JOINT', 'SEPARATE'])
-
 const parseErrorMessage = async (response) => {
   try {
     const payload = await response.json()
@@ -49,7 +40,6 @@ export const formatCurrency = (value, digits = 0) => new Intl.NumberFormat(
 ).format(value || 0)
 
 export const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`
-export const filingStatusRequiresSpouse = (status) => MARRIED_FILING_STATUSES.has(status)
 
 export async function loadMetadata() {
   const response = await fetch('/api/metadata')
@@ -59,10 +49,26 @@ export async function loadMetadata() {
   return response.json()
 }
 
-const normalizePeople = (people = []) => people.map((person) => ({
-  kind: person?.kind === 'child' ? 'child' : 'adult',
-  age: Math.max(0, Number(person?.age) || 0),
-}))
+const MAX_ADULTS = 2
+
+const normalizePeople = (people = []) => {
+  let adultCount = 0
+
+  return people.map((person) => {
+    const requestedAdult = person?.kind !== 'child'
+    const kind = requestedAdult && adultCount < MAX_ADULTS ? 'adult' : 'child'
+
+    if (kind === 'adult') {
+      adultCount += 1
+    }
+
+    return {
+      kind,
+      age: Math.max(0, Number(person?.age) || 0),
+      is_pregnant: kind === 'adult' ? Boolean(person?.is_pregnant) : false,
+    }
+  })
+}
 
 const deriveFilingStatus = (people = []) => {
   const adults = people.filter((person) => person.kind === 'adult').length
@@ -77,59 +83,14 @@ const deriveFilingStatus = (people = []) => {
   return 'SINGLE'
 }
 
-const normalizeFilingStatus = (filingStatus, people = []) => (
-  VALID_FILING_STATUSES.has(filingStatus)
-    ? filingStatus
-    : deriveFilingStatus(people)
-)
-
-const buildAutoSpouse = (firstAdult) => ({
-  kind: 'adult',
-  age: Math.max(18, Number(firstAdult?.age) || 30),
-})
-
-const reconcilePeopleForFilingStatus = (people = [], filingStatus) => {
-  if (!filingStatusRequiresSpouse(filingStatus)) {
-    return people
-  }
-
-  const adultIndexes = people.reduce((indexes, person, index) => {
-    if (person.kind === 'adult') {
-      indexes.push(index)
-    }
-    return indexes
-  }, [])
-
-  if (!adultIndexes.length) {
-    return people
-  }
-
-  const [firstAdultIndex, secondAdultIndex] = adultIndexes
-  const firstAdult = people[firstAdultIndex]
-  const spouse = secondAdultIndex != null
-    ? people[secondAdultIndex]
-    : buildAutoSpouse(firstAdult)
-
-  return [
-    firstAdult,
-    spouse,
-    ...people.filter((_, index) => (
-      index !== firstAdultIndex && index !== secondAdultIndex
-    )),
-  ]
-}
-
 export function reconcileInputs(inputs, metadata) {
   const normalizedPeople = normalizePeople(inputs?.people || [])
-  const filing_status = normalizeFilingStatus(
-    inputs?.filing_status,
-    normalizedPeople,
-  )
+  const filing_status = deriveFilingStatus(normalizedPeople)
 
   return {
     ...inputs,
     state: inputs?.state || metadata?.defaults?.state || 'GA',
-    people: reconcilePeopleForFilingStatus(normalizedPeople, filing_status),
+    people: normalizedPeople,
     filing_status,
     earned_income_yearly: Math.max(
       0,
@@ -143,7 +104,6 @@ export function createInitialInputs(metadata) {
   return reconcileInputs({
     state: metadata?.defaults?.state || 'GA',
     people: normalizePeople(metadata?.defaults?.people || []),
-    filing_status: metadata?.defaults?.filing_status,
     earned_income_yearly: metadata?.defaults?.earned_income_yearly || 30000,
   }, metadata)
 }
