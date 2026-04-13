@@ -140,8 +140,6 @@ REFUNDABLE_CREDIT_COMPONENTS = (
         "map_to": "tax_unit",
     },
 )
-
-
 def _candidate_policyengine_repo() -> Path | None:
     repo = os.getenv("POLICYENGINE_US_REPO")
     if repo:
@@ -670,6 +668,16 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         year,
         map_to="household",
     )
+    state_taxes_before_refundable_credits = _calculate_variable(
+        simulation,
+        "household_state_tax_before_refundable_credits",
+        year,
+        map_to="household",
+    )
+    federal_taxes_before_refundable_credits = max(
+        0.0,
+        taxes - state_taxes_before_refundable_credits,
+    )
     snap = _calculate_variable(
         simulation,
         "snap",
@@ -707,6 +715,18 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
     aca_ptc = _calculate_variable(
         simulation,
         "premium_tax_credit",
+        year,
+        map_to="household",
+    )
+    federal_refundable_credits = _calculate_variable(
+        simulation,
+        "income_tax_refundable_credits",
+        year,
+        map_to="tax_unit",
+    )
+    state_refundable_credits = _calculate_variable(
+        simulation,
+        "household_refundable_state_tax_credits",
         year,
         map_to="household",
     )
@@ -773,7 +793,8 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         "medicaid": medicaid_value,
         "chip": chip_value,
         "aca_ptc": aca_ptc,
-        **_calculate_refundable_credit_programs(simulation, year),
+        "federal_refundable_credits": federal_refundable_credits,
+        "state_refundable_credits": state_refundable_credits,
     }
     core_support = sum(programs.values())
     net_resources = market_income + core_support - taxes
@@ -806,6 +827,14 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         "totals": {
             "market_income": round(market_income, 2),
             "taxes": round(taxes, 2),
+            "federal_taxes_before_refundable_credits": round(
+                federal_taxes_before_refundable_credits,
+                2,
+            ),
+            "state_taxes_before_refundable_credits": round(
+                state_taxes_before_refundable_credits,
+                2,
+            ),
             "core_support": round(core_support, 2),
             "net_resources": round(net_resources, 2),
         },
@@ -1074,9 +1103,31 @@ def calculate_income_series(
         ),
         point_count,
     )
-    refundable_credit_program_values = _calculate_refundable_credit_program_arrays(
-        simulation,
-        payload.year,
+    state_tax_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "household_state_tax_before_refundable_credits",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    federal_refundable_credit_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "income_tax_refundable_credits",
+            payload.year,
+            map_to="tax_unit",
+        ),
+        point_count,
+    )
+    state_refundable_credit_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "household_refundable_state_tax_credits",
+            payload.year,
+            map_to="household",
+        ),
         point_count,
     )
     snap_values = _normalize_series_values(
@@ -1157,19 +1208,33 @@ def calculate_income_series(
             "medicaid": round(medicaid_values[index], 2),
             "chip": round(chip_values[index], 2),
             "aca_ptc": round(aca_ptc_values[index], 2),
-            **{
-                key: round(values[index], 2)
-                for key, values in refundable_credit_program_values.items()
-            },
+            "federal_refundable_credits": round(
+                federal_refundable_credit_values[index],
+                2,
+            ),
+            "state_refundable_credits": round(
+                state_refundable_credit_values[index],
+                2,
+            ),
         }
         market_income = round(market_income_values[index], 2)
         taxes = round(tax_values[index], 2)
+        state_taxes_before_refundable_credits = round(
+            state_tax_values[index],
+            2,
+        )
+        federal_taxes_before_refundable_credits = round(
+            max(0.0, taxes - state_taxes_before_refundable_credits),
+            2,
+        )
         core_support = round(sum(programs.values()), 2)
         result = {
             "programs": programs,
             "totals": {
                 "market_income": market_income,
                 "taxes": taxes,
+                "federal_taxes_before_refundable_credits": federal_taxes_before_refundable_credits,
+                "state_taxes_before_refundable_credits": state_taxes_before_refundable_credits,
                 "core_support": core_support,
                 "net_resources": round(
                     market_income + core_support - taxes,
@@ -1206,19 +1271,10 @@ def calculate_income_series(
                 "aca_ptc": programs["aca_ptc"],
                 "snap": programs["snap"],
                 "free_school_meals": programs["free_school_meals"],
-                "eitc": programs["eitc"],
-                "ctc": programs["ctc"],
-                "refundable_american_opportunity_credit": programs["refundable_american_opportunity_credit"],
-                "recovery_rebate_credit": programs["recovery_rebate_credit"],
-                "refundable_payroll_tax_credit": programs["refundable_payroll_tax_credit"],
-                "state_eitc": programs["state_eitc"],
-                "state_ctc": programs["state_ctc"],
-                "state_cdcc": programs["state_cdcc"],
-                "state_property_tax_credit": programs["state_property_tax_credit"],
-                "vt_renter_credit": programs["vt_renter_credit"],
-                "va_refundable_eitc_if_claimed": programs["va_refundable_eitc_if_claimed"],
-                "va_low_income_tax_credit": programs["va_low_income_tax_credit"],
-                "nm_low_income_comprehensive_tax_rebate": programs["nm_low_income_comprehensive_tax_rebate"],
+                "federal_refundable_credits": programs["federal_refundable_credits"],
+                "state_refundable_credits": programs["state_refundable_credits"],
+                "federal_taxes_before_refundable_credits": federal_taxes_before_refundable_credits,
+                "state_taxes_before_refundable_credits": state_taxes_before_refundable_credits,
                 "tanf": programs["tanf"],
                 "wic": programs["wic"],
                 "has_previous_point": has_previous_point,

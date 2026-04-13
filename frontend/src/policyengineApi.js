@@ -120,6 +120,8 @@ const REFUNDABLE_CREDIT_COMPONENTS = [
   },
 ]
 
+const REFUNDABLE_CREDIT_KEYS = REFUNDABLE_CREDIT_COMPONENTS.map((component) => component.key)
+
 const asArray = (value, fallbackLength = 0) => {
   if (Array.isArray(value)) {
     return value.map((item) => Number(item) || 0)
@@ -350,6 +352,7 @@ function buildSituation(payload, options = {}) {
         members: [...memberIds],
         filing_status: { [year]: filingStatus },
         tax_unit_fpg: { [year]: null },
+        income_tax_refundable_credits: { [year]: null },
         premium_tax_credit: { [`${year}-01`]: null },
       },
     },
@@ -359,6 +362,8 @@ function buildSituation(payload, options = {}) {
         state_name: { [year]: payload.state },
         household_market_income: { [year]: null },
         household_tax_before_refundable_credits: { [year]: null },
+        household_state_tax_before_refundable_credits: { [year]: null },
+        household_refundable_state_tax_credits: { [year]: null },
       },
     },
     marital_units: {},
@@ -656,6 +661,12 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
 
   const marketIncome = roundCurrency(getYearValue(households, 'household_market_income', year))
   const taxes = roundCurrency(getYearValue(households, 'household_tax_before_refundable_credits', year))
+  const stateTaxesBeforeRefundableCredits = roundCurrency(
+    getYearValue(households, 'household_state_tax_before_refundable_credits', year),
+  )
+  const federalTaxesBeforeRefundableCredits = roundCurrency(
+    Math.max(0, taxes - stateTaxesBeforeRefundableCredits),
+  )
   const snap = roundCurrency((Number(getMonthValue(spmUnit, 'snap', year)) || 0) * 12)
   const wic = roundCurrency(
     Object.values(peopleResponse)
@@ -674,19 +685,18 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
       .reduce((sum, value) => sum + value, 0),
   )
   const acaPtc = roundCurrency((Number(getMonthValue(taxUnit, 'premium_tax_credit', year)) || 0) * 12)
+  const federalRefundableCredits = roundCurrency(
+    getYearValue(taxUnit, 'income_tax_refundable_credits', year),
+  )
+  const stateRefundableCredits = roundCurrency(
+    getYearValue(households, 'household_refundable_state_tax_credits', year),
+  )
   const tanf = roundCurrency(
     tanfVariable
       ? (Number(getMonthValue(spmUnit, tanfVariable, year)) || 0) * 12
       : 0,
   )
   const taxUnitFpg = roundCurrency(getYearValue(taxUnit, 'tax_unit_fpg', year))
-  const refundableCreditPrograms = buildRefundableCreditsFromResponse(
-    taxUnit,
-    peopleResponse,
-    descriptor,
-    year,
-  )
-
   const programs = {
     snap,
     tanf,
@@ -695,7 +705,8 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
     medicaid,
     chip,
     aca_ptc: acaPtc,
-    ...refundableCreditPrograms,
+    federal_refundable_credits: federalRefundableCredits,
+    state_refundable_credits: stateRefundableCredits,
   }
 
   const people = descriptor.people.map((person) => {
@@ -762,6 +773,8 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
     totals: {
       market_income: marketIncome,
       taxes,
+      federal_taxes_before_refundable_credits: federalTaxesBeforeRefundableCredits,
+      state_taxes_before_refundable_credits: stateTaxesBeforeRefundableCredits,
       core_support: coreSupport,
       net_resources: netResources,
     },
@@ -912,6 +925,10 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
     getYearValue(households, 'household_tax_before_refundable_credits', year),
     pointCount,
   )
+  const stateTaxValues = asArray(
+    getYearValue(households, 'household_state_tax_before_refundable_credits', year),
+    pointCount,
+  )
   const snapValues = asArray(
     getMonthValue(spmUnit, 'snap', year),
     pointCount,
@@ -948,11 +965,12 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
     )),
     pointCount,
   ).map((value) => value * 12)
-  const refundableCreditProgramValues = buildRefundableCreditSeriesFromResponse(
-    taxUnit,
-    peopleResponse,
-    descriptor,
-    year,
+  const federalRefundableCreditValues = asArray(
+    getYearValue(taxUnit, 'income_tax_refundable_credits', year),
+    pointCount,
+  )
+  const stateRefundableCreditValues = asArray(
+    getYearValue(households, 'household_refundable_state_tax_credits', year),
     pointCount,
   )
 
@@ -965,15 +983,15 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       medicaid: roundCurrency(medicaidValues[index]),
       chip: roundCurrency(chipValues[index]),
       aca_ptc: roundCurrency(premiumTaxCreditValues[index]),
-      ...Object.fromEntries(
-        Object.entries(refundableCreditProgramValues).map(([key, values]) => [
-          key,
-          roundCurrency(values[index]),
-        ]),
-      ),
+      federal_refundable_credits: roundCurrency(federalRefundableCreditValues[index]),
+      state_refundable_credits: roundCurrency(stateRefundableCreditValues[index]),
     }
     const marketIncome = roundCurrency(marketIncomeValues[index])
     const taxes = roundCurrency(taxValues[index])
+    const stateTaxesBeforeRefundableCredits = roundCurrency(stateTaxValues[index])
+    const federalTaxesBeforeRefundableCredits = roundCurrency(
+      Math.max(0, taxes - stateTaxesBeforeRefundableCredits),
+    )
     const coreSupport = roundCurrency(
       Object.values(programs).reduce((sum, value) => sum + value, 0),
     )
@@ -984,6 +1002,8 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       totals: {
         market_income: marketIncome,
         taxes,
+        federal_taxes_before_refundable_credits: federalTaxesBeforeRefundableCredits,
+        state_taxes_before_refundable_credits: stateTaxesBeforeRefundableCredits,
         core_support: coreSupport,
         net_resources: netResources,
       },
@@ -1011,19 +1031,10 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       aca_ptc: point.programs.aca_ptc,
       snap: point.programs.snap,
       free_school_meals: point.programs.free_school_meals,
-      eitc: point.programs.eitc,
-      ctc: point.programs.ctc,
-      refundable_american_opportunity_credit: point.programs.refundable_american_opportunity_credit,
-      recovery_rebate_credit: point.programs.recovery_rebate_credit,
-      refundable_payroll_tax_credit: point.programs.refundable_payroll_tax_credit,
-      state_eitc: point.programs.state_eitc,
-      state_ctc: point.programs.state_ctc,
-      state_cdcc: point.programs.state_cdcc,
-      state_property_tax_credit: point.programs.state_property_tax_credit,
-      vt_renter_credit: point.programs.vt_renter_credit,
-      va_refundable_eitc_if_claimed: point.programs.va_refundable_eitc_if_claimed,
-      va_low_income_tax_credit: point.programs.va_low_income_tax_credit,
-      nm_low_income_comprehensive_tax_rebate: point.programs.nm_low_income_comprehensive_tax_rebate,
+      federal_refundable_credits: point.programs.federal_refundable_credits,
+      state_refundable_credits: point.programs.state_refundable_credits,
+      federal_taxes_before_refundable_credits: point.totals.federal_taxes_before_refundable_credits,
+      state_taxes_before_refundable_credits: point.totals.state_taxes_before_refundable_credits,
       tanf: point.programs.tanf,
       wic: point.programs.wic,
       has_previous_point: Boolean(previousPoint),

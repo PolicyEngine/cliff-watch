@@ -78,13 +78,6 @@ function ResultsPanel({
           </div>
         </div>
 
-        <details className="benefit-breakdown" open>
-          <summary>Benefits and refundable tax credits</summary>
-          <div className="breakdown-content">
-            <ProgramBreakdown programs={result.program_breakdown} />
-          </div>
-        </details>
-
         <div className="poverty-context">
           <h4>Poverty context</h4>
           <p className="poverty-subtitle">
@@ -131,6 +124,13 @@ function ResultsPanel({
             )}
           </div>
         </div>
+
+        <details className="benefit-breakdown" open>
+          <summary>Benefits and refundable tax credits</summary>
+          <div className="breakdown-content">
+            <ProgramBreakdown programs={result.program_breakdown} />
+          </div>
+        </details>
       </section>
 
       <section className="results-panel">

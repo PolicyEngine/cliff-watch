@@ -27,7 +27,7 @@ function CliffInsights({ data, stepAnnual }) {
       .slice(0, MAX_ZONE_CARDS)
   ), [report.zones])
 
-  const thresholdCopy = `${formatCurrency(report.thresholds?.minDropAnnual || 0)}/yr down or ${formatLossRate(report.thresholds?.minLossRate || 0)}`
+  const thresholdCopy = `${formatCurrency(report.thresholds?.minDropAnnual || 0)}/yr net loss or any single program loss of ${formatCurrency(report.thresholds?.minDriverLossAnnual || 0)}/yr`
 
   if (report.cliffs.length === 0) {
     return (
@@ -61,7 +61,7 @@ function CliffInsights({ data, stepAnnual }) {
   const worstLossRateCliff = report.worstLossRateCliff
   const firstCliff = report.firstCliff
   const dominantDriver = report.dominantDrivers[0]
-  const overview = `The first meaningful cliff appears near ${formatCurrency(firstCliff.endIncomeAnnual)}/yr earnings. The biggest drop is ${formatCurrency(largestCliff.dropAnnual)}/yr, driven mostly by ${describeDrivers(largestCliff.cliff_drivers || report.dominantDrivers)}.`
+  const overview = `The first meaningful cliff appears near ${formatCurrency(firstCliff.endIncomeAnnual)}/yr earnings. The biggest drop is ${formatCurrency(largestCliff.dropAnnual)}/yr, driven mostly by ${describeDrivers(largestCliff.material_cliff_drivers || report.dominantDrivers)}.`
 
   return (
     <div className="cliff-insights">

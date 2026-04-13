@@ -12,7 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { niceTicks } from '../utils/niceTicks'
-import { buildCliffReport } from '../utils/cliffReport'
+import { buildCliffReport, filterMaterialCliffDrivers } from '../utils/cliffReport'
 
 const fmt = (value) => value.toLocaleString('en-US', {
   style: 'currency',
@@ -71,115 +71,35 @@ const PROGRAM_DETAIL_AREA_SERIES = [
     defaultVisible: true,
   },
   {
-    key: 'tax_cost_annual',
-    label: 'Taxes',
+    key: 'federal_taxes_before_refundable_credits_annual',
+    label: 'Federal taxes',
     type: 'area',
     stroke: '#DC2626',
     fill: '#FECACA',
     defaultVisible: true,
   },
   {
-    key: 'eitc_annual',
-    label: 'Federal EITC',
+    key: 'state_taxes_before_refundable_credits_annual',
+    label: 'State taxes',
+    type: 'area',
+    stroke: '#B91C1C',
+    fill: '#FCA5A5',
+    defaultVisible: true,
+  },
+  {
+    key: 'federal_refundable_credits_annual',
+    label: 'Federal refundable tax credits',
     type: 'area',
     stroke: '#7C3AED',
     fill: '#DDD6FE',
     defaultVisible: true,
   },
   {
-    key: 'ctc_annual',
-    label: 'Federal CTC',
+    key: 'state_refundable_credits_annual',
+    label: 'State refundable tax credits',
     type: 'area',
     stroke: '#6D28D9',
     fill: '#C4B5FD',
-    defaultVisible: true,
-  },
-  {
-    key: 'refundable_american_opportunity_credit_annual',
-    label: 'Refundable American Opportunity Credit',
-    type: 'area',
-    stroke: '#8B5CF6',
-    fill: '#E9D5FF',
-    defaultVisible: true,
-  },
-  {
-    key: 'recovery_rebate_credit_annual',
-    label: 'Recovery Rebate Credit',
-    type: 'area',
-    stroke: '#A855F7',
-    fill: '#F3E8FF',
-    defaultVisible: true,
-  },
-  {
-    key: 'refundable_payroll_tax_credit_annual',
-    label: 'Refundable Payroll Tax Credit',
-    type: 'area',
-    stroke: '#7E22CE',
-    fill: '#E9D8FD',
-    defaultVisible: true,
-  },
-  {
-    key: 'state_eitc_annual',
-    label: 'State EITC',
-    type: 'area',
-    stroke: '#5B21B6',
-    fill: '#C4B5FD',
-    defaultVisible: true,
-  },
-  {
-    key: 'state_ctc_annual',
-    label: 'State CTC',
-    type: 'area',
-    stroke: '#4C1D95',
-    fill: '#C7D2FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'state_cdcc_annual',
-    label: 'State CDCC',
-    type: 'area',
-    stroke: '#6D28D9',
-    fill: '#DDD6FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'state_property_tax_credit_annual',
-    label: 'State property tax credit',
-    type: 'area',
-    stroke: '#7C3AED',
-    fill: '#EDE9FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'vt_renter_credit_annual',
-    label: 'Vermont renter credit',
-    type: 'area',
-    stroke: '#6D28D9',
-    fill: '#E9E5FF',
-    defaultVisible: true,
-  },
-  {
-    key: 'va_refundable_eitc_if_claimed_annual',
-    label: 'Virginia refundable EITC',
-    type: 'area',
-    stroke: '#5B21B6',
-    fill: '#DDD6FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'va_low_income_tax_credit_annual',
-    label: 'Virginia low income tax credit',
-    type: 'area',
-    stroke: '#6D28D9',
-    fill: '#EDE9FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'nm_low_income_comprehensive_tax_rebate_annual',
-    label: 'New Mexico low income tax rebate',
-    type: 'area',
-    stroke: '#7C3AED',
-    fill: '#F3E8FF',
     defaultVisible: true,
   },
   {
@@ -305,24 +225,14 @@ function BenefitChart({ data }) {
         detail_net_income_annual: Number(point.net_resources || 0),
         benefits_and_credits_annual: coreBenefitsAnnual,
         taxes_annual: taxesAnnual,
-        tax_cost_annual: -taxesAnnual,
+        federal_taxes_before_refundable_credits_annual: -Number(point.federal_taxes_before_refundable_credits || 0),
+        state_taxes_before_refundable_credits_annual: -Number(point.state_taxes_before_refundable_credits || 0),
         medicaid_annual: Number(point.medicaid || 0),
         chip_annual: Number(point.chip || 0),
         aca_ptc_annual: Number(point.aca_ptc || 0),
         snap_annual: Number(point.snap || 0),
-        eitc_annual: Number(point.eitc || 0),
-        ctc_annual: Number(point.ctc || 0),
-        refundable_american_opportunity_credit_annual: Number(point.refundable_american_opportunity_credit || 0),
-        recovery_rebate_credit_annual: Number(point.recovery_rebate_credit || 0),
-        refundable_payroll_tax_credit_annual: Number(point.refundable_payroll_tax_credit || 0),
-        state_eitc_annual: Number(point.state_eitc || 0),
-        state_ctc_annual: Number(point.state_ctc || 0),
-        state_cdcc_annual: Number(point.state_cdcc || 0),
-        state_property_tax_credit_annual: Number(point.state_property_tax_credit || 0),
-        vt_renter_credit_annual: Number(point.vt_renter_credit || 0),
-        va_refundable_eitc_if_claimed_annual: Number(point.va_refundable_eitc_if_claimed || 0),
-        va_low_income_tax_credit_annual: Number(point.va_low_income_tax_credit || 0),
-        nm_low_income_comprehensive_tax_rebate_annual: Number(point.nm_low_income_comprehensive_tax_rebate || 0),
+        federal_refundable_credits_annual: Number(point.federal_refundable_credits || 0),
+        state_refundable_credits_annual: Number(point.state_refundable_credits || 0),
         tanf_annual: Number(point.tanf || 0),
         free_school_meals_annual: Number(point.free_school_meals || 0),
         wic_annual: Number(point.wic || 0),
@@ -342,7 +252,7 @@ function BenefitChart({ data }) {
         has_upcoming_cliff: true,
         upcoming_cliff_drop_annual: Number(nextPoint.cliff_drop_annual || 0),
         upcoming_cliff_income_annual: Number(nextPoint.earned_income_annual || 0),
-        upcoming_cliff_drivers: nextPoint.cliff_drivers || [],
+        upcoming_cliff_drivers: filterMaterialCliffDrivers(nextPoint.cliff_drivers || []),
       }
     })
   }, [data])
@@ -355,16 +265,19 @@ function BenefitChart({ data }) {
 
   const detailLegendSeries = useMemo(() => {
     const earningsSeries = detailAreaSeries.find((series) => series.key === 'earned_income_annual')
-    const taxesSeries = detailAreaSeries.find((series) => series.key === 'tax_cost_annual')
+    const federalTaxesSeries = detailAreaSeries.find((series) => series.key === 'federal_taxes_before_refundable_credits_annual')
+    const stateTaxesSeries = detailAreaSeries.find((series) => series.key === 'state_taxes_before_refundable_credits_annual')
     const remainingAreaSeries = detailAreaSeries.filter((series) => (
       series.key !== 'earned_income_annual'
-      && series.key !== 'tax_cost_annual'
+      && series.key !== 'federal_taxes_before_refundable_credits_annual'
+      && series.key !== 'state_taxes_before_refundable_credits_annual'
     ))
 
     return [
       PROGRAM_DETAIL_LINE_SERIES[0],
       earningsSeries,
-      taxesSeries,
+      federalTaxesSeries,
+      stateTaxesSeries,
       ...remainingAreaSeries,
     ].filter(Boolean)
   }, [detailAreaSeries])
@@ -403,6 +316,13 @@ function BenefitChart({ data }) {
 
   const cliffReport = useMemo(() => buildCliffReport(annualizedData), [annualizedData])
   const highlightedCliffs = cliffReport.cliffs || []
+  const reportableCliffKeys = useMemo(() => (
+    new Set(
+      highlightedCliffs.map((cliff) => (
+        `${Math.round(cliff.startIncomeAnnual)}:${Math.round(cliff.endIncomeAnnual)}`
+      )),
+    )
+  ), [highlightedCliffs])
 
   const { xTicks, netYTicks, detailYTicks, detailDomain } = useMemo(() => {
     if (!annualizedData.length) {
@@ -468,7 +388,12 @@ function BenefitChart({ data }) {
   }
 
   const getTooltipCliff = (point) => {
-    if (point?.has_upcoming_cliff) {
+    const currentStartIncomeAnnual = Number(point?.earned_income_annual || 0) - Number(point?.step_annual || 0)
+    const currentEndIncomeAnnual = Number(point?.earned_income_annual || 0)
+    const currentCliffKey = `${Math.round(currentStartIncomeAnnual)}:${Math.round(currentEndIncomeAnnual)}`
+    const upcomingCliffKey = `${Math.round(Number(point?.earned_income_annual || 0))}:${Math.round(Number(point?.upcoming_cliff_income_annual || 0))}`
+
+    if (point?.has_upcoming_cliff && reportableCliffKeys.has(upcomingCliffKey)) {
       return {
         kind: 'upcoming',
         dropAnnual: Number(point.upcoming_cliff_drop_annual || 0),
@@ -477,12 +402,12 @@ function BenefitChart({ data }) {
       }
     }
 
-    if (point?.is_cliff) {
+    if (point?.is_cliff && reportableCliffKeys.has(currentCliffKey)) {
       return {
         kind: 'current',
         dropAnnual: Number(point.cliff_drop_annual || 0),
         targetIncomeAnnual: Number(point.earned_income_annual || 0),
-        drivers: point.cliff_drivers || [],
+        drivers: filterMaterialCliffDrivers(point.cliff_drivers || []),
       }
     }
 
@@ -526,7 +451,7 @@ function BenefitChart({ data }) {
             </div>
           ) : null}
         </div>
-        {tooltipCliff ? (
+        {tooltipCliff?.drivers?.length ? (
           <div className="chart-tooltip-divider">
             {tooltipCliff.kind === 'upcoming' ? (
               <p className="chart-tooltip-subtle">
@@ -572,7 +497,7 @@ function BenefitChart({ data }) {
             </div>
           ))}
         </div>
-        {tooltipCliff ? (
+        {tooltipCliff?.drivers?.length ? (
           <div className="chart-tooltip-divider">
             {tooltipCliff.kind === 'upcoming' ? (
               <p className="chart-tooltip-subtle">
@@ -604,7 +529,7 @@ function BenefitChart({ data }) {
           <p>
             {chartMode === 'net_income'
               ? 'Track how annual net income changes as earnings rise, with cliff markers placed at the last earnings level before a drop.'
-              : 'Turn programs on and off to see gross earnings and benefits above zero, taxes below zero, and the black line showing final annual net income.'}
+              : 'Turn programs on and off to see earnings and supports above zero, federal and state taxes below zero, and the black line showing final annual net income.'}
           </p>
         </div>
         <div className="chart-view-toggle" role="tablist" aria-label="Chart view">
@@ -780,10 +705,15 @@ function BenefitChart({ data }) {
                     type="linear"
                     dataKey={series.key}
                     stackId="income-stack"
-                    stroke={series.stroke}
+                    stroke="none"
                     fill={series.fill}
-                    fillOpacity={series.key === 'tax_cost_annual' ? 0.78 : 0.9}
-                    strokeWidth={series.key === 'tax_cost_annual' ? 1 : 1.15}
+                    fillOpacity={
+                      series.key === 'federal_taxes_before_refundable_credits_annual'
+                      || series.key === 'state_taxes_before_refundable_credits_annual'
+                        ? 0.78
+                        : 0.9
+                    }
+                    strokeWidth={0}
                     dot={false}
                     isAnimationActive={false}
                   />

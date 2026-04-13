@@ -1,7 +1,8 @@
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100
-const MIN_REPORTABLE_DROP_ANNUAL = 180
-const MIN_REPORTABLE_LOSS_RATE = 0.5
+const MIN_REPORTABLE_DROP_ANNUAL = 500
+const MIN_REPORTABLE_DRIVER_LOSS_ANNUAL = 500
 const ZONE_GAP_MULTIPLIER = 1.5
+const driverImpactAnnual = (driver) => Math.abs(Number(driver?.resource_effect_annual) || 0)
 
 const sortDrivers = (drivers) => drivers.sort((left, right) => {
   if (right.totalImpactAnnual !== left.totalImpactAnnual) {
@@ -13,6 +14,15 @@ const sortDrivers = (drivers) => drivers.sort((left, right) => {
   }
 
   return left.label.localeCompare(right.label)
+})
+
+const sortStepDrivers = (drivers) => [...drivers].sort((left, right) => {
+  const impactDifference = driverImpactAnnual(right) - driverImpactAnnual(left)
+  if (impactDifference !== 0) {
+    return impactDifference
+  }
+
+  return (left?.label || '').localeCompare(right?.label || '')
 })
 
 export function getCliffSeverity(dropAnnual, stepAnnual) {
@@ -80,10 +90,21 @@ export function rollupCliffDrivers(drivers = []) {
   return sortDrivers([...aggregates.values()])
 }
 
+export function filterMaterialCliffDrivers(drivers = []) {
+  return sortStepDrivers(
+    drivers.filter((driver) => (
+      driver?.kind === 'benefit_loss'
+      && driverImpactAnnual(driver) >= MIN_REPORTABLE_DRIVER_LOSS_ANNUAL
+    )),
+  )
+}
+
 function isReportableCliff(cliff) {
+  const hasMajorProgramLoss = filterMaterialCliffDrivers(cliff.cliff_drivers || []).length > 0
+
   return (
     cliff.dropAnnual >= MIN_REPORTABLE_DROP_ANNUAL
-    || cliff.lossRate >= MIN_REPORTABLE_LOSS_RATE
+    || hasMajorProgramLoss
   )
 }
 
@@ -134,6 +155,7 @@ export function buildCliffReport(data = []) {
     return [
       {
         ...point,
+        material_cliff_drivers: filterMaterialCliffDrivers(point.cliff_drivers || []),
         dropAnnual,
         stepAnnual,
         severity,
@@ -163,7 +185,7 @@ export function buildCliffReport(data = []) {
       hiddenCliffCount: rawCliffs.length,
       thresholds: {
         minDropAnnual: MIN_REPORTABLE_DROP_ANNUAL,
-        minLossRate: MIN_REPORTABLE_LOSS_RATE,
+        minDriverLossAnnual: MIN_REPORTABLE_DRIVER_LOSS_ANNUAL,
       },
     }
   }
@@ -196,7 +218,7 @@ export function buildCliffReport(data = []) {
 
   const zones = rawZones.map((zone) => {
     const dominantDrivers = rollupCliffDrivers(
-      zone.cliffs.flatMap((cliff) => cliff.cliff_drivers || []),
+      zone.cliffs.flatMap((cliff) => cliff.material_cliff_drivers || []),
     )
     const largestCliff = zone.cliffs.reduce((largest, cliff) => (
       cliff.dropAnnual > largest.dropAnnual ? cliff : largest
@@ -228,7 +250,7 @@ export function buildCliffReport(data = []) {
   })
 
   const dominantDrivers = rollupCliffDrivers(
-    cliffs.flatMap((cliff) => cliff.cliff_drivers || []),
+    cliffs.flatMap((cliff) => cliff.material_cliff_drivers || []),
   )
   const largestCliff = cliffs.reduce((largest, cliff) => (
     cliff.dropAnnual > largest.dropAnnual ? cliff : largest
@@ -247,7 +269,7 @@ export function buildCliffReport(data = []) {
     hiddenCliffCount: Math.max(0, rawCliffs.length - cliffs.length),
     thresholds: {
       minDropAnnual: MIN_REPORTABLE_DROP_ANNUAL,
-      minLossRate: MIN_REPORTABLE_LOSS_RATE,
+      minDriverLossAnnual: MIN_REPORTABLE_DRIVER_LOSS_ANNUAL,
     },
   }
 }
