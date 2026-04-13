@@ -18,7 +18,11 @@ from scripts.calculator import (
 )
 from scripts.config import (
     DEFAULT_CLIFF_DELTA,
+    DEFAULT_FILING_STATUS,
+    DEFAULT_SERIES_EARNINGS_BUFFER,
     DEFAULT_YEAR,
+    DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
+    FILING_STATUS_OPTIONS,
     HOUSEHOLD_TYPES,
     PROGRAM_DEFINITIONS,
     STATE_INFO,
@@ -39,9 +43,11 @@ def metadata_response() -> dict[str, Any]:
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,
+        "filing_statuses": FILING_STATUS_OPTIONS,
         "defaults": {
             "state": "GA",
             "earned_income_yearly": 30000,
+            "filing_status": DEFAULT_FILING_STATUS,
             "people": [
                 {"kind": "adult", "age": 33},
                 {"kind": "child", "age": 6},
@@ -49,6 +55,8 @@ def metadata_response() -> dict[str, Any]:
             ],
             "series_max_earned_income": DEFAULT_SERIES_MAX_EARNINGS,
             "series_step": DEFAULT_SERIES_STEP,
+            "series_earnings_buffer": DEFAULT_SERIES_EARNINGS_BUFFER,
+            "series_min_earnings_window": DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
             "cliff_delta": DEFAULT_CLIFF_DELTA,
         },
     }
@@ -56,8 +64,8 @@ def metadata_response() -> dict[str, Any]:
 
 def _state_sort_key(item: dict[str, Any]) -> tuple[float, float, str]:
     return (
-        -item["net_resources_monthly"],
-        -item["core_support_monthly"],
+        -item["net_resources"],
+        -item["core_support"],
         item["state"],
     )
 
@@ -79,7 +87,7 @@ def _series_cached(
     serialized_payload: str,
     max_earned_income: int,
     step: int,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     payload = parse_household_payload(json.loads(serialized_payload))
     return calculate_income_series(
         payload,
@@ -101,15 +109,15 @@ def compute_household(payload: HouseholdInput) -> dict[str, Any]:
 def compute_states(payload: HouseholdInput) -> dict[str, Any]:
     states = _states_cached(_serialize_payload(payload))
     sorted_states = sorted(states, key=_state_sort_key)
-    max_resources = max(
-        (item["net_resources_monthly"] for item in sorted_states),
+    max_resources_annual = max(
+        (item["net_resources"] for item in sorted_states),
         default=0,
     )
     for index, item in enumerate(sorted_states, start=1):
         item["rank"] = index
     return {
         "states": sorted_states,
-        "max_net_resources_monthly": max_resources,
+        "max_net_resources": max_resources_annual,
     }
 
 
@@ -119,13 +127,19 @@ def compute_series(
     max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
     step: int = DEFAULT_SERIES_STEP,
 ) -> dict[str, Any]:
-    data = _series_cached(_serialize_payload(payload), max_earned_income, step)
+    series = _series_cached(_serialize_payload(payload), max_earned_income, step)
+    data = series["data"]
     return {
         "data": data,
-        "step_annual": step,
-        "step_monthly": round(step / 12, 2),
-        "max_net_resources_monthly": max(
-            (item["net_resources_monthly"] for item in data),
+        "step_annual": series["step_annual"],
+        "requested_step_annual": series["requested_step_annual"],
+        "max_earned_income": series["max_earned_income"],
+        "requested_max_earned_income": series["requested_max_earned_income"],
+        "truncated": series["truncated"],
+        "truncation_reason": series["truncation_reason"],
+        "point_count": series["point_count"],
+        "max_net_resources": max(
+            (item["net_resources"] for item in data),
             default=0,
         ),
     }
@@ -135,14 +149,14 @@ def compute_household_types(payload: HouseholdInput) -> dict[str, Any]:
     items = _household_types_cached(_serialize_payload(payload))
     sorted_items = sorted(
         items,
-        key=lambda item: (-item["net_resources_monthly"], item["label"]),
+        key=lambda item: (-item["net_resources_annual"], item["label"]),
     )
     for index, item in enumerate(sorted_items, start=1):
         item["rank"] = index
     return {
         "households": sorted_items,
-        "max_net_resources_monthly": max(
-            (item["net_resources_monthly"] for item in sorted_items),
+        "max_net_resources": max(
+            (item["net_resources_annual"] for item in sorted_items),
             default=0,
         ),
     }

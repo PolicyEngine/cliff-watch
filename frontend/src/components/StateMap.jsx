@@ -70,10 +70,11 @@ function StateMap({ selectedState, availableStates, onStateSelect, comparisonDat
 
   const getHeatmapColor = (stateCode) => {
     const data = benefitMap[stateCode]
-    if (!data || data.net_resources_monthly <= 0 || maxNetResources <= 0) {
+    const netResourcesAnnual = Number(data?.net_resources || 0)
+    if (!data || netResourcesAnnual <= 0 || maxNetResources <= 0) {
       return '#f0ede8'
     }
-    const ratio = data.net_resources_monthly / maxNetResources
+    const ratio = netResourcesAnnual / maxNetResources
     const index = Math.min(Math.floor(ratio * HEATMAP_COLORS.length), HEATMAP_COLORS.length - 1)
     return HEATMAP_COLORS[index]
   }
@@ -94,10 +95,11 @@ function StateMap({ selectedState, availableStates, onStateSelect, comparisonDat
   const getHoverColor = (stateCode) => {
     if (isHeatmapMode) {
       const data = benefitMap[stateCode]
-      if (!data || data.net_resources_monthly <= 0) {
+      const netResourcesAnnual = Number(data?.net_resources || 0)
+      if (!data || netResourcesAnnual <= 0) {
         return '#e5e2dd'
       }
-      const ratio = data.net_resources_monthly / maxNetResources
+      const ratio = netResourcesAnnual / maxNetResources
       const index = Math.min(Math.floor(ratio * HEATMAP_COLORS.length) + 1, HEATMAP_COLORS.length - 1)
       return HEATMAP_COLORS[index]
     }
@@ -163,7 +165,7 @@ function StateMap({ selectedState, availableStates, onStateSelect, comparisonDat
           <strong>{STATE_NAMES[selectedState] || selectedState}</strong>
           {isHeatmapMode && benefitMap[selectedState] ? (
             <span className="benefit-amount">
-              {formatCurrency(benefitMap[selectedState].net_resources_monthly)}/mo
+              {formatCurrency(benefitMap[selectedState].net_resources)}/yr
             </span>
           ) : null}
         </div>
@@ -173,7 +175,7 @@ function StateMap({ selectedState, availableStates, onStateSelect, comparisonDat
             <strong>{STATE_NAMES[hoveredState]}</strong>
             {isHeatmapMode && benefitMap[hoveredState] ? (
               <span className="benefit-amount">
-                {formatCurrency(benefitMap[hoveredState].net_resources_monthly)}/mo
+                {formatCurrency(benefitMap[hoveredState].net_resources)}/yr
               </span>
             ) : null}
           </div>

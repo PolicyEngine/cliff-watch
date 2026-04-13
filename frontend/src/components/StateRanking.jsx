@@ -20,7 +20,12 @@ const getOrdinal = (n) => {
 function StateRanking({ data, selectedState, onStateSelect }) {
   const [expanded, setExpanded] = useState(false)
 
-  const allStates = useMemo(() => data || [], [data])
+  const allStates = useMemo(() => (
+    (data || []).map((item) => ({
+      ...item,
+      net_resources_annual: Number(item.net_resources || 0),
+    }))
+  ), [data])
   const displayStates = expanded ? allStates : allStates.slice(0, DEFAULT_COUNT)
 
   const formatCurrency = (value) => new Intl.NumberFormat('en-US', {
@@ -51,10 +56,7 @@ function StateRanking({ data, selectedState, onStateSelect }) {
         }}>
           <p style={{ fontWeight: 600, marginBottom: '4px' }}>{item.state_name}</p>
           <p style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4FD1C5' }}>
-            {formatCurrency(item.net_resources_monthly)}/mo
-          </p>
-          <p style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '4px' }}>
-            {formatCurrency(item.net_resources)}/year
+            {formatCurrency(item.net_resources_annual)}/yr
           </p>
         </div>
       )
@@ -72,9 +74,9 @@ function StateRanking({ data, selectedState, onStateSelect }) {
         <div className="selected-state-rank">
           <span className="rank-badge">#{selectedStateData.rank}</span>
           <span className="rank-text">
-            <strong>{selectedStateData.state_name}</strong> provides the {getOrdinal(selectedStateData.rank)} highest modeled monthly net resources for this household
-            {selectedStateData.net_resources_monthly > 0 && (
-              <> (<strong>{formatCurrency(selectedStateData.net_resources_monthly)}/mo</strong>)</>
+            <strong>{selectedStateData.state_name}</strong> provides the {getOrdinal(selectedStateData.rank)} highest modeled annual net resources for this household
+            {selectedStateData.net_resources_annual > 0 && (
+              <> (<strong>{formatCurrency(selectedStateData.net_resources_annual)}/yr</strong>)</>
             )}
           </span>
         </div>
@@ -90,7 +92,7 @@ function StateRanking({ data, selectedState, onStateSelect }) {
           >
             <XAxis
               type="number"
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={formatCurrency}
               tick={{ fill: '#6b7280', fontSize: 11 }}
               axisLine={{ stroke: '#e5e2dd' }}
               tickLine={{ stroke: '#e5e2dd' }}
@@ -105,7 +107,7 @@ function StateRanking({ data, selectedState, onStateSelect }) {
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(13, 148, 136, 0.08)' }} />
             <Bar
-              dataKey="net_resources_monthly"
+              dataKey="net_resources_annual"
               radius={[0, 4, 4, 0]}
               onClick={(item) => onStateSelect(item.state)}
               style={{ cursor: 'pointer' }}

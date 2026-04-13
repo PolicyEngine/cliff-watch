@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -11,9 +12,16 @@ from typing import Any
 try:
     from scripts.config import (
         DEFAULT_CLIFF_DELTA,
+        DEFAULT_FILING_STATUS,
+        DEFAULT_SERIES_EARNINGS_BUFFER,
         DEFAULT_SERIES_MAX_EARNINGS,
+        DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
+        DEFAULT_SERIES_STEP_INCREMENT,
         DEFAULT_SERIES_STEP,
+        DEFAULT_SERIES_TARGET_POINTS,
         DEFAULT_YEAR,
+        FILING_STATUS_OPTIONS,
+        MARRIED_FILING_STATUSES,
         HOUSEHOLD_TYPE_BY_ID,
         PROGRAM_DEFINITIONS,
         STATE_INFO,
@@ -23,9 +31,16 @@ try:
 except ModuleNotFoundError:
     from config import (
         DEFAULT_CLIFF_DELTA,
+        DEFAULT_FILING_STATUS,
+        DEFAULT_SERIES_EARNINGS_BUFFER,
         DEFAULT_SERIES_MAX_EARNINGS,
+        DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
+        DEFAULT_SERIES_STEP_INCREMENT,
         DEFAULT_SERIES_STEP,
+        DEFAULT_SERIES_TARGET_POINTS,
         DEFAULT_YEAR,
+        FILING_STATUS_OPTIONS,
+        MARRIED_FILING_STATUSES,
         HOUSEHOLD_TYPE_BY_ID,
         PROGRAM_DEFINITIONS,
         STATE_INFO,
@@ -53,11 +68,78 @@ class HouseholdInput:
     county: str | None = None
     people: tuple[HouseholdMemberInput, ...] = ()
     household_type: str | None = None
+    filing_status: str | None = None
 
 
 PROGRAM_LABEL_BY_KEY = {
     item["key"]: item["label"] for item in PROGRAM_DEFINITIONS
 }
+FILING_STATUS_CODES = {
+    item["code"] for item in FILING_STATUS_OPTIONS
+}
+REFUNDABLE_CREDIT_COMPONENTS = (
+    {"key": "eitc", "variable": "eitc", "map_to": "tax_unit"},
+    {
+        "key": "ctc",
+        "variable": "refundable_ctc",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "refundable_american_opportunity_credit",
+        "variable": "refundable_american_opportunity_credit",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "recovery_rebate_credit",
+        "variable": "recovery_rebate_credit",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "refundable_payroll_tax_credit",
+        "variable": "refundable_payroll_tax_credit",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "state_eitc",
+        "variable": "state_eitc",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "state_ctc",
+        "variable": "state_ctc",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "state_cdcc",
+        "variable": "state_cdcc",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "state_property_tax_credit",
+        "variable": "state_property_tax_credit",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "vt_renter_credit",
+        "variable": "vt_renter_credit",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "va_refundable_eitc_if_claimed",
+        "variable": "va_refundable_eitc_if_claimed",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "va_low_income_tax_credit",
+        "variable": "va_low_income_tax_credit",
+        "map_to": "tax_unit",
+    },
+    {
+        "key": "nm_low_income_comprehensive_tax_rebate",
+        "variable": "nm_low_income_comprehensive_tax_rebate",
+        "map_to": "tax_unit",
+    },
+)
 
 
 def _candidate_policyengine_repo() -> Path | None:
@@ -106,6 +188,16 @@ def _as_bool_list(value: Any) -> list[bool]:
     return [bool(value)]
 
 
+def _as_float_list(value: Any) -> list[float]:
+    if hasattr(value, "tolist"):
+        value = value.tolist()
+    if isinstance(value, list):
+        if value and isinstance(value[0], list):
+            value = value[0]
+        return [float(item) for item in value]
+    return [float(value)]
+
+
 def _normalize_county(county: str | None, state: str) -> str | None:
     if county is None:
         return None
@@ -149,12 +241,19 @@ def _resolved_people(payload: HouseholdInput) -> list[dict[str, Any]]:
     people = []
     adult_index = 0
     child_index = 0
+    filing_status = _effective_filing_status(payload)
+    is_married = filing_status in MARRIED_FILING_STATUSES
 
     for member in _input_people(payload):
         if member.kind == "adult":
             adult_index += 1
             person_id = f"adult_{adult_index}"
-            role = "head" if adult_index == 1 else "spouse" if adult_index == 2 else "other_adult"
+            if adult_index == 1:
+                role = "head"
+            elif adult_index == 2 and is_married:
+                role = "spouse"
+            else:
+                role = "other_adult"
         else:
             child_index += 1
             person_id = f"child_{child_index}"
@@ -206,9 +305,27 @@ def _household_descriptor(payload: HouseholdInput) -> dict[str, Any]:
         "label": f"{_format_count(num_adults, 'adult', 'adults')} + {_format_count(num_children, 'child', 'children')}",
         "short_label": f"{num_adults}A/{num_children}C",
         "description": ". ".join(description_parts) if description_parts else "Custom household.",
-        "summary": "The first adult is treated as the primary earner, the second adult as a spouse, and later adults as additional household members.",
+        "summary": "The first adult is treated as the primary earner. When filing jointly or separately, the second adult is treated as a spouse.",
         "people": people,
     }
+
+
+def _derive_filing_status(
+    people: tuple[HouseholdMemberInput, ...],
+) -> str:
+    adults = sum(1 for person in people if person.kind == "adult")
+    children = sum(1 for person in people if person.kind == "child")
+    if adults >= 2:
+        return "JOINT"
+    if children > 0:
+        return DEFAULT_FILING_STATUS
+    return "SINGLE"
+
+
+def _effective_filing_status(payload: HouseholdInput) -> str:
+    if payload.filing_status in FILING_STATUS_CODES:
+        return str(payload.filing_status)
+    return _derive_filing_status(_input_people(payload))
 
 
 def _validate_input(payload: HouseholdInput) -> None:
@@ -219,10 +336,20 @@ def _validate_input(payload: HouseholdInput) -> None:
     if payload.earned_income < 0:
         raise ValueError("earned_income must be non-negative")
     people = _input_people(payload)
+    filing_status = _effective_filing_status(payload)
     if not people:
         raise ValueError("At least one household member is required")
     if not any(person.kind == "adult" for person in people):
         raise ValueError("At least one adult household member is required")
+    if filing_status not in FILING_STATUS_CODES:
+        raise ValueError(f"Unsupported filing_status: {filing_status}")
+    if (
+        filing_status in MARRIED_FILING_STATUSES
+        and sum(1 for person in people if person.kind == "adult") < 2
+    ):
+        raise ValueError(
+            "Married filing statuses require two adult household members"
+        )
     for person in people:
         if person.kind not in {"adult", "child"}:
             raise ValueError(f"Unsupported household member kind: {person.kind}")
@@ -230,11 +357,28 @@ def _validate_input(payload: HouseholdInput) -> None:
             raise ValueError(f"Invalid age: {person.age}")
 
 
-def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
-    _validate_input(payload)
+def _base_person_data(
+    person: dict[str, Any],
+    *,
+    year: int,
+) -> dict[str, Any]:
+    return {
+        "age": {year: person["age"]},
+        "has_itin": {year: True},
+        "has_esi": {year: False},
+        "offered_aca_disqualifying_esi": {year: False},
+        "is_pregnant": {year: bool(person.get("is_pregnant", False))},
+        "under_60_days_postpartum": {year: False},
+        "immigration_status_str": {year: "CITIZEN"},
+    }
 
-    descriptor = _household_descriptor(payload)
-    members = descriptor["people"]
+
+def _base_household_groups(
+    members: list[dict[str, Any]],
+    *,
+    payload: HouseholdInput,
+    include_income_overrides: bool,
+) -> dict[str, Any]:
     year = payload.year
     earned_income = float(payload.earned_income)
     monthly_earned = earned_income / 12
@@ -242,17 +386,9 @@ def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
     member_ids = [person["id"] for person in members]
 
     for index, person in enumerate(members):
-        person_data: dict[str, Any] = {
-            "age": {year: person["age"]},
-            "has_itin": {year: True},
-            "has_esi": {year: False},
-            "offered_aca_disqualifying_esi": {year: False},
-            "is_pregnant": {year: bool(person.get("is_pregnant", False))},
-            "under_60_days_postpartum": {year: False},
-            "immigration_status_str": {year: "CITIZEN"},
-        }
+        person_data = _base_person_data(person, year=year)
 
-        if index == 0 and earned_income > 0:
+        if include_income_overrides and index == 0 and earned_income > 0:
             person_data["employment_income"] = {year: earned_income}
             person_data["tanf_gross_earned_income"] = {
                 f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
@@ -271,6 +407,8 @@ def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
                     f"{year}-{month:02d}": monthly_earned
                     for month in range(1, 13)
                 }
+        elif not include_income_overrides and index == 0:
+            person_data["employment_income"] = {year: None}
 
         people[person["id"]] = person_data
 
@@ -283,22 +421,24 @@ def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
     if county:
         household["county"] = {year: county}
 
+    tax_unit = {
+        "members": member_ids,
+        "filing_status": {year: _effective_filing_status(payload)},
+    }
+    if include_income_overrides:
+        tax_unit["aca_magi"] = {year: earned_income}
+        tax_unit["medicaid_magi"] = {year: earned_income}
+
     situation: dict[str, Any] = {
         "people": people,
         "families": {"family": {"members": member_ids}},
         "spm_units": {"spm_unit": {"members": member_ids}},
-        "tax_units": {
-            "tax_unit": {
-                "members": member_ids,
-                "aca_magi": {year: earned_income},
-                "medicaid_magi": {year: earned_income},
-            }
-        },
+        "tax_units": {"tax_unit": tax_unit},
         "households": {"household": household},
         "marital_units": {},
     }
 
-    if payload.state == "CO" and earned_income > 0:
+    if include_income_overrides and payload.state == "CO" and earned_income > 0:
         situation["spm_units"]["spm_unit"][
             "co_tanf_countable_gross_earned_income"
         ] = {year: earned_income}
@@ -308,7 +448,10 @@ def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
         for person in members
         if person["role"] in {"head", "spouse"}
     ]
-    if head_and_spouse:
+    if (
+        len(head_and_spouse) == 2
+        and _effective_filing_status(payload) in MARRIED_FILING_STATUSES
+    ):
         situation["marital_units"]["primary_marital_unit"] = {
             "members": head_and_spouse
         }
@@ -319,6 +462,44 @@ def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
                 "members": [person["id"]]
             }
 
+    return situation
+
+
+def build_household_situation(payload: HouseholdInput) -> dict[str, Any]:
+    _validate_input(payload)
+
+    descriptor = _household_descriptor(payload)
+    return _base_household_groups(
+        descriptor["people"],
+        payload=payload,
+        include_income_overrides=True,
+    )
+
+
+def build_household_variation_situation(
+    payload: HouseholdInput,
+    *,
+    max_earned_income: int,
+    count: int,
+) -> dict[str, Any]:
+    _validate_input(payload)
+    descriptor = _household_descriptor(payload)
+    situation = _base_household_groups(
+        descriptor["people"],
+        payload=payload,
+        include_income_overrides=False,
+    )
+    situation["axes"] = [
+        [
+            {
+                "name": "employment_income",
+                "period": payload.year,
+                "min": 0,
+                "max": max_earned_income,
+                "count": count,
+            }
+        ]
+    ]
     return situation
 
 
@@ -341,6 +522,42 @@ def _calculate_variable(
     return value
 
 
+def _calculate_variable_array(
+    simulation: Any,
+    variable: str,
+    year: int,
+    *,
+    map_to: str | None = None,
+    monthly: bool = False,
+    annualize: bool = False,
+) -> list[float]:
+    period = f"{year}-01" if monthly else year
+    kwargs: dict[str, Any] = {"period": period}
+    if map_to is not None:
+        kwargs["map_to"] = map_to
+    values = _as_float_list(simulation.calculate(variable, **kwargs))
+    if monthly and annualize:
+        return [value * 12 for value in values]
+    return values
+
+
+def _normalize_series_values(
+    values: list[float],
+    point_count: int,
+    *,
+    default: float = 0.0,
+) -> list[float]:
+    if not values:
+        return [default] * point_count
+    if len(values) == point_count:
+        return values
+    if len(values) == 1:
+        return values * point_count
+    raise ValueError(
+        f"Expected {point_count} series values but received {len(values)}"
+    )
+
+
 def _calculate_tanf_amount(simulation: Any, payload: HouseholdInput) -> float:
     variable = STATE_TANF_VARIABLES.get(payload.state)
     if not variable:
@@ -349,6 +566,19 @@ def _calculate_tanf_amount(simulation: Any, payload: HouseholdInput) -> float:
         return _calculate_variable(simulation, variable, payload.year)
     except Exception:
         return 0.0
+
+
+def _calculate_tanf_amount_array(
+    simulation: Any,
+    payload: HouseholdInput,
+) -> list[float]:
+    variable = STATE_TANF_VARIABLES.get(payload.state)
+    if not variable:
+        return []
+    try:
+        return _calculate_variable_array(simulation, variable, payload.year)
+    except Exception:
+        return []
 
 
 def _template_counts(payload: HouseholdInput) -> dict[str, int]:
@@ -381,6 +611,45 @@ def _best_access_program(
     return "none"
 
 
+def _calculate_refundable_credit_programs(
+    simulation: Any,
+    year: int,
+) -> dict[str, float]:
+    values = {}
+    for component in REFUNDABLE_CREDIT_COMPONENTS:
+        try:
+            value = _calculate_variable(
+                simulation,
+                component["variable"],
+                year,
+                map_to=component["map_to"],
+            )
+        except Exception:
+            value = 0.0
+        values[component["key"]] = round(value, 2)
+    return values
+
+
+def _calculate_refundable_credit_program_arrays(
+    simulation: Any,
+    year: int,
+    point_count: int,
+) -> dict[str, list[float]]:
+    values: dict[str, list[float]] = {}
+    for component in REFUNDABLE_CREDIT_COMPONENTS:
+        try:
+            series = _calculate_variable_array(
+                simulation,
+                component["variable"],
+                year,
+                map_to=component["map_to"],
+            )
+        except Exception:
+            series = []
+        values[component["key"]] = _normalize_series_values(series, point_count)
+    return values
+
+
 def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
     Simulation = _load_simulation()
     situation = build_household_situation(payload)
@@ -398,12 +667,6 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
     taxes = _calculate_variable(
         simulation,
         "household_tax_before_refundable_credits",
-        year,
-        map_to="household",
-    )
-    refundable_credits = _calculate_variable(
-        simulation,
-        "household_refundable_tax_credits",
         year,
         map_to="household",
     )
@@ -507,10 +770,10 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         "tanf": tanf,
         "wic": wic,
         "free_school_meals": free_school_meals,
-        "refundables": refundable_credits,
         "medicaid": medicaid_value,
         "chip": chip_value,
         "aca_ptc": aca_ptc,
+        **_calculate_refundable_credit_programs(simulation, year),
     }
     core_support = sum(programs.values())
     net_resources = market_income + core_support - taxes
@@ -522,6 +785,7 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
             "year": payload.year,
             "county": payload.county,
             "household_type": payload.household_type,
+            "filing_status": _effective_filing_status(payload),
             "people": [
                 {
                     "kind": person["kind"],
@@ -573,6 +837,7 @@ def _attach_cliff_metrics(
         county=payload.county,
         people=payload.people,
         household_type=payload.household_type,
+        filing_status=payload.filing_status,
     )
     bumped_result = _simulate_core(bumped_payload)
     change = (
@@ -599,6 +864,8 @@ def _format_program_breakdown(programs: dict[str, float]) -> list[dict[str, Any]
     ordered = []
     for key in [item["key"] for item in PROGRAM_DEFINITIONS]:
         annual = round(programs.get(key, 0.0), 2)
+        if annual <= 0:
+            continue
         ordered.append(
             {
                 "key": key,
@@ -614,6 +881,42 @@ def _format_program_breakdown(programs: dict[str, float]) -> list[dict[str, Any]
 
 def _monthly_amount(amount: float) -> float:
     return round(amount / 12, 2)
+
+
+def _round_up_to_increment(value: int, increment: int) -> int:
+    if increment <= 0:
+        return max(1, value)
+    return max(increment, math.ceil(value / increment) * increment)
+
+
+def _resolve_series_max_earned_income(
+    payload: HouseholdInput,
+    requested_max_earned_income: int,
+) -> int:
+    floor = max(
+        DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
+        int(payload.earned_income) + DEFAULT_SERIES_EARNINGS_BUFFER,
+    )
+    ceiling = max(floor, requested_max_earned_income)
+    return max(floor, min(requested_max_earned_income, ceiling))
+
+
+def _resolve_series_step(
+    max_earned_income: int,
+    requested_step: int,
+) -> int:
+    step = max(1, requested_step)
+    point_count = (max_earned_income // step) + 1
+    if point_count <= DEFAULT_SERIES_TARGET_POINTS:
+        return step
+
+    minimum_step = math.ceil(
+        max_earned_income / max(1, DEFAULT_SERIES_TARGET_POINTS - 1)
+    )
+    return _round_up_to_increment(
+        max(step, minimum_step),
+        DEFAULT_SERIES_STEP_INCREMENT,
+    )
 
 
 def _build_cliff_drivers(
@@ -691,6 +994,7 @@ def calculate_all_states(payload: HouseholdInput) -> list[dict[str, Any]]:
             year=payload.year,
             people=payload.people,
             household_type=payload.household_type,
+            filing_status=payload.filing_status,
         )
         result = _simulate_core(scenario)
         results.append(
@@ -699,6 +1003,7 @@ def calculate_all_states(payload: HouseholdInput) -> list[dict[str, Any]]:
                 "state_name": STATE_NAME_BY_CODE[state],
                 "template_label": result["template"]["label"],
                 "net_resources": result["totals"]["net_resources"],
+                "taxes": result["totals"]["taxes"],
                 "net_resources_monthly": round(
                     result["totals"]["net_resources"] / 12,
                     2,
@@ -722,20 +1027,156 @@ def calculate_income_series(
     *,
     max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
     step: int = DEFAULT_SERIES_STEP,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
+    effective_max_earned_income = _resolve_series_max_earned_income(
+        payload,
+        max_earned_income,
+    )
+    effective_step = _resolve_series_step(effective_max_earned_income, step)
+    aligned_max_earned_income = _round_up_to_increment(
+        effective_max_earned_income,
+        effective_step,
+    )
+    point_count = (aligned_max_earned_income // effective_step) + 1
+    Simulation = _load_simulation()
+    simulation = Simulation(
+        situation=build_household_variation_situation(
+            payload,
+            max_earned_income=aligned_max_earned_income,
+            count=point_count,
+        )
+    )
+
+    earned_incomes = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "employment_income",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    market_income_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "household_market_income",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    tax_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "household_tax_before_refundable_credits",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    refundable_credit_program_values = _calculate_refundable_credit_program_arrays(
+        simulation,
+        payload.year,
+        point_count,
+    )
+    snap_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "snap",
+            payload.year,
+            map_to="household",
+            monthly=True,
+            annualize=True,
+        ),
+        point_count,
+    )
+    wic_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "wic",
+            payload.year,
+            map_to="household",
+            monthly=True,
+            annualize=True,
+        ),
+        point_count,
+    )
+    free_school_meal_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "free_school_meals",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    medicaid_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "medicaid",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    chip_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "chip",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    aca_ptc_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "premium_tax_credit",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    tanf_values = _normalize_series_values(
+        _calculate_tanf_amount_array(simulation, payload),
+        point_count,
+    )
+
     series = []
     previous_result = None
-    step_monthly = _monthly_amount(step)
-    for earned_income in range(0, max_earned_income + step, step):
-        scenario = HouseholdInput(
-            state=payload.state,
-            earned_income=earned_income,
-            year=payload.year,
-            county=payload.county,
-            people=payload.people,
-            household_type=payload.household_type,
-        )
-        result = _simulate_core(scenario)
+    step_monthly = _monthly_amount(effective_step)
+    truncated = False
+    truncation_reason = None
+
+    for index, earned_income in enumerate(earned_incomes):
+        programs = {
+            "snap": round(snap_values[index], 2),
+            "tanf": round(tanf_values[index], 2),
+            "wic": round(wic_values[index], 2),
+            "free_school_meals": round(free_school_meal_values[index], 2),
+            "medicaid": round(medicaid_values[index], 2),
+            "chip": round(chip_values[index], 2),
+            "aca_ptc": round(aca_ptc_values[index], 2),
+            **{
+                key: round(values[index], 2)
+                for key, values in refundable_credit_program_values.items()
+            },
+        }
+        market_income = round(market_income_values[index], 2)
+        taxes = round(tax_values[index], 2)
+        core_support = round(sum(programs.values()), 2)
+        result = {
+            "programs": programs,
+            "totals": {
+                "market_income": market_income,
+                "taxes": taxes,
+                "core_support": core_support,
+                "net_resources": round(
+                    market_income + core_support - taxes,
+                    2,
+                ),
+            },
+        }
         net_resources = result["totals"]["net_resources"]
         has_previous_point = previous_result is not None
         previous_net_resources = (
@@ -752,50 +1193,52 @@ def calculate_income_series(
         )
         series.append(
             {
-                "earned_income": earned_income,
-                "earned_income_monthly": round(earned_income / 12, 2),
-                "step_annual": step,
-                "step_monthly": step_monthly,
+                "earned_income": round(earned_income, 2),
+                "step_annual": effective_step,
                 "net_resources": net_resources,
-                "net_resources_monthly": round(net_resources / 12, 2),
                 "net_change_annual": round(net_change, 2)
                 if has_previous_point
                 else 0.0,
-                "net_change_monthly": _monthly_amount(net_change)
-                if has_previous_point
-                else 0.0,
-                "core_support": result["totals"]["core_support"],
-                "core_support_monthly": round(
-                    result["totals"]["core_support"] / 12,
-                    2,
-                ),
-                "taxes_monthly": round(result["totals"]["taxes"] / 12, 2),
-                "medicaid_monthly": round(
-                    result["programs"]["medicaid"] / 12,
-                    2,
-                ),
-                "chip_monthly": round(
-                    result["programs"]["chip"] / 12,
-                    2,
-                ),
-                "aca_ptc_monthly": round(
-                    result["programs"]["aca_ptc"] / 12,
-                    2,
-                ),
-                "snap_monthly": round(result["programs"]["snap"] / 12, 2),
-                "refundables_monthly": round(
-                    result["programs"]["refundables"] / 12,
-                    2,
-                ),
-                "tanf_monthly": round(result["programs"]["tanf"] / 12, 2),
+                "core_support": core_support,
+                "taxes": taxes,
+                "medicaid": programs["medicaid"],
+                "chip": programs["chip"],
+                "aca_ptc": programs["aca_ptc"],
+                "snap": programs["snap"],
+                "free_school_meals": programs["free_school_meals"],
+                "eitc": programs["eitc"],
+                "ctc": programs["ctc"],
+                "refundable_american_opportunity_credit": programs["refundable_american_opportunity_credit"],
+                "recovery_rebate_credit": programs["recovery_rebate_credit"],
+                "refundable_payroll_tax_credit": programs["refundable_payroll_tax_credit"],
+                "state_eitc": programs["state_eitc"],
+                "state_ctc": programs["state_ctc"],
+                "state_cdcc": programs["state_cdcc"],
+                "state_property_tax_credit": programs["state_property_tax_credit"],
+                "vt_renter_credit": programs["vt_renter_credit"],
+                "va_refundable_eitc_if_claimed": programs["va_refundable_eitc_if_claimed"],
+                "va_low_income_tax_credit": programs["va_low_income_tax_credit"],
+                "nm_low_income_comprehensive_tax_rebate": programs["nm_low_income_comprehensive_tax_rebate"],
+                "tanf": programs["tanf"],
+                "wic": programs["wic"],
                 "has_previous_point": has_previous_point,
-                "cliff_drop_monthly": round(cliff_drop / 12, 2),
+                "cliff_drop_annual": round(cliff_drop, 2),
                 "is_cliff": cliff_drop > 0,
                 "cliff_drivers": cliff_drivers,
             }
         )
         previous_result = result
-    return series
+
+    return {
+        "data": series,
+        "requested_step_annual": step,
+        "step_annual": effective_step,
+        "requested_max_earned_income": max_earned_income,
+        "max_earned_income": series[-1]["earned_income"] if series else 0,
+        "truncated": truncated,
+        "truncation_reason": truncation_reason,
+        "point_count": len(series),
+    }
 
 
 def calculate_household_types(payload: HouseholdInput) -> list[dict[str, Any]]:
@@ -807,6 +1250,7 @@ def calculate_household_types(payload: HouseholdInput) -> list[dict[str, Any]]:
             year=payload.year,
             county=payload.county,
             household_type=household_type,
+            filing_status=None,
         )
         result = _simulate_core(scenario)
         results.append(
@@ -815,14 +1259,23 @@ def calculate_household_types(payload: HouseholdInput) -> list[dict[str, Any]]:
                 "label": result["template"]["label"],
                 "short_label": result["template"]["short_label"],
                 "description": result["template"]["description"],
+                "net_resources_annual": round(
+                    result["totals"]["net_resources"],
+                    2,
+                ),
                 "net_resources_monthly": round(
                     result["totals"]["net_resources"] / 12,
+                    2,
+                ),
+                "core_support_annual": round(
+                    result["totals"]["core_support"],
                     2,
                 ),
                 "core_support_monthly": round(
                     result["totals"]["core_support"] / 12,
                     2,
                 ),
+                "taxes_annual": round(result["totals"]["taxes"], 2),
                 "taxes_monthly": round(result["totals"]["taxes"] / 12, 2),
                 "counts": result["counts"],
             }
@@ -855,6 +1308,7 @@ def household_input_from_dict(data: dict[str, Any]) -> HouseholdInput:
         county=data.get("county"),
         people=people,
         household_type=data.get("household_type"),
+        filing_status=data.get("filing_status"),
     )
 
 

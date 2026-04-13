@@ -18,11 +18,13 @@ const fmt = (value) => value.toLocaleString('en-US', {
 })
 
 function HouseholdComparison({ households, currentType }) {
+  const annualHouseholds = useMemo(() => households || [], [households])
+
   const yTicks = useMemo(() => {
-    if (!households || households.length === 0) return [0]
-    const maxValue = Math.max(...households.map((item) => item.net_resources_monthly))
+    if (!annualHouseholds.length) return [0]
+    const maxValue = Math.max(...annualHouseholds.map((item) => item.net_resources_annual))
     return niceTicks(maxValue)
-  }, [households])
+  }, [annualHouseholds])
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -40,7 +42,7 @@ function HouseholdComparison({ households, currentType }) {
             {item.label}
           </p>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#4FD1C5' }}>
-            {fmt(item.net_resources_monthly)}/mo
+            {fmt(item.net_resources_annual)}/yr
           </p>
           <p style={{ fontSize: '0.8rem', opacity: 0.75, marginTop: '6px' }}>
             {item.counts.num_adults} adult(s), {item.counts.num_children} child(ren)
@@ -51,7 +53,7 @@ function HouseholdComparison({ households, currentType }) {
     return null
   }
 
-  if (!households || households.length === 0) {
+  if (!annualHouseholds.length) {
     return <p className="ranking-empty">No household comparison available yet.</p>
   }
 
@@ -59,7 +61,7 @@ function HouseholdComparison({ households, currentType }) {
     <div className="chart-wrapper">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={households}
+          data={annualHouseholds}
           margin={{ top: 10, right: 20, left: 10, bottom: 24 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e2dd" vertical={false} />
@@ -78,8 +80,8 @@ function HouseholdComparison({ households, currentType }) {
             tickLine={{ stroke: '#e5e2dd' }}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(13, 148, 136, 0.08)' }} />
-          <Bar dataKey="net_resources_monthly" radius={[4, 4, 0, 0]}>
-            {households.map((entry, index) => (
+          <Bar dataKey="net_resources_annual" radius={[4, 4, 0, 0]}>
+            {annualHouseholds.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
                 fill={entry.household_type === currentType ? '#1E293B' : '#319795'}

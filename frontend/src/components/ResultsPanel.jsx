@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import BenefitChart from './BenefitChart'
 import CliffInsights from './CliffInsights'
 import HouseholdComparison from './HouseholdComparison'
 import ProgramBreakdown from './ProgramBreakdown'
+import StateMap from './StateMap'
 import StateRanking from './StateRanking'
 import { formatCurrency } from '../dataLookup'
 
@@ -12,11 +13,27 @@ function getOrdinal(n) {
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`
 }
 
+function formatFilingStatus(filingStatus) {
+  switch (filingStatus) {
+    case 'JOINT':
+      return 'Married filing jointly'
+    case 'SEPARATE':
+      return 'Married filing separately'
+    case 'HEAD_OF_HOUSEHOLD':
+      return 'Head of household'
+    default:
+      return 'Single'
+  }
+}
+
 function ResultsPanel({
   result,
   seriesData,
   stateComparison,
   householdComparison,
+  availableStates,
+  stateComparisonRequested,
+  householdComparisonRequested,
   loading,
   seriesLoading,
   comparisonLoading,
@@ -24,8 +41,15 @@ function ResultsPanel({
   error,
   seriesError,
   onStateSelect,
+  onRequestHouseholdComparison,
 }) {
   const [activeTab, setActiveTab] = useState('State comparison')
+
+  useEffect(() => {
+    if (activeTab === 'Household comparison') {
+      onRequestHouseholdComparison?.()
+    }
+  }, [activeTab, onRequestHouseholdComparison])
 
   const stateRank = useMemo(() => {
     if (!stateComparison?.states || !result?.input?.state) return null
@@ -56,7 +80,7 @@ function ResultsPanel({
     return (
       <section className="results-panel">
         <div className="placeholder">
-          Enter your household information and click Calculate to see estimated monthly net resources.
+          Enter your household information and click Calculate to see estimated annual net resources.
         </div>
       </section>
     )
@@ -67,9 +91,9 @@ function ResultsPanel({
       <section className="results-panel">
         <div className="result-banner">
           <div className="result-banner-main">
-            <h3>Estimated Monthly Net Resources</h3>
-            <div className="amount">{formatCurrency(result.monthly.net_resources)}</div>
-            <div className="amount-annual">{formatCurrency(result.totals.net_resources)}/yr</div>
+            <h3>Estimated Annual Net Resources</h3>
+            <div className="amount">{formatCurrency(result.totals.net_resources)}</div>
+            <div className="amount-annual">At {formatCurrency(result.totals.market_income)}/yr earnings</div>
           </div>
 
           <div className="result-banner-details">
@@ -78,6 +102,7 @@ function ResultsPanel({
             </span>
             <div className="result-meta">
               <span>{result.state_name} ({result.input.state})</span>
+              <span>{formatFilingStatus(result.input.filing_status)}</span>
               <span>{result.template.label}</span>
               <span>{result.template.description}</span>
               <span>{Math.round(result.context.resources_pct_fpg)}% of FPG after support</span>
@@ -87,16 +112,16 @@ function ResultsPanel({
           <div className="result-banner-stats">
             <div className="stat-item">
               <span className="stat-label">Core support</span>
-              <span className="stat-value">{formatCurrency(result.monthly.core_support)}/mo</span>
+              <span className="stat-value">{formatCurrency(result.totals.core_support)}/yr</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Taxes</span>
-              <span className="stat-value">{formatCurrency(result.monthly.taxes)}/mo</span>
+              <span className="stat-value">{formatCurrency(result.totals.taxes)}/yr</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Cliff gap</span>
               <span className="stat-value">
-                {result.cliff.is_on_cliff ? `${formatCurrency(result.cliff.gap_monthly)}/mo` : 'None'}
+                {result.cliff.is_on_cliff ? `${formatCurrency(result.cliff.gap_annual)}/yr` : 'None'}
               </span>
             </div>
             {stateRank && (
@@ -134,17 +159,21 @@ function ResultsPanel({
             {seriesData ? (
               <>
                 <p className="chart-subtitle">
-                  Calculated in {formatCurrency(seriesData?.step_annual || 0)}/year earnings steps, or about {formatCurrency(seriesData?.step_monthly || 0)}/month.
+                  Calculated through {formatCurrency(seriesData?.max_earned_income || 0)}/year in {formatCurrency(seriesData?.step_annual || 0)}/year earnings steps.
                 </p>
+                {seriesData?.truncated && (
+                  <p className="chart-note warning">
+                    Showing the part of the curve we could calculate quickly enough for this household. Increase earnings and recalculate if you want to explore farther up the income range.
+                  </p>
+                )}
                 {seriesError && <p className="chart-note warning">{seriesError}</p>}
                 <BenefitChart
                   data={seriesData?.data || []}
-                  currentIncome={result.monthly.market_income}
+                  currentIncome={result.totals.market_income}
                 />
                 <CliffInsights
                   data={seriesData?.data || []}
                   stepAnnual={seriesData?.step_annual}
-                  stepMonthly={seriesData?.step_monthly}
                 />
               </>
             ) : seriesLoading ? (
@@ -182,25 +211,42 @@ function ResultsPanel({
             <>
               <p className="chart-subtitle">
                 {stateRank
-                  ? `${result.state_name} provides the ${getOrdinal(stateRank.rank)} highest modeled monthly net resources for this household.`
-                  : 'State comparison is loading.'}
+                  ? `${result.state_name} provides the ${getOrdinal(stateRank.rank)} highest modeled annual net resources for this household.`
+                  : stateComparisonRequested
+                    ? 'State comparison is loading.'
+                    : 'State comparison will load after the earnings curve finishes.'}
               </p>
-              {comparisonLoading && !stateComparison?.states ? (
+              {!stateComparisonRequested && !stateComparison?.states ? (
+                <p className="ranking-empty">
+                  We wait until the earnings curve settles before running the 50-state comparison.
+                </p>
+              ) : comparisonLoading && !stateComparison?.states ? (
                 <div className="loading">Loading state comparison...</div>
               ) : (
-                <StateRanking
-                  data={stateComparison?.states || []}
-                  selectedState={result.input.state}
-                  onStateSelect={onStateSelect}
-                />
+                <div className="state-comparison-grid">
+                  <div className="comparison-map-panel">
+                    <StateMap
+                      selectedState={result.input.state}
+                      availableStates={availableStates}
+                      comparisonData={stateComparison?.states}
+                      maxNetResources={stateComparison?.max_net_resources}
+                      onStateSelect={onStateSelect}
+                    />
+                  </div>
+                  <StateRanking
+                    data={stateComparison?.states || []}
+                    selectedState={result.input.state}
+                    onStateSelect={onStateSelect}
+                  />
+                </div>
               )}
             </>
           ) : (
             <>
               <p className="chart-subtitle">
-                Monthly net resources for five preset household compositions at the same earnings and state.
+                Annual net resources for five preset household compositions at the same earnings and state. This comparison loads on demand.
               </p>
-              {householdComparisonLoading && !householdComparison ? (
+              {(householdComparisonLoading || (!householdComparisonRequested && !householdComparison)) ? (
                 <div className="loading">Loading household comparison...</div>
               ) : (
                 <HouseholdComparison

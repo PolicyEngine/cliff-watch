@@ -1,7 +1,7 @@
 import { formatCurrency } from '../dataLookup'
 
 function ProgramBreakdown({ programs }) {
-  const displayPrograms = [...(programs || [])].sort((left, right) => right.monthly - left.monthly)
+  const displayPrograms = [...(programs || [])].sort((left, right) => right.annual - left.annual)
 
   return (
     <div>
@@ -11,8 +11,8 @@ function ProgramBreakdown({ programs }) {
             <div className="breakdown-label">{program.label}</div>
             <div className="program-description">{program.description}</div>
           </div>
-          <div className={`breakdown-value ${program.monthly > 0 ? 'positive' : ''}`}>
-            {formatCurrency(program.monthly)}/mo
+          <div className={`breakdown-value ${program.annual > 0 ? 'positive' : ''}`}>
+            {formatCurrency(program.annual)}/yr
           </div>
         </div>
       ))}
@@ -20,7 +20,7 @@ function ProgramBreakdown({ programs }) {
       <div className="breakdown-row total">
         <span className="breakdown-label">Total modeled support</span>
         <span className="breakdown-value positive">
-          {formatCurrency(displayPrograms.reduce((sum, item) => sum + item.monthly, 0))}/mo
+          {formatCurrency(displayPrograms.reduce((sum, item) => sum + item.annual, 0))}/yr
         </span>
       </div>
     </div>

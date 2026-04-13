@@ -2,8 +2,29 @@ from __future__ import annotations
 
 DEFAULT_YEAR = 2026
 DEFAULT_SERIES_MAX_EARNINGS = 90_000
-DEFAULT_SERIES_STEP = 1_000
+DEFAULT_SERIES_STEP = 500
 DEFAULT_CLIFF_DELTA = 1_000
+DEFAULT_SERIES_EARNINGS_BUFFER = 30_000
+DEFAULT_SERIES_MIN_EARNINGS_WINDOW = 40_000
+DEFAULT_SERIES_TARGET_POINTS = 201
+DEFAULT_SERIES_STEP_INCREMENT = 250
+DEFAULT_FILING_STATUS = "HEAD_OF_HOUSEHOLD"
+FILING_STATUS_OPTIONS = [
+    {"code": "SINGLE", "label": "Single"},
+    {
+        "code": "HEAD_OF_HOUSEHOLD",
+        "label": "Head of household",
+    },
+    {
+        "code": "JOINT",
+        "label": "Married filing jointly",
+    },
+    {
+        "code": "SEPARATE",
+        "label": "Married filing separately",
+    },
+]
+MARRIED_FILING_STATUSES = ("JOINT", "SEPARATE")
 
 STATE_INFO = [
     {"code": "AL", "name": "Alabama"},
@@ -204,10 +225,82 @@ PROGRAM_DEFINITIONS = [
         "description": "Modeled value of free school breakfast and lunch.",
     },
     {
-        "key": "refundables",
-        "label": "Refundable tax credits",
-        "short_label": "Credits",
-        "description": "Aggregate refundable federal and state tax credits.",
+        "key": "eitc",
+        "label": "Federal EITC",
+        "short_label": "Fed. EITC",
+        "description": "Federal Earned Income Tax Credit.",
+    },
+    {
+        "key": "ctc",
+        "label": "Federal CTC",
+        "short_label": "Fed. CTC",
+        "description": "Federal refundable Child Tax Credit amount.",
+    },
+    {
+        "key": "refundable_american_opportunity_credit",
+        "label": "Refundable American Opportunity Credit",
+        "short_label": "AOTC",
+        "description": "Refundable American Opportunity Credit.",
+    },
+    {
+        "key": "recovery_rebate_credit",
+        "label": "Recovery Rebate Credit",
+        "short_label": "Recovery rebate",
+        "description": "Federal Recovery Rebate Credit.",
+    },
+    {
+        "key": "refundable_payroll_tax_credit",
+        "label": "Refundable Payroll Tax Credit",
+        "short_label": "Payroll credit",
+        "description": "Federal refundable payroll tax credit.",
+    },
+    {
+        "key": "state_eitc",
+        "label": "State EITC",
+        "short_label": "State EITC",
+        "description": "Refundable state Earned Income Tax Credit.",
+    },
+    {
+        "key": "state_ctc",
+        "label": "State CTC",
+        "short_label": "State CTC",
+        "description": "Refundable state Child Tax Credit.",
+    },
+    {
+        "key": "state_cdcc",
+        "label": "State CDCC",
+        "short_label": "State CDCC",
+        "description": "Refundable state child and dependent care tax credit.",
+    },
+    {
+        "key": "state_property_tax_credit",
+        "label": "State property tax credit",
+        "short_label": "Property tax",
+        "description": "Refundable state property tax credit.",
+    },
+    {
+        "key": "vt_renter_credit",
+        "label": "Vermont renter credit",
+        "short_label": "VT renter",
+        "description": "Vermont renter credit.",
+    },
+    {
+        "key": "va_refundable_eitc_if_claimed",
+        "label": "Virginia refundable EITC",
+        "short_label": "VA EITC",
+        "description": "Virginia refundable earned income tax credit if claimed.",
+    },
+    {
+        "key": "va_low_income_tax_credit",
+        "label": "Virginia low income tax credit",
+        "short_label": "VA low income",
+        "description": "Virginia low income tax credit.",
+    },
+    {
+        "key": "nm_low_income_comprehensive_tax_rebate",
+        "label": "New Mexico low income tax rebate",
+        "short_label": "NM rebate",
+        "description": "New Mexico low income comprehensive tax rebate.",
     },
     {
         "key": "medicaid",

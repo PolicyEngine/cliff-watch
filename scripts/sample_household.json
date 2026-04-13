@@ -5,6 +5,7 @@
     { "kind": "child", "age": 6 },
     { "kind": "child", "age": 10 }
   ],
+  "filing_status": "HEAD_OF_HOUSEHOLD",
   "earned_income": 30000,
   "year": 2026
 }

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { filingStatusRequiresSpouse } from '../dataLookup'
 
 function InfoTooltip({ text }) {
   return (
@@ -11,21 +12,30 @@ function InfoTooltip({ text }) {
 
 function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset }) {
   const people = inputs?.people || []
+  const marriedFilingStatus = filingStatusRequiresSpouse(inputs?.filing_status)
 
-  const memberLabels = useMemo(() => {
+  const rowMeta = useMemo(() => {
     let adultCount = 0
     let childCount = 0
 
     return people.map((person) => {
       if (person.kind === 'child') {
         childCount += 1
-        return `Child ${childCount}`
+        return {
+          label: `Child ${childCount}`,
+          isManagedSpouse: false,
+        }
       }
 
       adultCount += 1
-      return `Adult ${adultCount}`
+      return {
+        label: marriedFilingStatus && adultCount === 2
+          ? 'Adult 2 (spouse)'
+          : `Adult ${adultCount}`,
+        isManagedSpouse: marriedFilingStatus && adultCount === 2,
+      }
     })
-  }, [people])
+  }, [marriedFilingStatus, people])
 
   const updatePerson = (index, partial) => {
     onChange({
@@ -87,9 +97,28 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
           </div>
 
           <div className="form-group">
+            <label htmlFor="filing_status">
+              Filing status
+              <InfoTooltip text="Choose the household's tax filing status. Married filing jointly and married filing separately automatically keep a second adult directly under the primary earner." />
+            </label>
+            <select
+              id="filing_status"
+              value={inputs.filing_status}
+              onChange={(event) => onChange({ filing_status: event.target.value })}
+            >
+              {(metadata.filing_statuses || []).map((status) => (
+                <option key={status.code} value={status.code}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+            <small>Used for federal and state income tax treatment in this scenario.</small>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="earned_income_yearly">
               Earned income ($/year)
-              <InfoTooltip text="The first adult in the household is treated as the primary earner. A second adult is treated as a spouse in the same household unit." />
+              <InfoTooltip text="The first adult in the household is treated as the primary earner. When you choose a married filing status, the second adult is treated as the spouse in the same tax unit." />
             </label>
             <input
               type="number"
@@ -122,10 +151,11 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
           <div className="member-list">
             {people.map((person, index) => (
               <div key={`member-${index}`} className="member-row">
-                <div className="member-row-title">{memberLabels[index]}</div>
+                <div className="member-row-title">{rowMeta[index]?.label}</div>
                 <div className="member-row-fields">
                   <select
                     value={person.kind}
+                    disabled={rowMeta[index]?.isManagedSpouse}
                     onChange={(event) => updatePerson(index, { kind: event.target.value })}
                   >
                     <option value="adult">Adult</option>
@@ -145,7 +175,7 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
                     type="button"
                     className="member-remove-btn"
                     onClick={() => removePerson(index)}
-                    disabled={people.length <= 1}
+                    disabled={people.length <= 1 || rowMeta[index]?.isManagedSpouse}
                   >
                     Remove
                   </button>
@@ -155,7 +185,7 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
           </div>
 
           <small>
-            At least one adult is required. Adults beyond the second are modeled as additional household members in the same household unit.
+            At least one adult is required. Married filing statuses keep a second adult directly below the primary earner as the spouse.
           </small>
         </div>
 
