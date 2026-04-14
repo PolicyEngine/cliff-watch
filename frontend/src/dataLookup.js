@@ -50,7 +50,6 @@ export async function loadMetadata() {
 }
 
 const MAX_ADULTS = 2
-
 const normalizePeople = (people = []) => {
   let adultCount = 0
 
@@ -86,15 +85,21 @@ const deriveFilingStatus = (people = []) => {
 export function reconcileInputs(inputs, metadata) {
   const normalizedPeople = normalizePeople(inputs?.people || [])
   const filing_status = deriveFilingStatus(normalizedPeople)
+  const defaultChartMax = Math.max(
+    10000,
+    Number(metadata?.defaults?.chart_max_earned_income)
+      || Number(metadata?.defaults?.series_max_earned_income)
+      || 100000,
+  )
 
   return {
     ...inputs,
     state: inputs?.state || metadata?.defaults?.state || 'GA',
     people: normalizedPeople,
     filing_status,
-    earned_income_yearly: Math.max(
-      0,
-      Number(inputs?.earned_income_yearly) || 0,
+    chart_max_earned_income: Math.max(
+      10000,
+      Number(inputs?.chart_max_earned_income) || defaultChartMax,
     ),
     year: metadata?.year || 2026,
   }
@@ -104,7 +109,10 @@ export function createInitialInputs(metadata) {
   return reconcileInputs({
     state: metadata?.defaults?.state || 'GA',
     people: normalizePeople(metadata?.defaults?.people || []),
-    earned_income_yearly: metadata?.defaults?.earned_income_yearly || 30000,
+    chart_max_earned_income:
+      metadata?.defaults?.chart_max_earned_income
+      || metadata?.defaults?.series_max_earned_income
+      || 100000,
   }, metadata)
 }
 
@@ -114,7 +122,7 @@ export function normalizeInputs(inputs, metadata) {
     state: reconciled.state,
     people: reconciled.people,
     filing_status: reconciled.filing_status,
-    earned_income_yearly: reconciled.earned_income_yearly,
+    chart_max_earned_income: reconciled.chart_max_earned_income,
     year: reconciled.year,
   }
 }
@@ -125,7 +133,7 @@ export function buildHouseholdPayload(inputs, metadata) {
     state: normalized.state,
     people: normalized.people,
     filing_status: normalized.filing_status,
-    earned_income: Math.round(normalized.earned_income_yearly),
+    earned_income: 0,
     year: normalized.year,
   }
 }
@@ -152,17 +160,9 @@ export async function calculateAllStates(inputs, metadata) {
 }
 
 export async function calculateSeries(inputs, metadata, options = {}) {
+  const normalized = normalizeInputs(inputs, metadata)
   const payload = buildHouseholdPayload(inputs, metadata)
-  const seriesBuffer = metadata?.defaults?.series_earnings_buffer || 30000
-  const minimumWindow = metadata?.defaults?.series_min_earnings_window || 40000
-  const requestedMax = metadata?.defaults?.series_max_earned_income || 90000
-  payload.max_earned_income = Math.min(
-    requestedMax,
-    Math.max(
-      payload.earned_income + seriesBuffer,
-      minimumWindow,
-    ),
-  )
+  payload.max_earned_income = Math.round(normalized.chart_max_earned_income)
   payload.step = options.step || metadata?.defaults?.series_step || 2500
   try {
     return await calculateSeriesViaPolicyEngine(payload, metadata)

@@ -48,7 +48,7 @@ function HouseholdComparison({ households, currentType }) {
             Annual net income
           </p>
           <p style={{ fontSize: '0.8rem', opacity: 0.75, marginTop: '6px' }}>
-            {item.counts.num_adults} adult(s), {item.counts.num_children} dependant(s)
+            {item.counts.num_adults} adult(s), {item.counts.num_children} dependent(s)
           </p>
         </div>
       )

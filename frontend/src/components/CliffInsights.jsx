@@ -34,7 +34,7 @@ function CliffInsights({ data, stepAnnual }) {
       <div className="cliff-insights">
         <div className="cliff-insights-header">
           <div>
-            <h4>Where the cliffs hit</h4>
+            <h4>Cliff report</h4>
             <p className="chart-subtitle">
               The report only calls out meaningful losses: {thresholdCopy}.
             </p>
@@ -50,7 +50,7 @@ function CliffInsights({ data, stepAnnual }) {
           <p>
             {report.hiddenCliffCount > 0
               ? 'We only found smaller phase-downs below the reporting threshold, so the curve does not show a meaningful benefit cliff.'
-              : 'Net resources rise steadily across the sampled earnings curve. Smaller cliffs can still exist between the plotted earnings steps.'}
+              : 'Net resources rise steadily across the sampled wage and salary curve. Smaller cliffs can still exist between the plotted steps.'}
           </p>
         </div>
       </div>
@@ -61,13 +61,13 @@ function CliffInsights({ data, stepAnnual }) {
   const worstLossRateCliff = report.worstLossRateCliff
   const firstCliff = report.firstCliff
   const dominantDriver = report.dominantDrivers[0]
-  const overview = `The first meaningful cliff appears near ${formatCurrency(firstCliff.endIncomeAnnual)}/yr earnings. The biggest drop is ${formatCurrency(largestCliff.dropAnnual)}/yr, driven mostly by ${describeDrivers(largestCliff.material_cliff_drivers || report.dominantDrivers)}.`
+  const overview = `The first meaningful cliff appears near ${formatCurrency(firstCliff.endIncomeAnnual)}/yr in wages and salaries. The biggest drop is ${formatCurrency(largestCliff.dropAnnual)}/yr, driven mostly by ${describeDrivers(largestCliff.material_cliff_drivers || report.dominantDrivers)}.`
 
   return (
     <div className="cliff-insights">
       <div className="cliff-insights-header">
         <div>
-          <h4>Where the cliffs hit</h4>
+          <h4>Cliff report</h4>
           <p className="chart-subtitle">
             The report only calls out meaningful losses: {thresholdCopy}.
           </p>
@@ -93,17 +93,17 @@ function CliffInsights({ data, stepAnnual }) {
         <CliffSummaryCard
           label="First cliff"
           value={`${formatCurrency(firstCliff.endIncomeAnnual)}/yr`}
-          detail={`Begins after about ${formatCurrency(firstCliff.startIncomeAnnual)}/yr earnings`}
+          detail={`Begins after about ${formatCurrency(firstCliff.startIncomeAnnual)}/yr in wages and salaries`}
         />
         <CliffSummaryCard
           label="Largest annual drop"
           value={`${formatCurrency(largestCliff.dropAnnual)}/yr`}
-          detail={`Near ${formatCurrency(largestCliff.endIncomeAnnual)}/yr earnings`}
+          detail={`Near ${formatCurrency(largestCliff.endIncomeAnnual)}/yr in wages and salaries`}
         />
         <CliffSummaryCard
           label="Worst payback"
           value={formatLossRate(worstLossRateCliff.lossRate)}
-          detail={`At roughly ${formatCurrency(worstLossRateCliff.endIncomeAnnual)}/yr earnings`}
+          detail={`At roughly ${formatCurrency(worstLossRateCliff.endIncomeAnnual)}/yr in wages and salaries`}
         />
         <CliffSummaryCard
           label="Dominant driver"
@@ -111,7 +111,7 @@ function CliffInsights({ data, stepAnnual }) {
           detail={
             dominantDriver
               ? `${formatCurrency(dominantDriver.totalImpactAnnual)}/yr of recurring loss across the reported cliffs`
-              : `${report.zones.length} earnings band${report.zones.length === 1 ? '' : 's'} to watch`
+              : `${report.zones.length} wage band${report.zones.length === 1 ? '' : 's'} to watch`
           }
         />
       </div>
@@ -134,7 +134,7 @@ function CliffInsights({ data, stepAnnual }) {
 
             <div className="cliff-card-header">
               <span className="cliff-card-income">
-                {formatCurrency(zone.startIncomeAnnual)} to {formatCurrency(zone.endIncomeAnnual)}/yr earnings
+                {formatCurrency(zone.startIncomeAnnual)} to {formatCurrency(zone.endIncomeAnnual)}/yr in wages and salaries
               </span>
               {' '}
               <span className="cliff-card-drop">
@@ -145,7 +145,7 @@ function CliffInsights({ data, stepAnnual }) {
             <div className="cliff-card-grid">
               <div>
                 <p className="cliff-card-copy">
-                  In this earnings band, net resources move from {formatCurrency(zone.beforeResourcesAnnual)}/yr to {formatCurrency(zone.afterResourcesAnnual)}/yr. The sharpest single-step loss is {formatCurrency(zone.largestDropAnnual)}/yr, and the main driver is {zone.driverSummary}.
+                  In this wage band, net resources move from {formatCurrency(zone.beforeResourcesAnnual)}/yr to {formatCurrency(zone.afterResourcesAnnual)}/yr. The sharpest single-step loss is {formatCurrency(zone.largestDropAnnual)}/yr, and the main driver is {zone.driverSummary}.
                 </p>
 
                 <div className="cliff-card-stats">
@@ -167,7 +167,7 @@ function CliffInsights({ data, stepAnnual }) {
                     <span className="cliff-card-stat-label">Peak risk point</span>
                     {' '}
                     <strong className="cliff-card-stat-value">
-                      {formatCurrency(zone.highestRiskIncomeAnnual)}/yr earnings
+                      {formatCurrency(zone.highestRiskIncomeAnnual)}/yr in wages and salaries
                     </strong>
                   </div>
                   <div className="cliff-card-stat">

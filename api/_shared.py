@@ -46,13 +46,13 @@ def metadata_response() -> dict[str, Any]:
         "filing_statuses": FILING_STATUS_OPTIONS,
         "defaults": {
             "state": "GA",
-            "earned_income_yearly": 30000,
             "filing_status": DEFAULT_FILING_STATUS,
             "people": [
                 {"kind": "adult", "age": 33},
                 {"kind": "child", "age": 6},
                 {"kind": "child", "age": 10},
             ],
+            "chart_max_earned_income": DEFAULT_SERIES_MAX_EARNINGS,
             "series_max_earned_income": DEFAULT_SERIES_MAX_EARNINGS,
             "series_step": DEFAULT_SERIES_STEP,
             "series_earnings_buffer": DEFAULT_SERIES_EARNINGS_BUFFER,

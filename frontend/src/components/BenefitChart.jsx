@@ -4,6 +4,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
+  ReferenceArea,
   ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
@@ -40,14 +41,6 @@ const NET_VIEW_SERIES = [
     strokeWidth: 2.8,
     defaultVisible: true,
   },
-  {
-    key: 'earned_income_annual',
-    label: 'Earnings',
-    type: 'line',
-    stroke: '#64748B',
-    strokeWidth: 2,
-    defaultVisible: true,
-  },
 ]
 
 const PROGRAM_DETAIL_LINE_SERIES = [
@@ -64,7 +57,7 @@ const PROGRAM_DETAIL_LINE_SERIES = [
 const PROGRAM_DETAIL_AREA_SERIES = [
   {
     key: 'earned_income_annual',
-    label: 'Earnings',
+    label: 'Wages and salaries',
     type: 'area',
     stroke: '#6B7B93',
     fill: '#D8E1EC',
@@ -77,6 +70,7 @@ const PROGRAM_DETAIL_AREA_SERIES = [
     stroke: '#DC2626',
     fill: '#FECACA',
     defaultVisible: true,
+    hideStroke: true,
   },
   {
     key: 'state_taxes_before_refundable_credits_annual',
@@ -85,6 +79,7 @@ const PROGRAM_DETAIL_AREA_SERIES = [
     stroke: '#B91C1C',
     fill: '#FCA5A5',
     defaultVisible: true,
+    hideStroke: true,
   },
   {
     key: 'federal_refundable_credits_annual',
@@ -164,16 +159,34 @@ const CLIFF_HIGHLIGHT_STYLES = {
   severe: {
     stroke: '#DC2626',
     dotFill: '#DC2626',
+    fill: '#FCA5A5',
   },
   moderate: {
     stroke: '#D97706',
     dotFill: '#D97706',
+    fill: '#FCD34D',
   },
   mild: {
     stroke: '#CA8A04',
     dotFill: '#CA8A04',
+    fill: '#FDE68A',
   },
 }
+
+const DETAIL_TOOLTIP_ORDER = [
+  'earned_income_annual',
+  'federal_refundable_credits_annual',
+  'state_refundable_credits_annual',
+  'tanf_annual',
+  'snap_annual',
+  'wic_annual',
+  'free_school_meals_annual',
+  'medicaid_annual',
+  'chip_annual',
+  'aca_ptc_annual',
+  'federal_taxes_before_refundable_credits_annual',
+  'state_taxes_before_refundable_credits_annual',
+]
 
 function chooseNiceStep(rawStep) {
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
@@ -217,6 +230,10 @@ function BenefitChart({ data }) {
     const basePoints = (data || []).map((point) => {
       const taxesAnnual = Number(point.taxes || 0)
       const coreBenefitsAnnual = Number(point.core_support || 0)
+      const federalRefundableCreditsAnnual = Number(point.federal_refundable_credits || 0)
+      const stateRefundableCreditsAnnual = Number(point.state_refundable_credits || 0)
+      const federalTaxesAnnual = Number(point.federal_taxes_before_refundable_credits || 0)
+      const stateTaxesAnnual = Number(point.state_taxes_before_refundable_credits || 0)
 
       return {
         ...point,
@@ -224,15 +241,18 @@ function BenefitChart({ data }) {
         net_resources_annual: Number(point.net_resources || 0),
         detail_net_income_annual: Number(point.net_resources || 0),
         benefits_and_credits_annual: coreBenefitsAnnual,
+        benefits_only_annual: coreBenefitsAnnual - federalRefundableCreditsAnnual - stateRefundableCreditsAnnual,
         taxes_annual: taxesAnnual,
-        federal_taxes_before_refundable_credits_annual: -Number(point.federal_taxes_before_refundable_credits || 0),
-        state_taxes_before_refundable_credits_annual: -Number(point.state_taxes_before_refundable_credits || 0),
+        federal_taxes_annual: federalTaxesAnnual,
+        state_taxes_annual: stateTaxesAnnual,
+        federal_taxes_before_refundable_credits_annual: -federalTaxesAnnual,
+        state_taxes_before_refundable_credits_annual: -stateTaxesAnnual,
         medicaid_annual: Number(point.medicaid || 0),
         chip_annual: Number(point.chip || 0),
         aca_ptc_annual: Number(point.aca_ptc || 0),
         snap_annual: Number(point.snap || 0),
-        federal_refundable_credits_annual: Number(point.federal_refundable_credits || 0),
-        state_refundable_credits_annual: Number(point.state_refundable_credits || 0),
+        federal_refundable_credits_annual: federalRefundableCreditsAnnual,
+        state_refundable_credits_annual: stateRefundableCreditsAnnual,
         tanf_annual: Number(point.tanf || 0),
         free_school_meals_annual: Number(point.free_school_meals || 0),
         wic_annual: Number(point.wic || 0),
@@ -323,6 +343,36 @@ function BenefitChart({ data }) {
       )),
     )
   ), [highlightedCliffs])
+
+  const deadZoneBands = useMemo(() => {
+    if (!annualizedData.length) {
+      return []
+    }
+
+    const lastIncomeAnnual = Number(annualizedData[annualizedData.length - 1]?.earned_income_annual || 0)
+
+    return (cliffReport.zones || [])
+      .map((zone) => {
+        const startIncomeAnnual = Number(zone.startIncomeAnnual || 0)
+        const baselineResourcesAnnual = Number(zone.beforeResourcesAnnual || 0)
+        const recoveryPoint = annualizedData.find((point) => (
+          Number(point.earned_income_annual || 0) > startIncomeAnnual
+          && Number(point.net_resources_annual || 0) >= baselineResourcesAnnual
+        ))
+        const recoveryIncomeAnnual = Number(recoveryPoint?.earned_income_annual || lastIncomeAnnual)
+
+        if (recoveryIncomeAnnual <= startIncomeAnnual) {
+          return null
+        }
+
+        return {
+          startIncomeAnnual,
+          recoveryIncomeAnnual,
+          tone: zone.severity?.tone || zone.cliffs?.[0]?.severity?.tone || 'mild',
+        }
+      })
+      .filter(Boolean)
+  }, [annualizedData, cliffReport.zones])
 
   const { xTicks, netYTicks, detailYTicks, detailDomain } = useMemo(() => {
     if (!annualizedData.length) {
@@ -424,20 +474,32 @@ function BenefitChart({ data }) {
 
     return (
       <div className="chart-tooltip">
-        <p className="chart-tooltip-kicker">Earnings: {fmt(label)}/yr</p>
+        <p className="chart-tooltip-kicker">Wages and salaries: {fmt(label)}/yr</p>
         <p className="chart-tooltip-highlight">Net income: {fmt(point.net_resources_annual)}/yr</p>
         <div className="chart-tooltip-divider">
           <div className="chart-tooltip-row">
-            <span>Earnings</span>
+            <span>Wages and salaries</span>
             <span>{fmt(point.earned_income_annual)}/yr</span>
           </div>
           <div className="chart-tooltip-row">
-            <span>Benefits + refundable tax credits</span>
-            <span>{fmt(point.benefits_and_credits_annual)}/yr</span>
+            <span>Benefits</span>
+            <span>{fmt(point.benefits_only_annual)}/yr</span>
           </div>
           <div className="chart-tooltip-row">
-            <span>Taxes</span>
-            <span>{fmt(point.taxes_annual)}/yr</span>
+            <span>Federal refundable tax credits</span>
+            <span>{fmt(point.federal_refundable_credits_annual)}/yr</span>
+          </div>
+          <div className="chart-tooltip-row">
+            <span>State refundable tax credits</span>
+            <span>{fmt(point.state_refundable_credits_annual)}/yr</span>
+          </div>
+          <div className="chart-tooltip-row">
+            <span>Federal taxes</span>
+            <span>{fmt(point.federal_taxes_annual)}/yr</span>
+          </div>
+          <div className="chart-tooltip-row">
+            <span>State taxes</span>
+            <span>{fmt(point.state_taxes_annual)}/yr</span>
           </div>
           {tooltipCliff ? (
             <div className="chart-tooltip-row">
@@ -455,7 +517,7 @@ function BenefitChart({ data }) {
           <div className="chart-tooltip-divider">
             {tooltipCliff.kind === 'upcoming' ? (
               <p className="chart-tooltip-subtle">
-                At {fmt(tooltipCliff.targetIncomeAnnual)}/yr earnings
+                At {fmt(tooltipCliff.targetIncomeAnnual)}/yr in wages and salaries
               </p>
             ) : null}
             <p className="chart-tooltip-label">Main cliff drivers</p>
@@ -478,16 +540,18 @@ function BenefitChart({ data }) {
 
     const point = payload[0].payload
     const tooltipCliff = getTooltipCliff(point)
-    const activeSeries = detailLegendSeries.filter((series) => {
-      if (!detailVisibleKeys[series.key]) {
-        return false
-      }
-      return series.type === 'line' || Math.abs(Number(point[series.key] || 0)) > 0
-    })
+    const seriesByKey = new Map(detailAreaSeries.map((series) => [series.key, series]))
+    const activeSeries = DETAIL_TOOLTIP_ORDER
+      .map((key) => seriesByKey.get(key))
+      .filter((series) => (
+        Boolean(series)
+        && detailVisibleKeys[series.key]
+        && Math.abs(Number(point[series.key] || 0)) > 0
+      ))
 
     return (
       <div className="chart-tooltip">
-        <p className="chart-tooltip-kicker">Earnings: {fmt(label)}/yr</p>
+        <p className="chart-tooltip-kicker">Wages and salaries: {fmt(label)}/yr</p>
         <p className="chart-tooltip-highlight">Net income: {fmt(point.detail_net_income_annual)}/yr</p>
         <div className="chart-tooltip-divider">
           {activeSeries.map((series) => (
@@ -501,7 +565,7 @@ function BenefitChart({ data }) {
           <div className="chart-tooltip-divider">
             {tooltipCliff.kind === 'upcoming' ? (
               <p className="chart-tooltip-subtle">
-                At {fmt(tooltipCliff.targetIncomeAnnual)}/yr earnings
+                At {fmt(tooltipCliff.targetIncomeAnnual)}/yr in wages and salaries
               </p>
             ) : null}
             <p className="chart-tooltip-label">Main cliff drivers</p>
@@ -525,11 +589,11 @@ function BenefitChart({ data }) {
     <div className="chart-wrapper chart-wrapper--full">
       <div className="chart-panel-header">
         <div>
-          <h4>{chartMode === 'net_income' ? 'Net income by earnings' : 'Program detail'}</h4>
+          <h4>{chartMode === 'net_income' ? 'Net income over wages and salaries' : 'Program detail over wages and salaries'}</h4>
           <p>
             {chartMode === 'net_income'
-              ? 'Track how annual net income changes as earnings rise, with cliff markers placed at the last earnings level before a drop.'
-              : 'Turn programs on and off to see earnings and supports above zero, federal and state taxes below zero, and the black line showing final annual net income.'}
+              ? 'Track how annual net income changes as wages and salaries rise, with earnings dead zones shaded and cliff markers placed at the last level before a drop.'
+              : 'Turn programs on and off to see wages and salaries and supports above zero, federal and state taxes below zero, and the black line showing final annual net income.'}
           </p>
         </div>
         <div className="chart-view-toggle" role="tablist" aria-label="Chart view">
@@ -617,7 +681,7 @@ function BenefitChart({ data }) {
               domain={[0, xTicks[xTicks.length - 1]]}
               ticks={xTicks}
               tickFormatter={fmt}
-              label={{ value: 'Annual household earnings', position: 'bottom', offset: -5, fill: '#6b7280', fontSize: 11 }}
+              label={{ value: 'Annual household wages and salaries', position: 'bottom', offset: -5, fill: '#6b7280', fontSize: 11 }}
               tick={{ fill: '#6b7280', fontSize: 11 }}
               axisLine={{ stroke: '#e5e2dd' }}
               tickLine={{ stroke: '#e5e2dd' }}
@@ -629,7 +693,7 @@ function BenefitChart({ data }) {
               ticks={chartMode === 'net_income' ? netYTicks : detailYTicks}
               tickFormatter={fmt}
               label={{
-                value: 'Annual dollars',
+                value: 'Annual amount ($)',
                 angle: -90,
                 position: 'insideLeft',
                 dx: -5,
@@ -647,6 +711,23 @@ function BenefitChart({ data }) {
             />
 
             {showCliffHighlights
+              ? deadZoneBands.map((zone) => {
+                const style = CLIFF_HIGHLIGHT_STYLES[zone.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
+                return (
+                  <ReferenceArea
+                    key={`dead-zone-${zone.startIncomeAnnual}-${zone.recoveryIncomeAnnual}`}
+                    x1={zone.startIncomeAnnual}
+                    x2={zone.recoveryIncomeAnnual}
+                    fill={style.fill}
+                    fillOpacity={chartMode === 'program_detail' ? 0.11 : 0.08}
+                    strokeOpacity={0}
+                    ifOverflow="extendDomain"
+                  />
+                )
+              })
+              : null}
+
+            {showCliffHighlights
               ? highlightedCliffs.map((cliff) => {
                 const style = CLIFF_HIGHLIGHT_STYLES[cliff.severity?.tone] || CLIFF_HIGHLIGHT_STYLES.moderate
                 return (
@@ -655,7 +736,8 @@ function BenefitChart({ data }) {
                     x={cliff.startIncomeAnnual}
                     stroke={style.stroke}
                     strokeDasharray="3 4"
-                    strokeOpacity={0.45}
+                    strokeOpacity={chartMode === 'program_detail' ? 0.8 : 0.45}
+                    strokeWidth={chartMode === 'program_detail' ? 1.8 : 1.2}
                   />
                 )
               })
@@ -705,7 +787,7 @@ function BenefitChart({ data }) {
                     type="linear"
                     dataKey={series.key}
                     stackId="income-stack"
-                    stroke="none"
+                    stroke={series.hideStroke ? 'none' : series.stroke}
                     fill={series.fill}
                     fillOpacity={
                       series.key === 'federal_taxes_before_refundable_credits_annual'
@@ -713,7 +795,10 @@ function BenefitChart({ data }) {
                         ? 0.78
                         : 0.9
                     }
-                    strokeWidth={0}
+                    strokeOpacity={series.hideStroke ? 0 : 0.38}
+                    strokeWidth={series.hideStroke ? 0 : 1.15}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
                     dot={false}
                     isAnimationActive={false}
                   />

@@ -288,22 +288,22 @@ def _household_descriptor(payload: HouseholdInput) -> dict[str, Any]:
 
     people = _resolved_people(payload)
     num_adults = sum(1 for person in people if person["kind"] == "adult")
-    num_dependants = sum(1 for person in people if person["kind"] == "child")
+    num_dependents = sum(1 for person in people if person["kind"] == "child")
     adult_ages = [str(person["age"]) for person in people if person["kind"] == "adult"]
-    dependant_ages = [str(person["age"]) for person in people if person["kind"] == "child"]
+    dependent_ages = [str(person["age"]) for person in people if person["kind"] == "child"]
 
     description_parts = []
     if adult_ages:
         description_parts.append(f"Adult ages: {', '.join(adult_ages)}")
-    if dependant_ages:
-        description_parts.append(f"Dependant ages: {', '.join(dependant_ages)}")
+    if dependent_ages:
+        description_parts.append(f"Dependent ages: {', '.join(dependent_ages)}")
 
     return {
         "id": "custom_household",
-        "label": f"{_format_count(num_adults, 'adult', 'adults')} + {_format_count(num_dependants, 'dependant', 'dependants')}",
-        "short_label": f"{num_adults}A/{num_dependants}D",
+        "label": f"{_format_count(num_adults, 'adult', 'adults')} + {_format_count(num_dependents, 'dependent', 'dependents')}",
+        "short_label": f"{num_adults}A/{num_dependents}D",
         "description": ". ".join(description_parts) if description_parts else "Custom household.",
-        "summary": "The first adult is treated as the primary earner. The second adult joins the tax unit, and any other household members are treated as dependants.",
+        "summary": "The first adult is treated as the primary earner. The second adult joins the tax unit, and any other household members are treated as dependents.",
         "people": people,
     }
 

@@ -250,11 +250,11 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
 
 function describeHousehold(people) {
   const numAdults = people.filter((person) => person.kind === 'adult').length
-  const numDependants = people.filter((person) => person.kind === 'child').length
+  const numDependents = people.filter((person) => person.kind === 'child').length
   const adultAges = people
     .filter((person) => person.kind === 'adult')
     .map((person) => String(person.age))
-  const dependantAges = people
+  const dependentAges = people
     .filter((person) => person.kind === 'child')
     .map((person) => String(person.age))
 
@@ -262,21 +262,21 @@ function describeHousehold(people) {
   if (adultAges.length) {
     description.push(`Adult ages: ${adultAges.join(', ')}`)
   }
-  if (dependantAges.length) {
-    description.push(`Dependant ages: ${dependantAges.join(', ')}`)
+  if (dependentAges.length) {
+    description.push(`Dependent ages: ${dependentAges.join(', ')}`)
   }
 
   return {
     id: 'custom_household',
-    label: `${numAdults} ${numAdults === 1 ? 'adult' : 'adults'} + ${numDependants} ${numDependants === 1 ? 'dependant' : 'dependants'}`,
-    short_label: `${numAdults}A/${numDependants}D`,
+    label: `${numAdults} ${numAdults === 1 ? 'adult' : 'adults'} + ${numDependents} ${numDependents === 1 ? 'dependent' : 'dependents'}`,
+    short_label: `${numAdults}A/${numDependents}D`,
     description: description.join('. ') || 'Custom household.',
-    summary: 'The first adult is treated as the primary earner. The second adult joins the tax unit, and any other household members are treated as dependants.',
+    summary: 'The first adult is treated as the primary earner. The second adult joins the tax unit, and any other household members are treated as dependents.',
     people,
     counts: {
       num_adults: numAdults,
-      num_children: numDependants,
-      household_size: numAdults + numDependants,
+      num_children: numDependents,
+      household_size: numAdults + numDependents,
     },
   }
 }

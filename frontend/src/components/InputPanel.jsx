@@ -15,13 +15,13 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
 
   const rowMeta = useMemo(() => {
     let adultCount = 0
-    let dependantCount = 0
+    let dependentCount = 0
 
     return people.map((person) => {
       if (person.kind === 'child') {
-        dependantCount += 1
+        dependentCount += 1
         return {
-          label: `Dependant ${dependantCount}`,
+          label: `Dependent ${dependentCount}`,
           isManagedSpouse: false,
         }
       }
@@ -97,7 +97,7 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
           onCalculate()
         }}
       >
-        <div className="form-grid">
+        <div className="form-grid form-grid--single">
           <div className="form-group">
             <label htmlFor="state">State</label>
             <select
@@ -112,29 +112,33 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
               ))}
             </select>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="earned_income_yearly">
-              Earned income ($/year)
-              <InfoTooltip text="The first adult is treated as the primary earner. If you add a second adult, the calculator treats the two adults as a married tax unit." />
-            </label>
-            <input
-              type="number"
-              id="earned_income_yearly"
-              min="0"
-              step="1000"
-              value={inputs.earned_income_yearly}
-              onChange={(event) => onChange({ earned_income_yearly: Number(event.target.value) || 0 })}
-            />
-            <small>Used for all tax and benefit calculations in this scenario.</small>
-          </div>
         </div>
+
+        <details className="advanced-panel">
+          <summary className="advanced-summary">Advanced</summary>
+          <div className="advanced-grid">
+            <div className="form-group">
+              <label htmlFor="chart_max_earned_income">
+                Chart max wages and salaries ($/year)
+                <InfoTooltip text="Optional. Use this if you want to look farther up the income range than the default chart window." />
+              </label>
+              <input
+                type="number"
+                id="chart_max_earned_income"
+                min="10000"
+                step="10000"
+                value={inputs.chart_max_earned_income}
+                onChange={(event) => onChange({ chart_max_earned_income: Number(event.target.value) || 100000 })}
+              />
+            </div>
+          </div>
+        </details>
 
         <div className="member-section">
           <div className="member-section-header">
             <label>
               Household members
-              <InfoTooltip text="Add up to two adults, then add any other household members as dependants. Dependants can be children or adults. Pregnancy can be marked for adults and may affect WIC, Medicaid, and related eligibility." />
+              <InfoTooltip text="Tax filing status is inferred from the household you enter. Add up to two adults, then add any other household members as dependents. Dependents can be children or adults. Pregnancy can be marked for adults and may affect WIC, Medicaid, and related eligibility." />
             </label>
             <div className="member-actions-inline">
               <button
@@ -147,27 +151,35 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
                 Add adult
               </button>
               <button type="button" className="member-add-btn" onClick={() => addPerson('child')}>
-                Add dependant
+                Add dependent
               </button>
             </div>
           </div>
 
           <div className="member-list">
             {people.map((person, index) => (
-              <div key={`member-${index}`} className="member-row">
-                <div className="member-row-title">{rowMeta[index]?.label}</div>
-                <div className="member-row-fields">
-                  <input
-                    type="number"
-                    aria-label={`${rowMeta[index]?.label || 'Household member'} age`}
-                    placeholder="Age"
-                    min="0"
-                    max="120"
-                    step="1"
-                    value={person.age}
-                    onChange={(event) => updatePerson(index, { age: Number(event.target.value) || 0 })}
-                  />
+                <div key={`member-${index}`} className="member-row">
+                  <div className="member-row-main">
+                    <div className="member-row-title-group">
+                      <div className="member-row-title">{rowMeta[index]?.label}</div>
+                    </div>
 
+                    <label className="member-age-field">
+                    <span>Age</span>
+                    <input
+                      type="number"
+                      aria-label={`${rowMeta[index]?.label || 'Household member'} age`}
+                      placeholder="Age"
+                      min="0"
+                      max="120"
+                      step="1"
+                      value={person.age}
+                      onChange={(event) => updatePerson(index, { age: Number(event.target.value) || 0 })}
+                    />
+                  </label>
+                </div>
+
+                <div className="member-row-actions">
                   {person.kind === 'adult' ? (
                     <label className="member-checkbox-label">
                       <input
@@ -180,7 +192,6 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
                   ) : (
                     <span className="member-row-spacer" aria-hidden="true" />
                   )}
-
                   <button
                     type="button"
                     className="member-remove-btn"
@@ -202,10 +213,6 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
               </div>
             ))}
           </div>
-
-          <small>
-            Tax filing status is inferred from the household you enter. Up to two adults are treated as the tax unit, and any other household members are treated as dependants.
-          </small>
         </div>
 
         <div className="form-actions">
@@ -221,7 +228,7 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
             className="calculate-btn"
             disabled={loading}
           >
-            {loading ? 'Calculating...' : 'Calculate benefits'}
+            {loading ? 'Building chart...' : 'Find cliffs'}
           </button>
         </div>
       </form>
