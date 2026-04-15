@@ -22,7 +22,6 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
         dependentCount += 1
         return {
           label: `Dependent ${dependentCount}`,
-          isManagedSpouse: false,
         }
       }
 
@@ -79,6 +78,14 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
     })
   }
 
+  const adultMembers = people
+    .map((person, index) => ({ person, index, label: rowMeta[index]?.label || `Adult ${index + 1}` }))
+    .filter(({ person }) => person.kind === 'adult')
+
+  const dependentMembers = people
+    .map((person, index) => ({ person, index, label: rowMeta[index]?.label || `Dependent ${index + 1}` }))
+    .filter(({ person }) => person.kind === 'child')
+
   if (!metadata || !inputs) {
     return (
       <section className="input-panel">
@@ -114,8 +121,129 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
           </div>
         </div>
 
+        <div className="member-section">
+          <div className="member-section-header">
+            <label>
+              Household members
+              <InfoTooltip text="Tax filing status is inferred from the household you enter. Add up to two adults, then add any other household members as dependents. Dependents can be children or adults. Pregnancy can be marked for adults and may affect WIC, Medicaid, and related eligibility." />
+            </label>
+          </div>
+
+          <div className="member-layout">
+            <div className="member-subsection">
+              <div className="member-subsection-header">
+                <div>
+                  <div className="member-subsection-title">Adults</div>
+                  <div className="member-subsection-copy">Up to two adults in the tax unit.</div>
+                </div>
+                <button
+                  type="button"
+                  className="member-add-btn"
+                  onClick={() => addPerson('adult')}
+                  disabled={adultCount >= 2}
+                  title={adultCount >= 2 ? 'This calculator supports up to two adults in the tax unit.' : 'Add adult'}
+                >
+                  Add adult
+                </button>
+              </div>
+
+              <div className="adult-card-grid">
+                {adultMembers.map(({ person, index, label }) => (
+                  <div key={`adult-${index}`} className="adult-card">
+                    <div className="adult-card-header">
+                      <div className="adult-card-title">{label}</div>
+                      <button
+                        type="button"
+                        className="member-chip-remove"
+                        onClick={() => removePerson(index)}
+                        aria-label={`Remove ${label}`}
+                        title={`Remove ${label}`}
+                        disabled={adultCount <= 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="adult-card-fields">
+                      <label className="compact-field">
+                        <span>Age</span>
+                        <input
+                          type="number"
+                          aria-label={`${label} age`}
+                          min="0"
+                          max="120"
+                          step="1"
+                          value={person.age}
+                          onChange={(event) => updatePerson(index, { age: Number(event.target.value) || 0 })}
+                        />
+                      </label>
+
+                      <label className="member-checkbox-label member-checkbox-label--card">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(person.is_pregnant)}
+                          onChange={(event) => updatePerson(index, { is_pregnant: event.target.checked })}
+                        />
+                        <span>Pregnant</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="member-subsection">
+              <div className="member-subsection-header">
+                <div>
+                  <div className="member-subsection-title">Dependents</div>
+                  <div className="member-subsection-copy">
+                    {dependentMembers.length === 0
+                      ? 'Add dependents and enter ages inline.'
+                      : `${dependentMembers.length} ${dependentMembers.length === 1 ? 'dependent' : 'dependents'}`}
+                  </div>
+                </div>
+                <button type="button" className="member-add-btn" onClick={() => addPerson('child')}>
+                  Add dependent
+                </button>
+              </div>
+
+              {dependentMembers.length > 0 ? (
+                <div className="dependent-chip-grid">
+                  {dependentMembers.map(({ person, index, label }) => (
+                    <div key={`dependent-${index}`} className="dependent-chip">
+                      <label className="compact-field compact-field--dependent">
+                        <span>{label}</span>
+                        <input
+                          type="number"
+                          aria-label={`${label} age`}
+                          min="0"
+                          max="120"
+                          step="1"
+                          value={person.age}
+                          onChange={(event) => updatePerson(index, { age: Number(event.target.value) || 0 })}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="member-chip-remove"
+                        onClick={() => removePerson(index)}
+                        aria-label={`Remove ${label}`}
+                        title={`Remove ${label}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="member-empty-state">No dependents added yet.</div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <details className="advanced-panel">
-          <summary className="advanced-summary">Advanced</summary>
+          <summary className="advanced-summary">Advanced options</summary>
           <div className="advanced-grid">
             <div className="form-group">
               <label htmlFor="chart_max_earned_income">
@@ -133,87 +261,6 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
             </div>
           </div>
         </details>
-
-        <div className="member-section">
-          <div className="member-section-header">
-            <label>
-              Household members
-              <InfoTooltip text="Tax filing status is inferred from the household you enter. Add up to two adults, then add any other household members as dependents. Dependents can be children or adults. Pregnancy can be marked for adults and may affect WIC, Medicaid, and related eligibility." />
-            </label>
-            <div className="member-actions-inline">
-              <button
-                type="button"
-                className="member-add-btn"
-                onClick={() => addPerson('adult')}
-                disabled={adultCount >= 2}
-                title={adultCount >= 2 ? 'This calculator supports up to two adults in the tax unit.' : 'Add adult'}
-              >
-                Add adult
-              </button>
-              <button type="button" className="member-add-btn" onClick={() => addPerson('child')}>
-                Add dependent
-              </button>
-            </div>
-          </div>
-
-          <div className="member-list">
-            {people.map((person, index) => (
-                <div key={`member-${index}`} className="member-row">
-                  <div className="member-row-main">
-                    <div className="member-row-title-group">
-                      <div className="member-row-title">{rowMeta[index]?.label}</div>
-                    </div>
-
-                    <label className="member-age-field">
-                    <span>Age</span>
-                    <input
-                      type="number"
-                      aria-label={`${rowMeta[index]?.label || 'Household member'} age`}
-                      placeholder="Age"
-                      min="0"
-                      max="120"
-                      step="1"
-                      value={person.age}
-                      onChange={(event) => updatePerson(index, { age: Number(event.target.value) || 0 })}
-                    />
-                  </label>
-                </div>
-
-                <div className="member-row-actions">
-                  {person.kind === 'adult' ? (
-                    <label className="member-checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(person.is_pregnant)}
-                        onChange={(event) => updatePerson(index, { is_pregnant: event.target.checked })}
-                      />
-                      <span>Pregnant</span>
-                    </label>
-                  ) : (
-                    <span className="member-row-spacer" aria-hidden="true" />
-                  )}
-                  <button
-                    type="button"
-                    className="member-remove-btn"
-                    onClick={() => removePerson(index)}
-                    aria-label={`Remove ${rowMeta[index]?.label || 'household member'}`}
-                    title={`Remove ${rowMeta[index]?.label || 'household member'}`}
-                    disabled={
-                      person.kind === 'adult' && adultCount <= 1
-                    }
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Zm-1 10h12l1-13H5l1 13Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <div className="form-actions">
           <button

@@ -33,8 +33,8 @@ export function getCliffSeverity(dropAnnual, stepAnnual) {
   if (lossRate >= 2 || drop >= 300) {
     return {
       tone: 'severe',
-      label: 'Severe cliff',
-      shortLabel: 'Severe',
+      label: 'Cliff',
+      shortLabel: 'Cliff',
       lossRate,
     }
   }
@@ -42,16 +42,16 @@ export function getCliffSeverity(dropAnnual, stepAnnual) {
   if (lossRate >= 1 || drop >= 125) {
     return {
       tone: 'moderate',
-      label: 'Major cliff',
-      shortLabel: 'Major',
+      label: 'Cliff',
+      shortLabel: 'Cliff',
       lossRate,
     }
   }
 
   return {
     tone: 'mild',
-    label: 'Moderate cliff',
-    shortLabel: 'Moderate',
+    label: 'Cliff',
+    shortLabel: 'Cliff',
     lossRate,
   }
 }

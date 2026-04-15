@@ -50,7 +50,7 @@ function CliffInsights({ data, stepAnnual }) {
           <p>
             {report.hiddenCliffCount > 0
               ? 'We only found smaller phase-downs below the reporting threshold, so the curve does not show a meaningful benefit cliff.'
-              : 'Net resources rise steadily across the sampled wage and salary curve. Smaller cliffs can still exist between the plotted steps.'}
+              : 'Net income rises steadily across the sampled wage and salary curve. Smaller cliffs can still exist between the plotted steps.'}
           </p>
         </div>
       </div>
@@ -101,7 +101,7 @@ function CliffInsights({ data, stepAnnual }) {
           detail={`Near ${formatCurrency(largestCliff.endIncomeAnnual)}/yr in wages and salaries`}
         />
         <CliffSummaryCard
-          label="Worst payback"
+          label="Highest loss per $1 earned"
           value={formatLossRate(worstLossRateCliff.lossRate)}
           detail={`At roughly ${formatCurrency(worstLossRateCliff.endIncomeAnnual)}/yr in wages and salaries`}
         />
@@ -145,7 +145,7 @@ function CliffInsights({ data, stepAnnual }) {
             <div className="cliff-card-grid">
               <div>
                 <p className="cliff-card-copy">
-                  In this wage band, net resources move from {formatCurrency(zone.beforeResourcesAnnual)}/yr to {formatCurrency(zone.afterResourcesAnnual)}/yr. The sharpest single-step loss is {formatCurrency(zone.largestDropAnnual)}/yr, and the main driver is {zone.driverSummary}.
+                  In this wage band, net income moves from {formatCurrency(zone.beforeResourcesAnnual)}/yr to {formatCurrency(zone.afterResourcesAnnual)}/yr. The sharpest single-step loss is {formatCurrency(zone.largestDropAnnual)}/yr, and the main driver is {zone.driverSummary}.
                 </p>
 
                 <div className="cliff-card-stats">
@@ -157,7 +157,7 @@ function CliffInsights({ data, stepAnnual }) {
                     </strong>
                   </div>
                   <div className="cliff-card-stat">
-                    <span className="cliff-card-stat-label">Worst payback</span>
+                    <span className="cliff-card-stat-label">Highest loss per $1 earned</span>
                     {' '}
                     <strong className="cliff-card-stat-value">
                       {formatLossRate(zone.worstLossRate)}
