@@ -71,6 +71,18 @@ const VALID_FILING_STATUSES = new Set([
 
 const MARRIED_FILING_STATUSES = new Set(['JOINT', 'SEPARATE'])
 
+const DEFAULT_CCDF_MODELED_STATES = new Set([
+  'CA', 'CO', 'DE', 'MA', 'ME', 'NE', 'NH', 'PA', 'RI', 'VT',
+])
+
+function isCcdfModeledState(state, metadata) {
+  const fromMetadata = metadata?.ccdf_modeled_states
+  if (Array.isArray(fromMetadata) && fromMetadata.length) {
+    return fromMetadata.includes(state)
+  }
+  return DEFAULT_CCDF_MODELED_STATES.has(state)
+}
+
 class PolicyEngineApiError extends Error {
   constructor(message, status, response) {
     super(message)
@@ -332,6 +344,7 @@ function buildSituation(payload, options = {}) {
     includeIncomeOverrides = true,
     withAxes = false,
     maxEarnedIncome = 0,
+    minEarnedIncome = 0,
     step = 500,
   } = options
   const year = String(payload.year)
@@ -344,12 +357,15 @@ function buildSituation(payload, options = {}) {
 
   const childcareExpenses = Math.max(0, Number(payload.childcare_expenses) || 0)
   const rentAnnual = Math.max(0, Number(payload.rent_annual) || 0)
+  const ccdfModeled = isCcdfModeledState(payload.state, options.metadata)
   const spmUnitEntity = {
     members: [...memberIds],
     snap: { [`${year}-01`]: null },
     free_school_meals: { [year]: null },
-    child_care_subsidies: { [year]: null },
     meets_ccdf_activity_test: { [year]: true },
+  }
+  if (ccdfModeled) {
+    spmUnitEntity.child_care_subsidies = { [year]: null }
   }
   if (childcareExpenses > 0) {
     spmUnitEntity.childcare_expenses = { [year]: childcareExpenses }
@@ -467,11 +483,16 @@ function buildSituation(payload, options = {}) {
       requestedStep,
       Math.ceil(Math.max(requestedStep, Number(maxEarnedIncome) || requestedStep) / requestedStep) * requestedStep,
     )
-    const pointCount = Math.floor(alignedMaxEarnedIncome / requestedStep) + 1
+    const rawMin = Math.max(0, Number(minEarnedIncome) || 0)
+    const alignedMinEarnedIncome = rawMin >= alignedMaxEarnedIncome
+      ? 0
+      : Math.floor(rawMin / requestedStep) * requestedStep
+    const windowSpan = alignedMaxEarnedIncome - alignedMinEarnedIncome
+    const pointCount = Math.max(2, Math.floor(windowSpan / requestedStep) + 1)
     situation.axes = [[{
       name: 'employment_income',
       period: year,
-      min: 0,
+      min: alignedMinEarnedIncome,
       max: alignedMaxEarnedIncome,
       count: pointCount,
     }]]
@@ -480,6 +501,7 @@ function buildSituation(payload, options = {}) {
       tanfVariable,
       pointCount,
       alignedMaxEarnedIncome,
+      alignedMinEarnedIncome,
       effectiveStep: requestedStep,
       situation,
     }
@@ -714,9 +736,9 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
       ? (Number(getMonthValue(spmUnit, tanfVariable, year)) || 0) * 12
       : 0,
   )
-  const childCareSubsidies = roundCurrency(
-    getYearValue(spmUnit, 'child_care_subsidies', year),
-  )
+  const childCareSubsidies = isCcdfModeledState(payload.state, metadata)
+    ? roundCurrency(getYearValue(spmUnit, 'child_care_subsidies', year))
+    : 0
   const taxUnitFpg = roundCurrency(getYearValue(taxUnit, 'tax_unit_fpg', year))
   const programs = {
     snap,
@@ -966,10 +988,9 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
   const tanfValues = tanfVariable
     ? asArray(getMonthValue(spmUnit, tanfVariable, year), pointCount).map((value) => value * 12)
     : Array(pointCount).fill(0)
-  const childCareSubsidyValues = asArray(
-    getYearValue(spmUnit, 'child_care_subsidies', year),
-    pointCount,
-  )
+  const childCareSubsidyValues = isCcdfModeledState(payload.state, metadata)
+    ? asArray(getYearValue(spmUnit, 'child_care_subsidies', year), pointCount)
+    : Array(pointCount).fill(0)
   const medicaidValues = sumArrays(
     descriptor.people.map((person) => asArray(
       getYearValue(peopleResponse[person.id], 'medicaid', year),
@@ -1143,7 +1164,9 @@ export async function calculateSeriesViaPolicyEngine(payload, metadata) {
     includeIncomeOverrides: false,
     withAxes: true,
     maxEarnedIncome: payload.max_earned_income,
+    minEarnedIncome: payload.min_earned_income,
     step: payload.step,
+    metadata,
   })
   const response = await policyEngineCalculate(seriesMeta.situation)
   return buildSeriesDataFromResponse(

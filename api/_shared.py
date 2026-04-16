@@ -17,6 +17,7 @@ from scripts.calculator import (
     household_input_from_dict,
 )
 from scripts.config import (
+    CCDF_MODELED_STATES,
     DEFAULT_CLIFF_DELTA,
     DEFAULT_FILING_STATUS,
     DEFAULT_SERIES_EARNINGS_BUFFER,
@@ -43,6 +44,7 @@ def metadata_response() -> dict[str, Any]:
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,
+        "ccdf_modeled_states": sorted(CCDF_MODELED_STATES),
         "filing_statuses": FILING_STATUS_OPTIONS,
         "defaults": {
             "state": "GA",
@@ -85,12 +87,14 @@ def _series_cached(
     serialized_payload: str,
     max_earned_income: int,
     step: int,
+    min_earned_income: int,
 ) -> dict[str, Any]:
     payload = parse_household_payload(json.loads(serialized_payload))
     return calculate_income_series(
         payload,
         max_earned_income=max_earned_income,
         step=step,
+        min_earned_income=min_earned_income,
     )
 
 
@@ -124,8 +128,14 @@ def compute_series(
     *,
     max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
     step: int = DEFAULT_SERIES_STEP,
+    min_earned_income: int = 0,
 ) -> dict[str, Any]:
-    series = _series_cached(_serialize_payload(payload), max_earned_income, step)
+    series = _series_cached(
+        _serialize_payload(payload),
+        max_earned_income,
+        step,
+        min_earned_income,
+    )
     data = series["data"]
     return {
         "data": data,

@@ -1,6 +1,33 @@
+import { useState } from 'react'
 import BenefitChart from './BenefitChart'
 import CliffInsights from './CliffInsights'
 import { formatCurrency } from '../dataLookup'
+import { buildShareUrl } from '../utils/urlState'
+
+function ShareButton({ inputs }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleClick = async () => {
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(inputs))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch (err) {
+      console.error('Clipboard write failed', err)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="share-link-btn"
+      onClick={handleClick}
+      title="Copy a link that reproduces this scenario"
+    >
+      {copied ? 'Link copied' : 'Copy share link'}
+    </button>
+  )
+}
 
 function householdSummary(inputs, metadata) {
   const people = inputs?.people || []
@@ -51,14 +78,21 @@ function ResultsPanel({
     <section className="results-panel">
       <div className="charts-grid">
         <div className="chart-container full-width">
-          <h3>Cliff chart</h3>
+          <div className="chart-header-row">
+            <h3>Cliff chart</h3>
+            <ShareButton inputs={inputs} />
+          </div>
           <p className="chart-subtitle">
             {householdSummary(inputs, metadata)}
           </p>
           {seriesData ? (
             <>
               <p className="chart-subtitle">
-                Calculated through {formatCurrency(seriesData?.max_earned_income || 0)}/year in {formatCurrency(seriesData?.step_annual || 0)}/year wage and salary steps.
+                Calculated through {formatCurrency(seriesData?.max_earned_income || 0)}/year in {formatCurrency(seriesData?.step_annual || 0)}/year wage and salary steps
+                {seriesData?.refined_zone_count
+                  ? `, refined to ${formatCurrency(seriesData.refined_step_annual || 0)}/year around ${seriesData.refined_zone_count} cliff ${seriesData.refined_zone_count === 1 ? 'zone' : 'zones'}`
+                  : ''}
+                .
               </p>
               {seriesData?.truncated && (
                 <p className="chart-note warning">

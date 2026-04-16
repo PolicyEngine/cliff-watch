@@ -82,6 +82,13 @@ STATE_INFO = [
 
 STATE_NAME_BY_CODE = {item["code"]: item["name"] for item in STATE_INFO}
 
+# States with a modeled CCDF child care subsidy in policyengine-us. For all
+# other states the aggregate returns 0 no matter what, so we skip computing
+# and reporting it to avoid showing a misleading empty line.
+CCDF_MODELED_STATES = frozenset(
+    {"CA", "CO", "DE", "MA", "ME", "NE", "NH", "PA", "RI", "VT"}
+)
+
 STATE_TANF_VARIABLES = {
     "AK": "ak_atap",
     "AL": "al_tanf",

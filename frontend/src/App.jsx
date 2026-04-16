@@ -7,6 +7,8 @@ import {
   loadMetadata,
   reconcileInputs,
 } from './dataLookup'
+import { decodeInputs, syncUrlToInputs } from './utils/urlState'
+import { refineCliffZones } from './utils/seriesRefine'
 
 function App() {
   const [metadata, setMetadata] = useState(null)
@@ -19,15 +21,40 @@ function App() {
   const [seriesError, setSeriesError] = useState(null)
   const resultsRef = useRef(null)
   const requestVersionRef = useRef(0)
+  const handleCalculateRef = useRef(null)
+  const autoCalculateRef = useRef(null)
 
   useEffect(() => {
     loadMetadata()
       .then((meta) => {
         setMetadata(meta)
-        setInputs(createInitialInputs(meta))
+        const fromUrl = typeof window !== 'undefined'
+          ? decodeInputs(window.location.search)
+          : null
+        const initial = createInitialInputs(meta)
+        const nextInputs = fromUrl
+          ? reconcileInputs({ ...initial, ...fromUrl }, meta)
+          : initial
+        setInputs(nextInputs)
+        syncUrlToInputs(nextInputs)
+        if (fromUrl) {
+          autoCalculateRef.current = nextInputs
+        }
       })
       .catch((err) => setError(err.message || 'Failed to load app metadata.'))
   }, [])
+
+  useEffect(() => {
+    if (inputs) syncUrlToInputs(inputs)
+  }, [inputs])
+
+  useEffect(() => {
+    if (metadata && autoCalculateRef.current && handleCalculateRef.current) {
+      const pending = autoCalculateRef.current
+      autoCalculateRef.current = null
+      handleCalculateRef.current(pending)
+    }
+  })
 
   const clearResults = () => {
     requestVersionRef.current += 1
@@ -61,36 +88,51 @@ function App() {
 
     const defaultStep = metadata?.defaults?.series_step || 1000
     const fallbackStep = Math.max(defaultStep, 2500)
+    const isCancelled = () => requestVersion !== requestVersionRef.current
 
+    let primary = null
     try {
-      const nextSeries = await calculateSeries(nextInputs, metadata, {
-        step: defaultStep,
-      })
-      if (requestVersion !== requestVersionRef.current) return
-      setSeriesData(nextSeries)
-      setSeriesLoading(false)
-      return
+      primary = await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
       console.error(err)
     }
 
-    if (requestVersion !== requestVersionRef.current) return
+    if (isCancelled()) return
 
-    try {
-      const fallbackSeries = await calculateSeries(nextInputs, metadata, {
-        step: fallbackStep,
-      })
-      if (requestVersion !== requestVersionRef.current) return
-      setSeriesData(fallbackSeries)
-      setSeriesError('Showing a coarser cliff chart because the detailed curve timed out.')
-    } catch (err) {
-      console.error(err)
-      if (requestVersion !== requestVersionRef.current) return
-      setSeriesError('The cliff chart timed out. Try a smaller chart max and run it again.')
+    if (!primary) {
+      try {
+        primary = await calculateSeries(nextInputs, metadata, { step: fallbackStep })
+        if (isCancelled()) return
+        setSeriesError('Sampled coarsely for speed; refining around detected cliffs.')
+      } catch (err) {
+        console.error(err)
+        if (isCancelled()) return
+        setSeriesError('The cliff chart timed out. Try a smaller chart max and run it again.')
+        setSeriesLoading(false)
+        return
+      }
     }
 
-    if (requestVersion !== requestVersionRef.current) return
+    setSeriesData(primary)
     setSeriesLoading(false)
+
+    const refineStep = Math.max(100, Math.floor((primary?.step_annual || defaultStep) / 5))
+    try {
+      const refined = await refineCliffZones({
+        coarseSeries: primary,
+        inputs: nextInputs,
+        metadata,
+        refineStep,
+        calculateSeriesFn: calculateSeries,
+        isCancelled,
+      })
+      if (isCancelled()) return
+      if (refined !== primary) {
+        setSeriesData(refined)
+      }
+    } catch (err) {
+      console.error('Refinement error', err)
+    }
   }
 
   const handleCalculate = async (nextInputs = inputs) => {
@@ -117,6 +159,10 @@ function App() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    handleCalculateRef.current = handleCalculate
+  })
 
   return (
     <div className="app-shell">

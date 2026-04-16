@@ -11,6 +11,7 @@ from typing import Any
 
 try:
     from scripts.config import (
+        CCDF_MODELED_STATES,
         DEFAULT_CLIFF_DELTA,
         DEFAULT_FILING_STATUS,
         DEFAULT_SERIES_EARNINGS_BUFFER,
@@ -30,6 +31,7 @@ try:
     )
 except ModuleNotFoundError:
     from config import (
+        CCDF_MODELED_STATES,
         DEFAULT_CLIFF_DELTA,
         DEFAULT_FILING_STATUS,
         DEFAULT_SERIES_EARNINGS_BUFFER,
@@ -501,6 +503,7 @@ def build_household_variation_situation(
     *,
     max_earned_income: int,
     count: int,
+    min_earned_income: int = 0,
 ) -> dict[str, Any]:
     _validate_input(payload)
     descriptor = _household_descriptor(payload)
@@ -514,7 +517,7 @@ def build_household_variation_situation(
             {
                 "name": "employment_income",
                 "period": payload.year,
-                "min": 0,
+                "min": max(0, int(min_earned_income)),
                 "max": max_earned_income,
                 "count": count,
             }
@@ -753,14 +756,17 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         map_to="household",
     )
     tanf = _calculate_tanf_amount(simulation, payload)
-    try:
-        child_care_subsidies = _calculate_variable(
-            simulation,
-            "child_care_subsidies",
-            year,
-            map_to="spm_unit",
-        )
-    except Exception:
+    if payload.state in CCDF_MODELED_STATES:
+        try:
+            child_care_subsidies = _calculate_variable(
+                simulation,
+                "child_care_subsidies",
+                year,
+                map_to="spm_unit",
+            )
+        except Exception:
+            child_care_subsidies = 0.0
+    else:
         child_care_subsidies = 0.0
     tax_unit_fpg = _calculate_variable(
         simulation,
@@ -1088,6 +1094,7 @@ def calculate_income_series(
     *,
     max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
     step: int = DEFAULT_SERIES_STEP,
+    min_earned_income: int = 0,
 ) -> dict[str, Any]:
     effective_max_earned_income = _resolve_series_max_earned_income(
         payload,
@@ -1098,13 +1105,18 @@ def calculate_income_series(
         effective_max_earned_income,
         effective_step,
     )
-    point_count = (aligned_max_earned_income // effective_step) + 1
+    aligned_min_earned_income = max(0, int(min_earned_income))
+    if aligned_min_earned_income >= aligned_max_earned_income:
+        aligned_min_earned_income = 0
+    effective_window = aligned_max_earned_income - aligned_min_earned_income
+    point_count = max(2, (effective_window // effective_step) + 1)
     Simulation = _load_simulation()
     simulation = Simulation(
         situation=build_household_variation_situation(
             payload,
             max_earned_income=aligned_max_earned_income,
             count=point_count,
+            min_earned_income=aligned_min_earned_income,
         )
     )
 
@@ -1224,14 +1236,17 @@ def calculate_income_series(
         _calculate_tanf_amount_array(simulation, payload),
         point_count,
     )
-    try:
-        child_care_subsidy_series = _calculate_variable_array(
-            simulation,
-            "child_care_subsidies",
-            payload.year,
-            map_to="spm_unit",
-        )
-    except Exception:
+    if payload.state in CCDF_MODELED_STATES:
+        try:
+            child_care_subsidy_series = _calculate_variable_array(
+                simulation,
+                "child_care_subsidies",
+                payload.year,
+                map_to="spm_unit",
+            )
+        except Exception:
+            child_care_subsidy_series = []
+    else:
         child_care_subsidy_series = []
     child_care_subsidy_values = _normalize_series_values(
         child_care_subsidy_series,

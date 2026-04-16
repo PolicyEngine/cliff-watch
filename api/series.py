@@ -25,5 +25,6 @@ class handler(BaseHTTPRequestHandler):
                     raw_payload.get("max_earned_income", DEFAULT_SERIES_MAX_EARNINGS)
                 ),
                 step=int(raw_payload.get("step", DEFAULT_SERIES_STEP)),
+                min_earned_income=int(raw_payload.get("min_earned_income", 0)),
             ),
         )

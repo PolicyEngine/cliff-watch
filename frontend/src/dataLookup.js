@@ -170,8 +170,13 @@ export async function calculateAllStates(inputs, metadata) {
 export async function calculateSeries(inputs, metadata, options = {}) {
   const normalized = normalizeInputs(inputs, metadata)
   const payload = buildHouseholdPayload(inputs, metadata)
-  payload.max_earned_income = Math.round(normalized.chart_max_earned_income)
+  payload.max_earned_income = Math.round(
+    options.maxEarnedIncome ?? normalized.chart_max_earned_income,
+  )
   payload.step = options.step || metadata?.defaults?.series_step || 2500
+  if (options.minEarnedIncome) {
+    payload.min_earned_income = Math.max(0, Math.round(options.minEarnedIncome))
+  }
   try {
     return await calculateSeriesViaPolicyEngine(payload, metadata)
   } catch (error) {
