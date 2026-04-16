@@ -305,7 +305,7 @@ function validatePayload(payload) {
 }
 
 function buildPersonData(person, year) {
-  return {
+  const data = {
     age: { [year]: person.age },
     has_itin: { [year]: true },
     has_esi: { [year]: false },
@@ -313,6 +313,7 @@ function buildPersonData(person, year) {
     is_pregnant: { [year]: Boolean(person.is_pregnant) },
     under_60_days_postpartum: { [year]: false },
     immigration_status_str: { [year]: 'CITIZEN' },
+    is_ccdf_reason_for_care_eligible: { [year]: true },
     is_aca_ptc_eligible: { [year]: null },
     is_medicaid_eligible: { [year]: null },
     is_chip_eligible: { [year]: null },
@@ -320,6 +321,10 @@ function buildPersonData(person, year) {
     medicaid: { [year]: null },
     chip: { [year]: null },
   }
+  if (person.kind === 'adult') {
+    data.ccdf_age_group = { [year]: 'SCHOOL_AGE' }
+  }
+  return data
 }
 
 function buildSituation(payload, options = {}) {
@@ -337,15 +342,24 @@ function buildSituation(payload, options = {}) {
   const monthlyEarnedIncome = earnedIncome / 12
   const memberIds = descriptor.people.map((person) => person.id)
 
+  const childcareExpenses = Math.max(0, Number(payload.childcare_expenses) || 0)
+  const rentAnnual = Math.max(0, Number(payload.rent_annual) || 0)
+  const spmUnitEntity = {
+    members: [...memberIds],
+    snap: { [`${year}-01`]: null },
+    free_school_meals: { [year]: null },
+    child_care_subsidies: { [year]: null },
+    meets_ccdf_activity_test: { [year]: true },
+  }
+  if (childcareExpenses > 0) {
+    spmUnitEntity.childcare_expenses = { [year]: childcareExpenses }
+  }
+
   const situation = {
     people: {},
     families: { family: { members: [...memberIds] } },
     spm_units: {
-      spm_unit: {
-        members: [...memberIds],
-        snap: { [`${year}-01`]: null },
-        free_school_meals: { [year]: null },
-      },
+      spm_unit: spmUnitEntity,
     },
     tax_units: {
       tax_unit: {
@@ -388,6 +402,10 @@ function buildSituation(payload, options = {}) {
       .forEach((component) => {
         personData[component.variable] = { [year]: null }
       })
+
+    if (index === 0 && rentAnnual > 0) {
+      personData.rent = { [year]: rentAnnual }
+    }
 
     if (includeIncomeOverrides && index === 0 && earnedIncome > 0) {
       personData.employment_income = { [year]: earnedIncome }
@@ -696,12 +714,16 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
       ? (Number(getMonthValue(spmUnit, tanfVariable, year)) || 0) * 12
       : 0,
   )
+  const childCareSubsidies = roundCurrency(
+    getYearValue(spmUnit, 'child_care_subsidies', year),
+  )
   const taxUnitFpg = roundCurrency(getYearValue(taxUnit, 'tax_unit_fpg', year))
   const programs = {
     snap,
     tanf,
     wic,
     free_school_meals: freeSchoolMeals,
+    child_care_subsidies: childCareSubsidies,
     medicaid,
     chip,
     aca_ptc: acaPtc,
@@ -944,6 +966,10 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
   const tanfValues = tanfVariable
     ? asArray(getMonthValue(spmUnit, tanfVariable, year), pointCount).map((value) => value * 12)
     : Array(pointCount).fill(0)
+  const childCareSubsidyValues = asArray(
+    getYearValue(spmUnit, 'child_care_subsidies', year),
+    pointCount,
+  )
   const medicaidValues = sumArrays(
     descriptor.people.map((person) => asArray(
       getYearValue(peopleResponse[person.id], 'medicaid', year),
@@ -980,6 +1006,7 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       tanf: roundCurrency(tanfValues[index]),
       wic: roundCurrency(wicValues[index]),
       free_school_meals: roundCurrency(freeSchoolMealValues[index]),
+      child_care_subsidies: roundCurrency(childCareSubsidyValues[index]),
       medicaid: roundCurrency(medicaidValues[index]),
       chip: roundCurrency(chipValues[index]),
       aca_ptc: roundCurrency(premiumTaxCreditValues[index]),
@@ -1037,6 +1064,7 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       state_taxes_before_refundable_credits: point.totals.state_taxes_before_refundable_credits,
       tanf: point.programs.tanf,
       wic: point.programs.wic,
+      child_care_subsidies: point.programs.child_care_subsidies,
       has_previous_point: Boolean(previousPoint),
       cliff_drop_annual: previousPoint && netChangeAnnual < 0
         ? roundCurrency(-netChangeAnnual)

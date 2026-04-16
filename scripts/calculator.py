@@ -69,6 +69,8 @@ class HouseholdInput:
     people: tuple[HouseholdMemberInput, ...] = ()
     household_type: str | None = None
     filing_status: str | None = None
+    childcare_expenses: float = 0.0
+    rent_annual: float = 0.0
 
 
 PROGRAM_LABEL_BY_KEY = {
@@ -360,7 +362,7 @@ def _base_person_data(
     *,
     year: int,
 ) -> dict[str, Any]:
-    return {
+    data = {
         "age": {year: person["age"]},
         "has_itin": {year: True},
         "has_esi": {year: False},
@@ -368,7 +370,14 @@ def _base_person_data(
         "is_pregnant": {year: bool(person.get("is_pregnant", False))},
         "under_60_days_postpartum": {year: False},
         "immigration_status_str": {year: "CITIZEN"},
+        "is_ccdf_reason_for_care_eligible": {year: True},
     }
+    # Adults fail the CCDF age-group formula (defined only for children <13),
+    # which crashes any simulation that touches CCDF. Pin them to a valid
+    # enum value so the subsidy computes to 0 instead of erroring.
+    if person["kind"] == "adult":
+        data["ccdf_age_group"] = {year: "SCHOOL_AGE"}
+    return data
 
 
 def _base_household_groups(
@@ -380,11 +389,15 @@ def _base_household_groups(
     year = payload.year
     earned_income = float(payload.earned_income)
     monthly_earned = earned_income / 12
+    rent_annual = float(getattr(payload, "rent_annual", 0.0) or 0.0)
     people: dict[str, dict[str, Any]] = {}
     member_ids = [person["id"] for person in members]
 
     for index, person in enumerate(members):
         person_data = _base_person_data(person, year=year)
+
+        if index == 0 and rent_annual > 0:
+            person_data["rent"] = {year: rent_annual}
 
         if include_income_overrides and index == 0 and earned_income > 0:
             person_data["employment_income"] = {year: earned_income}
@@ -427,10 +440,18 @@ def _base_household_groups(
         tax_unit["aca_magi"] = {year: earned_income}
         tax_unit["medicaid_magi"] = {year: earned_income}
 
+    childcare_expenses = float(getattr(payload, "childcare_expenses", 0.0) or 0.0)
+    spm_unit: dict[str, Any] = {
+        "members": member_ids,
+        "meets_ccdf_activity_test": {year: True},
+    }
+    if childcare_expenses > 0:
+        spm_unit["childcare_expenses"] = {year: childcare_expenses}
+
     situation: dict[str, Any] = {
         "people": people,
         "families": {"family": {"members": member_ids}},
-        "spm_units": {"spm_unit": {"members": member_ids}},
+        "spm_units": {"spm_unit": spm_unit},
         "tax_units": {"tax_unit": tax_unit},
         "households": {"household": household},
         "marital_units": {},
@@ -440,6 +461,7 @@ def _base_household_groups(
         situation["spm_units"]["spm_unit"][
             "co_tanf_countable_gross_earned_income"
         ] = {year: earned_income}
+
 
     head_and_spouse = [
         person["id"]
@@ -731,6 +753,15 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         map_to="household",
     )
     tanf = _calculate_tanf_amount(simulation, payload)
+    try:
+        child_care_subsidies = _calculate_variable(
+            simulation,
+            "child_care_subsidies",
+            year,
+            map_to="spm_unit",
+        )
+    except Exception:
+        child_care_subsidies = 0.0
     tax_unit_fpg = _calculate_variable(
         simulation,
         "tax_unit_fpg",
@@ -790,6 +821,7 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         "tanf": tanf,
         "wic": wic,
         "free_school_meals": free_school_meals,
+        "child_care_subsidies": child_care_subsidies,
         "medicaid": medicaid_value,
         "chip": chip_value,
         "aca_ptc": aca_ptc,
@@ -1192,6 +1224,19 @@ def calculate_income_series(
         _calculate_tanf_amount_array(simulation, payload),
         point_count,
     )
+    try:
+        child_care_subsidy_series = _calculate_variable_array(
+            simulation,
+            "child_care_subsidies",
+            payload.year,
+            map_to="spm_unit",
+        )
+    except Exception:
+        child_care_subsidy_series = []
+    child_care_subsidy_values = _normalize_series_values(
+        child_care_subsidy_series,
+        point_count,
+    )
 
     series = []
     previous_result = None
@@ -1205,6 +1250,7 @@ def calculate_income_series(
             "tanf": round(tanf_values[index], 2),
             "wic": round(wic_values[index], 2),
             "free_school_meals": round(free_school_meal_values[index], 2),
+            "child_care_subsidies": round(child_care_subsidy_values[index], 2),
             "medicaid": round(medicaid_values[index], 2),
             "chip": round(chip_values[index], 2),
             "aca_ptc": round(aca_ptc_values[index], 2),
@@ -1277,6 +1323,7 @@ def calculate_income_series(
                 "state_taxes_before_refundable_credits": state_taxes_before_refundable_credits,
                 "tanf": programs["tanf"],
                 "wic": programs["wic"],
+                "child_care_subsidies": programs["child_care_subsidies"],
                 "has_previous_point": has_previous_point,
                 "cliff_drop_annual": round(cliff_drop, 2),
                 "is_cliff": cliff_drop > 0,
@@ -1365,6 +1412,8 @@ def household_input_from_dict(data: dict[str, Any]) -> HouseholdInput:
         people=people,
         household_type=data.get("household_type"),
         filing_status=data.get("filing_status"),
+        childcare_expenses=float(data.get("childcare_expenses", 0) or 0),
+        rent_annual=float(data.get("rent_annual", 0) or 0),
     )
 
 

@@ -101,6 +101,8 @@ export function reconcileInputs(inputs, metadata) {
       10000,
       Number(inputs?.chart_max_earned_income) || defaultChartMax,
     ),
+    childcare_expenses: Math.max(0, Number(inputs?.childcare_expenses) || 0),
+    rent_annual: Math.max(0, Number(inputs?.rent_annual) || 0),
     year: metadata?.year || 2026,
   }
 }
@@ -113,6 +115,8 @@ export function createInitialInputs(metadata) {
       metadata?.defaults?.chart_max_earned_income
       || metadata?.defaults?.series_max_earned_income
       || 100000,
+    childcare_expenses: 0,
+    rent_annual: 0,
   }, metadata)
 }
 
@@ -123,6 +127,8 @@ export function normalizeInputs(inputs, metadata) {
     people: reconciled.people,
     filing_status: reconciled.filing_status,
     chart_max_earned_income: reconciled.chart_max_earned_income,
+    childcare_expenses: reconciled.childcare_expenses,
+    rent_annual: reconciled.rent_annual,
     year: reconciled.year,
   }
 }
@@ -135,6 +141,8 @@ export function buildHouseholdPayload(inputs, metadata) {
     filing_status: normalized.filing_status,
     earned_income: 0,
     year: normalized.year,
+    childcare_expenses: normalized.childcare_expenses,
+    rent_annual: normalized.rent_annual,
   }
 }
 

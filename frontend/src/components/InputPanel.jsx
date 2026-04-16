@@ -134,7 +134,11 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
               <div className="member-subsection-header">
                 <div>
                   <div className="member-subsection-title">Adults</div>
-                  <div className="member-subsection-copy">Up to two adults in the tax unit.</div>
+                  <div className="member-subsection-copy">
+                    {adultCount === 1
+                      ? '1 adult in the tax unit.'
+                      : 'Up to two adults in the tax unit.'}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -198,7 +202,7 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
                   <div className="member-subsection-title">Dependents</div>
                   <div className="member-subsection-copy">
                     {dependentMembers.length === 0
-                      ? 'Add dependents and enter ages inline.'
+                      ? 'No dependents added.'
                       : `${dependentMembers.length} ${dependentMembers.length === 1 ? 'dependent' : 'dependents'}`}
                   </div>
                 </div>
@@ -236,7 +240,10 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
                   ))}
                 </div>
               ) : (
-                <div className="member-empty-state">No dependents added yet.</div>
+                <div className="member-empty-state">
+                  <div className="member-empty-state-title">No dependents yet</div>
+                  <div className="member-empty-state-copy">Add a dependent to include children or other household members in the household.</div>
+                </div>
               )}
             </div>
           </div>
@@ -257,6 +264,34 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
                 step="10000"
                 value={inputs.chart_max_earned_income}
                 onChange={(event) => onChange({ chart_max_earned_income: Number(event.target.value) || 100000 })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="childcare_expenses">
+                Child care expenses ($/year)
+                <InfoTooltip text="Annual out-of-pocket child care costs. Feeds SNAP's dependent care deduction and CCDF subsidy eligibility. CCDF subsidies are currently modeled for CA, CO, DE, MA, ME, NE, NH, PA, RI, and VT." />
+              </label>
+              <input
+                type="number"
+                id="childcare_expenses"
+                min="0"
+                step="500"
+                value={inputs.childcare_expenses ?? 0}
+                onChange={(event) => onChange({ childcare_expenses: Number(event.target.value) || 0 })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="rent_annual">
+                Rent ($/year)
+                <InfoTooltip text="Annual rent. Feeds SNAP's excess shelter deduction, which can meaningfully raise SNAP for households with high rent relative to income." />
+              </label>
+              <input
+                type="number"
+                id="rent_annual"
+                min="0"
+                step="500"
+                value={inputs.rent_annual ?? 0}
+                onChange={(event) => onChange({ rent_annual: Number(event.target.value) || 0 })}
               />
             </div>
           </div>

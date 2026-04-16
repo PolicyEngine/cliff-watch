@@ -37,20 +37,6 @@ function ResultsPanel({
     )
   }
 
-  if (loading) {
-    return (
-      <section className="results-panel">
-        <div className="chart-container full-width">
-          <h3>Cliff chart</h3>
-          <p className="chart-subtitle">
-            Building the income curve for this household now.
-          </p>
-          <div className="chart-empty">Finding cliffs...</div>
-        </div>
-      </section>
-    )
-  }
-
   if (!hasCalculated) {
     return (
       <section className="results-panel">
@@ -88,12 +74,16 @@ function ResultsPanel({
                 stepAnnual={seriesData?.step_annual}
               />
             </>
-          ) : seriesLoading ? (
+          ) : (loading || seriesLoading) ? (
             <>
               <p className="chart-subtitle">
-                Loading the cliff chart in the background.
+                Calculating through {formatCurrency(inputs?.chart_max_earned_income || metadata?.defaults?.chart_max_earned_income || 0)}/year in {formatCurrency(metadata?.defaults?.series_step || 0)}/year wage and salary steps.
               </p>
-              <div className="chart-empty">The curve is still loading.</div>
+              <BenefitChart
+                data={[]}
+                loading
+                placeholderMaxEarnedIncome={inputs?.chart_max_earned_income || metadata?.defaults?.chart_max_earned_income || 100000}
+              />
             </>
           ) : (
             <>

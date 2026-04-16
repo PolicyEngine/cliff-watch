@@ -216,6 +216,8 @@ export function buildCliffReport(data = []) {
     lastZone.cliffs.push(cliff)
   })
 
+  const lastDataIncomeAnnual = Number(data[data.length - 1]?.earned_income) || 0
+
   const zones = rawZones.map((zone) => {
     const dominantDrivers = rollupCliffDrivers(
       zone.cliffs.flatMap((cliff) => cliff.material_cliff_drivers || []),
@@ -226,6 +228,17 @@ export function buildCliffReport(data = []) {
     const totalDropAnnual = round(
       zone.cliffs.reduce((sum, cliff) => sum + cliff.dropAnnual, 0),
     )
+
+    const recoveryPoint = data.find((point) => (
+      Number(point.earned_income || 0) > zone.endIncomeAnnual
+      && Number(point.net_resources || 0) >= zone.beforeResourcesAnnual
+    ))
+    const recoveryIncomeAnnual = recoveryPoint
+      ? Number(recoveryPoint.earned_income) || 0
+      : null
+    const recoveryGapAnnual = recoveryIncomeAnnual !== null
+      ? round(recoveryIncomeAnnual - zone.endIncomeAnnual)
+      : null
 
     return {
       id: `${Math.round(zone.startIncomeAnnual)}-${Math.round(zone.endIncomeAnnual)}`,
@@ -246,6 +259,10 @@ export function buildCliffReport(data = []) {
       topDriver: dominantDrivers[0] || null,
       driverSummary: describeDrivers(dominantDrivers),
       cliffs: zone.cliffs,
+      recoveryIncomeAnnual,
+      recoveryGapAnnual,
+      recoveredWithinChart: recoveryIncomeAnnual !== null,
+      chartMaxIncomeAnnual: lastDataIncomeAnnual,
     }
   })
 

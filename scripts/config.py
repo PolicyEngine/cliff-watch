@@ -225,6 +225,12 @@ PROGRAM_DEFINITIONS = [
         "description": "Modeled value of free school breakfast and lunch.",
     },
     {
+        "key": "child_care_subsidies",
+        "label": "Child care subsidies",
+        "short_label": "Child care",
+        "description": "State CCDF child care subsidy net of family copay (modeled in CA, CO, DE, MA, ME, NE, NH, PA, RI, VT).",
+    },
+    {
         "key": "federal_refundable_credits",
         "label": "Federal refundable tax credits",
         "short_label": "Federal credits",
