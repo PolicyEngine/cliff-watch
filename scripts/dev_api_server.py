@@ -15,7 +15,6 @@ from api._shared import (
     compute_household,
     compute_household_types,
     compute_series,
-    compute_states,
     handle_options,
     metadata_response,
     parse_household_payload,
@@ -43,8 +42,6 @@ class DevApiHandler(BaseHTTPRequestHandler):
                 response = {
                     "result": compute_household(parse_household_payload(payload))
                 }
-            elif self.path == "/api/states":
-                response = compute_states(parse_household_payload(payload))
             elif self.path == "/api/series":
                 response = compute_series(
                     parse_household_payload(payload),

@@ -10,9 +10,6 @@
     "api/series.py": {
       "maxDuration": 60
     },
-    "api/states.py": {
-      "maxDuration": 60
-    },
     "api/metadata.py": {
       "maxDuration": 10
     },

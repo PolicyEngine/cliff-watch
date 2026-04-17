@@ -10,7 +10,6 @@ from scripts.calculator import (
     DEFAULT_SERIES_MAX_EARNINGS,
     DEFAULT_SERIES_STEP,
     HouseholdInput,
-    calculate_all_states,
     calculate_household,
     calculate_household_types,
     calculate_income_series,
@@ -62,24 +61,10 @@ def metadata_response() -> dict[str, Any]:
     }
 
 
-def _state_sort_key(item: dict[str, Any]) -> tuple[float, float, str]:
-    return (
-        -item["net_resources"],
-        -item["core_support"],
-        item["state"],
-    )
-
-
 @lru_cache(maxsize=128)
 def _household_cached(serialized_payload: str) -> dict[str, Any]:
     payload = parse_household_payload(json.loads(serialized_payload))
     return calculate_household(payload)
-
-
-@lru_cache(maxsize=128)
-def _states_cached(serialized_payload: str) -> list[dict[str, Any]]:
-    payload = parse_household_payload(json.loads(serialized_payload))
-    return calculate_all_states(payload)
 
 
 @lru_cache(maxsize=128)
@@ -106,21 +91,6 @@ def _household_types_cached(serialized_payload: str) -> list[dict[str, Any]]:
 
 def compute_household(payload: HouseholdInput) -> dict[str, Any]:
     return _household_cached(_serialize_payload(payload))
-
-
-def compute_states(payload: HouseholdInput) -> dict[str, Any]:
-    states = _states_cached(_serialize_payload(payload))
-    sorted_states = sorted(states, key=_state_sort_key)
-    max_resources_annual = max(
-        (item["net_resources"] for item in sorted_states),
-        default=0,
-    )
-    for index, item in enumerate(sorted_states, start=1):
-        item["rank"] = index
-    return {
-        "states": sorted_states,
-        "max_net_resources": max_resources_annual,
-    }
 
 
 def compute_series(

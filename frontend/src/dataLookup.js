@@ -1,5 +1,4 @@
 import {
-  calculateAllStatesViaPolicyEngine,
   calculateHouseholdViaPolicyEngine,
   calculateSeriesViaPolicyEngine,
 } from './policyengineApi'
@@ -154,16 +153,6 @@ export async function calculateStateResult(inputs, metadata) {
     console.error(error)
     const response = await postJson('/api/calculate', payload)
     return response.result
-  }
-}
-
-export async function calculateAllStates(inputs, metadata) {
-  const payload = buildHouseholdPayload(inputs, metadata)
-  try {
-    return await calculateAllStatesViaPolicyEngine(payload, metadata)
-  } catch (error) {
-    console.error(error)
-    return postJson('/api/states', payload)
   }
 }
 

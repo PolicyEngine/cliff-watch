@@ -1052,43 +1052,6 @@ def calculate_household(
     return result
 
 
-def calculate_all_states(payload: HouseholdInput) -> list[dict[str, Any]]:
-    results = []
-    for state in [item["code"] for item in STATE_INFO]:
-        scenario = HouseholdInput(
-            state=state,
-            earned_income=payload.earned_income,
-            year=payload.year,
-            people=payload.people,
-            household_type=payload.household_type,
-            filing_status=payload.filing_status,
-        )
-        result = _simulate_core(scenario)
-        results.append(
-            {
-                "state": state,
-                "state_name": STATE_NAME_BY_CODE[state],
-                "template_label": result["template"]["label"],
-                "net_resources": result["totals"]["net_resources"],
-                "taxes": result["totals"]["taxes"],
-                "net_resources_monthly": round(
-                    result["totals"]["net_resources"] / 12,
-                    2,
-                ),
-                "core_support": result["totals"]["core_support"],
-                "core_support_monthly": round(
-                    result["totals"]["core_support"] / 12,
-                    2,
-                ),
-                "taxes_monthly": round(result["totals"]["taxes"] / 12, 2),
-                "income_pct_fpg": result["context"]["income_pct_fpg"],
-                "resources_pct_fpg": result["context"]["resources_pct_fpg"],
-                "access": result["access"],
-            }
-        )
-    return results
-
-
 def calculate_income_series(
     payload: HouseholdInput,
     *,
@@ -1442,7 +1405,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=["household", "states", "series", "households"],
+        choices=["household", "series", "households"],
         default="household",
     )
     parser.add_argument("--max-earned-income", type=int, default=DEFAULT_SERIES_MAX_EARNINGS)
@@ -1466,8 +1429,6 @@ def main() -> None:
 
     if args.mode == "household":
         output = calculate_household(payload, delta=args.delta)
-    elif args.mode == "states":
-        output = calculate_all_states(payload)
     elif args.mode == "series":
         output = calculate_income_series(
             payload,
