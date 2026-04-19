@@ -1405,7 +1405,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "input",
         nargs="?",
-        default="scripts/sample_household.json",
+        default="examples/sample_household.json",
         help="Path to input JSON. Use '-' to read from stdin.",
     )
     parser.add_argument(

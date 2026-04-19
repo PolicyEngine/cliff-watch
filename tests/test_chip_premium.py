@@ -16,10 +16,23 @@ pytest.importorskip("policyengine_us")
 
 
 def _chip_premium_available() -> bool:
-    """True when the installed policyengine-us release exposes `chip_premium`."""
-    from policyengine_us import Microsimulation  # noqa: WPS433
+    """True when PolicyEngine-US, as loaded by the calculator, exposes `chip_premium`.
 
-    return "chip_premium" in Microsimulation().tax_benefit_system.variables
+    Uses the same ``_load_simulation`` helper the calculator uses so the probe
+    picks up local source overrides via ``POLICYENGINE_US_REPO`` when present,
+    matching what the calculator will actually see.
+    """
+    from cliff_watch.calculator import _load_simulation  # noqa: WPS433
+
+    Simulation = _load_simulation()
+    sim = Simulation(
+        situation={
+            "people": {"p": {}},
+            "tax_units": {"t": {"members": ["p"]}},
+            "households": {"h": {"members": ["p"], "state_code": "TX"}},
+        }
+    )
+    return "chip_premium" in sim.tax_benefit_system.variables
 
 
 requires_chip_premium = pytest.mark.skipif(

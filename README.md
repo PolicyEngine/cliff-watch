@@ -39,18 +39,20 @@ More detail is in [COMPUTE_STRATEGY.md](COMPUTE_STRATEGY.md).
 ## Repo Layout
 
 - `frontend/`: React app
-- `scripts/`: PolicyEngine calculator, local dev API server, and sample payload
+- `cliff_watch/`: installable Python package with the calculator, config, and a local dev API server
 - `api/`: serverless-style request handlers that share the same compute layer
+- `examples/`: sample payloads for the CLI
+- `tests/`: pytest suite
 - `docs/`: static build output from Vite
 
 ## Getting Started
 
 ### 1. Python setup
 
-Install the calculator dependency:
+Install the package in editable mode (pulls PolicyEngine-US automatically):
 
 ```bash
-uv pip install -r requirements.txt
+uv venv .venv && uv pip install -e ".[dev]"
 ```
 
 If you already have a local `policyengine-us` checkout, you can point this repo at it:
@@ -71,7 +73,7 @@ npm install
 Start the local API:
 
 ```bash
-python3 scripts/dev_api_server.py
+cliff-watch-dev-server
 ```
 
 In a second terminal:
@@ -88,9 +90,9 @@ The app will run at `http://localhost:3000/`, with `/api/*` proxied to the local
 You can also run the calculator without the frontend:
 
 ```bash
-python3 scripts/calculator.py scripts/sample_household.json --mode household
-python3 scripts/calculator.py scripts/sample_household.json --mode states
-python3 scripts/calculator.py scripts/sample_household.json --mode series
+python3 -m cliff_watch.calculator examples/sample_household.json --mode household
+python3 -m cliff_watch.calculator examples/sample_household.json --mode states
+python3 -m cliff_watch.calculator examples/sample_household.json --mode series
 ```
 
 ## Current Scope Notes
