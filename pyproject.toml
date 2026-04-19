@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cliff-watch"
+version = "0.2.0"
+description = "Dynamic benefit cliff calculator built on PolicyEngine-US."
+requires-python = ">=3.11"
+dependencies = [
+    "policyengine-us>=1.596.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+cliff-watch-dev-server = "cliff_watch.dev_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cliff_watch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

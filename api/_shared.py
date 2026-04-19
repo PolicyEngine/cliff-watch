@@ -6,7 +6,7 @@ from functools import lru_cache
 from http.server import BaseHTTPRequestHandler
 from typing import Any, Callable
 
-from scripts.calculator import (
+from cliff_watch.calculator import (
     DEFAULT_SERIES_MAX_EARNINGS,
     DEFAULT_SERIES_STEP,
     HouseholdInput,
@@ -15,7 +15,7 @@ from scripts.calculator import (
     calculate_income_series,
     household_input_from_dict,
 )
-from scripts.config import (
+from cliff_watch.config import (
     CCDF_MODELED_STATES,
     DEFAULT_CLIFF_DELTA,
     DEFAULT_FILING_STATUS,
@@ -23,6 +23,7 @@ from scripts.config import (
     DEFAULT_YEAR,
     DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
     FILING_STATUS_OPTIONS,
+    HOUSEHOLD_COST_DEFINITIONS,
     HOUSEHOLD_TYPES,
     PROGRAM_DEFINITIONS,
     STATE_INFO,
@@ -43,6 +44,7 @@ def metadata_response() -> dict[str, Any]:
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,
+        "household_costs": HOUSEHOLD_COST_DEFINITIONS,
         "ccdf_modeled_states": sorted(CCDF_MODELED_STATES),
         "filing_statuses": FILING_STATUS_OPTIONS,
         "defaults": {
