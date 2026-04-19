@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -51,9 +51,7 @@ class DevApiHandler(BaseHTTPRequestHandler):
                     step=int(payload.get("step", DEFAULT_SERIES_STEP)),
                 )
             elif self.path == "/api/households":
-                response = compute_household_types(
-                    parse_household_payload(payload)
-                )
+                response = compute_household_types(parse_household_payload(payload))
             else:
                 send_error_json(self, 404, f"Unknown route: {self.path}")
                 return

@@ -268,3 +268,12 @@ PROGRAM_DEFINITIONS = [
         "description": "Marketplace premium subsidies for eligible households.",
     },
 ]
+
+HOUSEHOLD_COST_DEFINITIONS = [
+    {
+        "key": "chip_premium",
+        "label": "CHIP premium",
+        "short_label": "CHIP premium",
+        "description": "Annual CHIP premium or enrollment fee paid by the household. Subtracted from net resources.",
+    },
+]
