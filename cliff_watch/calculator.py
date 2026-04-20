@@ -129,10 +129,6 @@ def _candidate_policyengine_repo() -> Path | None:
     repo = os.getenv("POLICYENGINE_US_REPO")
     if repo:
         return Path(repo).expanduser()
-
-    sibling = Path(__file__).resolve().parents[1].parent / "policyengine-us"
-    if sibling.exists():
-        return sibling
     return None
 
 
