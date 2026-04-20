@@ -2,6 +2,7 @@ const round = (value) => Math.round((Number(value) || 0) * 100) / 100
 const MIN_REPORTABLE_DROP_ANNUAL = 500
 const MIN_REPORTABLE_DRIVER_LOSS_ANNUAL = 500
 const ZONE_GAP_MULTIPLIER = 1.5
+const MATERIAL_DRIVER_KINDS = new Set(['benefit_loss', 'household_cost_increase'])
 const driverImpactAnnual = (driver) => Math.abs(Number(driver?.resource_effect_annual) || 0)
 
 const sortDrivers = (drivers) => drivers.sort((left, right) => {
@@ -93,7 +94,7 @@ export function rollupCliffDrivers(drivers = []) {
 export function filterMaterialCliffDrivers(drivers = []) {
   return sortStepDrivers(
     drivers.filter((driver) => (
-      driver?.kind === 'benefit_loss'
+      MATERIAL_DRIVER_KINDS.has(driver?.kind)
       && driverImpactAnnual(driver) >= MIN_REPORTABLE_DRIVER_LOSS_ANNUAL
     )),
   )

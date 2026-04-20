@@ -75,6 +75,15 @@ const DEFAULT_CCDF_MODELED_STATES = new Set([
   'CA', 'CO', 'DE', 'MA', 'ME', 'NE', 'NH', 'PA', 'RI', 'VT',
 ])
 
+const DEFAULT_HOUSEHOLD_COST_DEFINITIONS = [
+  {
+    key: 'chip_premium',
+    label: 'CHIP premium',
+    short_label: 'CHIP premium',
+    description: 'Annual CHIP premium or enrollment fee paid by the household.',
+  },
+]
+
 function isCcdfModeledState(state, metadata) {
   const fromMetadata = metadata?.ccdf_modeled_states
   if (Array.isArray(fromMetadata) && fromMetadata.length) {
@@ -394,6 +403,7 @@ function buildSituation(payload, options = {}) {
         household_tax_before_refundable_credits: { [year]: null },
         household_state_tax_before_refundable_credits: { [year]: null },
         household_refundable_state_tax_credits: { [year]: null },
+        chip_premium: { [year]: null },
       },
     },
     marital_units: {},
@@ -569,10 +579,28 @@ function getProgramDefinitions(metadata) {
   return metadata?.programs || []
 }
 
+function getHouseholdCostDefinitions(metadata) {
+  const definitions = metadata?.household_costs
+  if (Array.isArray(definitions) && definitions.length) {
+    return definitions
+  }
+  return DEFAULT_HOUSEHOLD_COST_DEFINITIONS
+}
+
 function getProgramLabelMap(metadata) {
   return Object.fromEntries(
     getProgramDefinitions(metadata).map((program) => [program.key, program.label]),
   )
+}
+
+function getHouseholdCostLabelMap(metadata) {
+  return Object.fromEntries(
+    getHouseholdCostDefinitions(metadata).map((cost) => [cost.key, cost.label]),
+  )
+}
+
+function getHouseholdCostValue(point, key) {
+  return Number(point?.household_costs?.[key] ?? point?.[key]) || 0
 }
 
 function bestAccessProgram({ acaEligible, medicaidEligible, chipEligible }) {
@@ -604,7 +632,7 @@ function formatProgramBreakdown(programs, metadata) {
     .filter(Boolean)
 }
 
-function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descriptor) {
+export function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descriptor) {
   const year = String(payload.year)
   const households = apiResponse?.result?.households?.household || {}
   const taxUnit = apiResponse?.result?.tax_units?.tax_unit || {}
@@ -644,6 +672,7 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
   const stateRefundableCredits = roundCurrency(
     getYearValue(households, 'household_refundable_state_tax_credits', year),
   )
+  const chipPremium = roundCurrency(getYearValue(households, 'chip_premium', year))
   const tanf = roundCurrency(
     tanfVariable
       ? (Number(getMonthValue(spmUnit, tanfVariable, year)) || 0) * 12
@@ -664,6 +693,9 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
     aca_ptc: acaPtc,
     federal_refundable_credits: federalRefundableCredits,
     state_refundable_credits: stateRefundableCredits,
+  }
+  const householdCosts = {
+    chip_premium: chipPremium,
   }
 
   const people = descriptor.people.map((person) => {
@@ -703,7 +735,10 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
   const coreSupport = roundCurrency(
     Object.values(programs).reduce((sum, value) => sum + value, 0),
   )
-  const netResources = roundCurrency(marketIncome + coreSupport - taxes)
+  const totalHouseholdCosts = roundCurrency(
+    Object.values(householdCosts).reduce((sum, value) => sum + value, 0),
+  )
+  const netResources = roundCurrency(marketIncome + coreSupport - taxes - totalHouseholdCosts)
 
   return {
     input: {
@@ -733,9 +768,11 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
       federal_taxes_before_refundable_credits: federalTaxesBeforeRefundableCredits,
       state_taxes_before_refundable_credits: stateTaxesBeforeRefundableCredits,
       core_support: coreSupport,
+      household_costs: totalHouseholdCosts,
       net_resources: netResources,
     },
     programs,
+    household_costs: householdCosts,
     access,
     context: {
       tax_unit_fpg: taxUnitFpg,
@@ -750,13 +787,15 @@ function buildHouseholdResultFromResponse(payload, metadata, apiResponse, descri
       market_income: monthlyAmount(marketIncome),
       taxes: monthlyAmount(taxes),
       core_support: monthlyAmount(coreSupport),
+      household_costs: monthlyAmount(totalHouseholdCosts),
       net_resources: monthlyAmount(netResources),
     },
   }
 }
 
-function buildCliffDrivers(previousPoint, currentPoint, metadata) {
+export function buildCliffDrivers(previousPoint, currentPoint, metadata) {
   const labelByKey = getProgramLabelMap(metadata)
+  const householdCostLabels = getHouseholdCostLabelMap(metadata)
   const drivers = Object.keys(labelByKey).flatMap((key) => {
     const changeAnnual = roundCurrency(currentPoint.programs[key] - previousPoint.programs[key])
     if (changeAnnual >= 0) {
@@ -771,6 +810,24 @@ function buildCliffDrivers(previousPoint, currentPoint, metadata) {
       resource_effect_annual: changeAnnual,
       resource_effect_monthly: monthlyAmount(changeAnnual),
     }]
+  })
+
+  Object.keys(householdCostLabels).forEach((key) => {
+    const changeAnnual = roundCurrency(
+      getHouseholdCostValue(currentPoint, key) - getHouseholdCostValue(previousPoint, key),
+    )
+    if (changeAnnual <= 0) {
+      return
+    }
+    drivers.push({
+      key,
+      label: householdCostLabels[key],
+      kind: 'household_cost_increase',
+      raw_change_annual: changeAnnual,
+      raw_change_monthly: monthlyAmount(changeAnnual),
+      resource_effect_annual: roundCurrency(-changeAnnual),
+      resource_effect_monthly: monthlyAmount(-changeAnnual),
+    })
   })
 
   const taxChangeAnnual = roundCurrency(currentPoint.totals.taxes - previousPoint.totals.taxes)
@@ -794,7 +851,7 @@ function buildCliffDrivers(previousPoint, currentPoint, metadata) {
   })
 }
 
-function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor, seriesMeta) {
+export function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor, seriesMeta) {
   const year = String(payload.year)
   const households = apiResponse?.result?.households?.household || {}
   const taxUnit = apiResponse?.result?.tax_units?.tax_unit || {}
@@ -867,6 +924,10 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
     getYearValue(households, 'household_refundable_state_tax_credits', year),
     pointCount,
   )
+  const chipPremiumValues = asArray(
+    getYearValue(households, 'chip_premium', year),
+    pointCount,
+  )
 
   const points = earnedIncomeValues.map((earnedIncome, index) => {
     const programs = {
@@ -881,6 +942,9 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       federal_refundable_credits: roundCurrency(federalRefundableCreditValues[index]),
       state_refundable_credits: roundCurrency(stateRefundableCreditValues[index]),
     }
+    const householdCosts = {
+      chip_premium: roundCurrency(chipPremiumValues[index]),
+    }
     const marketIncome = roundCurrency(marketIncomeValues[index])
     const taxes = roundCurrency(taxValues[index])
     const stateTaxesBeforeRefundableCredits = roundCurrency(stateTaxValues[index])
@@ -890,7 +954,10 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
     const coreSupport = roundCurrency(
       Object.values(programs).reduce((sum, value) => sum + value, 0),
     )
-    const netResources = roundCurrency(marketIncome + coreSupport - taxes)
+    const totalHouseholdCosts = roundCurrency(
+      Object.values(householdCosts).reduce((sum, value) => sum + value, 0),
+    )
+    const netResources = roundCurrency(marketIncome + coreSupport - taxes - totalHouseholdCosts)
     return {
       earned_income: roundCurrency(earnedIncome),
       step_annual: seriesMeta.effectiveStep,
@@ -900,9 +967,11 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
         federal_taxes_before_refundable_credits: federalTaxesBeforeRefundableCredits,
         state_taxes_before_refundable_credits: stateTaxesBeforeRefundableCredits,
         core_support: coreSupport,
+        household_costs: totalHouseholdCosts,
         net_resources: netResources,
       },
       programs,
+      household_costs: householdCosts,
     }
   })
 
@@ -933,6 +1002,8 @@ function buildSeriesDataFromResponse(payload, metadata, apiResponse, descriptor,
       tanf: point.programs.tanf,
       wic: point.programs.wic,
       child_care_subsidies: point.programs.child_care_subsidies,
+      chip_premium: point.household_costs.chip_premium,
+      household_costs: point.household_costs,
       has_previous_point: Boolean(previousPoint),
       cliff_drop_annual: previousPoint && netChangeAnnual < 0
         ? roundCurrency(-netChangeAnnual)
@@ -1024,4 +1095,3 @@ export async function calculateSeriesViaPolicyEngine(payload, metadata) {
     seriesMeta,
   )
 }
-

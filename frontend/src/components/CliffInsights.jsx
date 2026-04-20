@@ -27,7 +27,7 @@ function CliffInsights({ data, stepAnnual }) {
       .slice(0, MAX_ZONE_CARDS)
   ), [report.zones])
 
-  const thresholdCopy = `${formatCurrency(report.thresholds?.minDropAnnual || 0)}/yr net loss or any single program loss of ${formatCurrency(report.thresholds?.minDriverLossAnnual || 0)}/yr`
+  const thresholdCopy = `${formatCurrency(report.thresholds?.minDropAnnual || 0)}/yr net loss or any single benefit loss or household cost increase of ${formatCurrency(report.thresholds?.minDriverLossAnnual || 0)}/yr`
 
   if (report.cliffs.length === 0) {
     return (

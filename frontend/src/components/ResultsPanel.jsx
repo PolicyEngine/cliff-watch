@@ -102,6 +102,7 @@ function ResultsPanel({
               {seriesError && <p className="chart-note warning">{seriesError}</p>}
               <BenefitChart
                 data={seriesData?.data || []}
+                metadata={metadata}
               />
               <CliffInsights
                 data={seriesData?.data || []}
@@ -117,6 +118,7 @@ function ResultsPanel({
                 data={[]}
                 loading
                 placeholderMaxEarnedIncome={inputs?.chart_max_earned_income || metadata?.defaults?.chart_max_earned_income || 100000}
+                metadata={metadata}
               />
             </>
           ) : (
