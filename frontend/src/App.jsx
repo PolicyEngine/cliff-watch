@@ -190,7 +190,7 @@ function App() {
         </div>
       </header>
 
-      <div className="app">
+      <main className="app">
         <InputPanel
           metadata={metadata}
           inputs={inputs}
@@ -211,7 +211,7 @@ function App() {
           error={error}
           seriesError={seriesError}
         />
-      </div>
+      </main>
     </div>
   )
 }
