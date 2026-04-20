@@ -63,19 +63,115 @@ const PROGRAM_DETAIL_LINE_SERIES = [
   },
 ]
 
-const PROGRAM_DETAIL_AREA_SERIES = [
+const PROGRAM_DETAIL_EARNINGS_SERIES = {
+  key: 'earned_income_annual',
+  label: 'Wages and salaries',
+  type: 'area',
+  family: 'earnings',
+  stroke: '#6B7B93',
+  fill: '#D8E1EC',
+  defaultVisible: true,
+}
+
+const PROGRAM_DETAIL_SUPPORT_SERIES = [
   {
-    key: 'earned_income_annual',
-    label: 'Wages and salaries',
+    key: 'federal_refundable_credits_annual',
+    label: 'Federal refundable tax credits',
     type: 'area',
-    stroke: '#6B7B93',
-    fill: '#D8E1EC',
+    family: 'support',
+    stroke: '#7C3AED',
+    fill: '#DDD6FE',
     defaultVisible: true,
   },
+  {
+    key: 'state_refundable_credits_annual',
+    label: 'State refundable tax credits',
+    type: 'area',
+    family: 'support',
+    stroke: '#6D28D9',
+    fill: '#C4B5FD',
+    defaultVisible: true,
+  },
+  {
+    key: 'tanf_annual',
+    label: 'TANF',
+    type: 'area',
+    family: 'support',
+    stroke: '#9A5A3C',
+    fill: '#D7AE8E',
+    defaultVisible: true,
+  },
+  {
+    key: 'snap_annual',
+    label: 'SNAP',
+    type: 'area',
+    family: 'support',
+    stroke: '#4A9B68',
+    fill: '#9BD3A8',
+    defaultVisible: true,
+  },
+  {
+    key: 'wic_annual',
+    label: 'WIC',
+    type: 'area',
+    family: 'support',
+    stroke: '#D17AA4',
+    fill: '#F1C4D8',
+    defaultVisible: true,
+  },
+  {
+    key: 'free_school_meals_annual',
+    label: 'School meals',
+    type: 'area',
+    family: 'support',
+    stroke: '#C9963E',
+    fill: '#F0D29E',
+    defaultVisible: true,
+  },
+  {
+    key: 'child_care_subsidies_annual',
+    label: 'Child care subsidies',
+    type: 'area',
+    family: 'support',
+    stroke: '#8B5CF6',
+    fill: '#DDD6FE',
+    defaultVisible: true,
+  },
+  {
+    key: 'medicaid_annual',
+    label: 'Medicaid',
+    type: 'area',
+    family: 'support',
+    stroke: '#0F766E',
+    fill: '#A7E4DB',
+    defaultVisible: true,
+  },
+  {
+    key: 'chip_annual',
+    label: 'CHIP',
+    type: 'area',
+    family: 'support',
+    stroke: '#6366F1',
+    fill: '#C7D2FE',
+    defaultVisible: true,
+  },
+  {
+    key: 'aca_ptc_annual',
+    label: 'ACA',
+    type: 'area',
+    family: 'support',
+    stroke: '#3B82F6',
+    fill: '#BFDBFE',
+    defaultVisible: true,
+  },
+]
+
+const PROGRAM_DETAIL_TAX_SERIES = [
   {
     key: 'federal_taxes_before_refundable_credits_annual',
     label: 'Federal taxes',
     type: 'area',
+    family: 'tax',
     stroke: '#DC2626',
     fill: '#FECACA',
     defaultVisible: true,
@@ -85,91 +181,18 @@ const PROGRAM_DETAIL_AREA_SERIES = [
     key: 'state_taxes_before_refundable_credits_annual',
     label: 'State taxes',
     type: 'area',
+    family: 'tax',
     stroke: '#B91C1C',
     fill: '#FCA5A5',
     defaultVisible: true,
     hideStroke: true,
   },
-  {
-    key: 'federal_refundable_credits_annual',
-    label: 'Federal refundable tax credits',
-    type: 'area',
-    stroke: '#7C3AED',
-    fill: '#DDD6FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'state_refundable_credits_annual',
-    label: 'State refundable tax credits',
-    type: 'area',
-    stroke: '#6D28D9',
-    fill: '#C4B5FD',
-    defaultVisible: true,
-  },
-  {
-    key: 'tanf_annual',
-    label: 'TANF',
-    type: 'area',
-    stroke: '#9A5A3C',
-    fill: '#D7AE8E',
-    defaultVisible: true,
-  },
-  {
-    key: 'snap_annual',
-    label: 'SNAP',
-    type: 'area',
-    stroke: '#4A9B68',
-    fill: '#9BD3A8',
-    defaultVisible: true,
-  },
-  {
-    key: 'wic_annual',
-    label: 'WIC',
-    type: 'area',
-    stroke: '#D17AA4',
-    fill: '#F1C4D8',
-    defaultVisible: true,
-  },
-  {
-    key: 'free_school_meals_annual',
-    label: 'School meals',
-    type: 'area',
-    stroke: '#C9963E',
-    fill: '#F0D29E',
-    defaultVisible: true,
-  },
-  {
-    key: 'child_care_subsidies_annual',
-    label: 'Child care subsidies',
-    type: 'area',
-    stroke: '#8B5CF6',
-    fill: '#DDD6FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'medicaid_annual',
-    label: 'Medicaid',
-    type: 'area',
-    stroke: '#0F766E',
-    fill: '#A7E4DB',
-    defaultVisible: true,
-  },
-  {
-    key: 'chip_annual',
-    label: 'CHIP',
-    type: 'area',
-    stroke: '#6366F1',
-    fill: '#C7D2FE',
-    defaultVisible: true,
-  },
-  {
-    key: 'aca_ptc_annual',
-    label: 'ACA',
-    type: 'area',
-    stroke: '#3B82F6',
-    fill: '#BFDBFE',
-    defaultVisible: true,
-  },
+]
+
+const HOUSEHOLD_COST_SERIES_COLORS = [
+  { stroke: '#9F1239', fill: '#FBCFE8' },
+  { stroke: '#BE185D', fill: '#F9A8D4' },
+  { stroke: '#831843', fill: '#FDA4AF' },
 ]
 
 const CLIFF_HIGHLIGHT_STYLES = {
@@ -190,21 +213,40 @@ const CLIFF_HIGHLIGHT_STYLES = {
   },
 }
 
-const DETAIL_TOOLTIP_ORDER = [
-  'earned_income_annual',
-  'federal_refundable_credits_annual',
-  'state_refundable_credits_annual',
-  'tanf_annual',
-  'snap_annual',
-  'wic_annual',
-  'free_school_meals_annual',
-  'child_care_subsidies_annual',
-  'medicaid_annual',
-  'chip_annual',
-  'aca_ptc_annual',
-  'federal_taxes_before_refundable_credits_annual',
-  'state_taxes_before_refundable_credits_annual',
+const DEFAULT_HOUSEHOLD_COST_DEFINITIONS = [
+  {
+    key: 'chip_premium',
+    label: 'CHIP premium',
+  },
 ]
+
+function getHouseholdCostDefinitions(metadata) {
+  const definitions = metadata?.household_costs
+  if (Array.isArray(definitions) && definitions.length) {
+    return definitions
+  }
+  return DEFAULT_HOUSEHOLD_COST_DEFINITIONS
+}
+
+function getPointHouseholdCostValue(point, key) {
+  return Number(point?.household_costs?.[key] ?? point?.[key]) || 0
+}
+
+function buildHouseholdCostAreaSeries(metadata) {
+  return getHouseholdCostDefinitions(metadata).map((cost, index) => {
+    const colors = HOUSEHOLD_COST_SERIES_COLORS[index % HOUSEHOLD_COST_SERIES_COLORS.length]
+    return {
+      key: `household_cost_${cost.key}_annual`,
+      label: cost.label,
+      type: 'area',
+      family: 'household_cost',
+      stroke: colors.stroke,
+      fill: colors.fill,
+      defaultVisible: true,
+      hideStroke: true,
+    }
+  })
+}
 
 function chooseNiceStep(rawStep) {
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
@@ -242,6 +284,7 @@ function BenefitChart({
   data,
   loading = false,
   placeholderMaxEarnedIncome = 100000,
+  metadata,
 }) {
   const [chartMode, setChartMode] = useState('net_income')
   const [netVisibleKeys, setNetVisibleKeys] = useState({})
@@ -249,6 +292,14 @@ function BenefitChart({
   const [showCliffHighlights, setShowCliffHighlights] = useState(true)
   const [showMtr, setShowMtr] = useState(false)
   const hasRealData = Boolean(data?.length)
+  const householdCostDefinitions = useMemo(
+    () => getHouseholdCostDefinitions(metadata),
+    [metadata],
+  )
+  const householdCostAreaSeries = useMemo(
+    () => buildHouseholdCostAreaSeries(metadata),
+    [metadata],
+  )
 
   const annualizedData = useMemo(() => {
     const rawPoints = data || []
@@ -259,6 +310,7 @@ function BenefitChart({
           net_resources_annual: 0,
           detail_net_income_annual: 0,
           benefits_only_annual: 0,
+          household_costs_total_annual: 0,
           federal_refundable_credits_annual: 0,
           state_refundable_credits_annual: 0,
           federal_taxes_annual: 0,
@@ -272,6 +324,7 @@ function BenefitChart({
           net_resources_annual: 0,
           detail_net_income_annual: 0,
           benefits_only_annual: 0,
+          household_costs_total_annual: 0,
           federal_refundable_credits_annual: 0,
           state_refundable_credits_annual: 0,
           federal_taxes_annual: 0,
@@ -290,14 +343,26 @@ function BenefitChart({
       const stateRefundableCreditsAnnual = Number(point.state_refundable_credits || 0)
       const federalTaxesAnnual = Number(point.federal_taxes_before_refundable_credits || 0)
       const stateTaxesAnnual = Number(point.state_taxes_before_refundable_credits || 0)
+      const totalHouseholdCostsAnnual = householdCostDefinitions.reduce(
+        (sum, definition) => sum + getPointHouseholdCostValue(point, definition.key),
+        0,
+      )
+      const householdCostValues = Object.fromEntries(
+        householdCostDefinitions.map((definition) => ([
+          `household_cost_${definition.key}_annual`,
+          -getPointHouseholdCostValue(point, definition.key),
+        ])),
+      )
 
       return {
         ...point,
+        ...householdCostValues,
         earned_income_annual: Number(point.earned_income || 0),
         net_resources_annual: Number(point.net_resources || 0),
         detail_net_income_annual: Number(point.net_resources || 0),
         benefits_and_credits_annual: coreBenefitsAnnual,
         benefits_only_annual: coreBenefitsAnnual - federalRefundableCreditsAnnual - stateRefundableCreditsAnnual,
+        household_costs_total_annual: totalHouseholdCostsAnnual,
         taxes_annual: taxesAnnual,
         federal_taxes_annual: federalTaxesAnnual,
         state_taxes_annual: stateTaxesAnnual,
@@ -343,30 +408,31 @@ function BenefitChart({
         upcoming_cliff_drivers: filterMaterialCliffDrivers(nextPoint.cliff_drivers || []),
       }
     })
-  }, [data, loading, placeholderMaxEarnedIncome])
+  }, [data, householdCostDefinitions, loading, placeholderMaxEarnedIncome])
 
   const detailAreaSeries = useMemo(() => (
-    PROGRAM_DETAIL_AREA_SERIES.filter((series) => (
+    [
+      PROGRAM_DETAIL_EARNINGS_SERIES,
+      ...PROGRAM_DETAIL_SUPPORT_SERIES,
+      ...householdCostAreaSeries,
+      ...PROGRAM_DETAIL_TAX_SERIES,
+    ].filter((series) => (
       annualizedData.some((item) => Math.abs(Number(item[series.key] || 0)) > 0)
     ))
-  ), [annualizedData])
+  ), [annualizedData, householdCostAreaSeries])
 
   const detailLegendSeries = useMemo(() => {
     const earningsSeries = detailAreaSeries.find((series) => series.key === 'earned_income_annual')
-    const federalTaxesSeries = detailAreaSeries.find((series) => series.key === 'federal_taxes_before_refundable_credits_annual')
-    const stateTaxesSeries = detailAreaSeries.find((series) => series.key === 'state_taxes_before_refundable_credits_annual')
-    const remainingAreaSeries = detailAreaSeries.filter((series) => (
-      series.key !== 'earned_income_annual'
-      && series.key !== 'federal_taxes_before_refundable_credits_annual'
-      && series.key !== 'state_taxes_before_refundable_credits_annual'
-    ))
+    const supportSeries = detailAreaSeries.filter((series) => series.family === 'support')
+    const householdCostSeries = detailAreaSeries.filter((series) => series.family === 'household_cost')
+    const taxSeries = detailAreaSeries.filter((series) => series.family === 'tax')
 
     return [
       PROGRAM_DETAIL_LINE_SERIES[0],
       earningsSeries,
-      federalTaxesSeries,
-      stateTaxesSeries,
-      ...remainingAreaSeries,
+      ...supportSeries,
+      ...householdCostSeries,
+      ...taxSeries,
     ].filter(Boolean)
   }, [detailAreaSeries])
 
@@ -575,6 +641,12 @@ function BenefitChart({
             <span>State refundable tax credits</span>
             <span>{fmt(point.state_refundable_credits_annual)}/yr</span>
           </div>
+          {point.household_costs_total_annual > 0 ? (
+            <div className="chart-tooltip-row">
+              <span>Household costs</span>
+              <span>{fmt(point.household_costs_total_annual)}/yr</span>
+            </div>
+          ) : null}
           <div className="chart-tooltip-row">
             <span>Federal taxes</span>
             <span>{fmt(point.federal_taxes_annual)}/yr</span>
@@ -628,11 +700,10 @@ function BenefitChart({
 
     const point = payload[0].payload
     const tooltipCliff = getTooltipCliff(point)
-    const seriesByKey = new Map(detailAreaSeries.map((series) => [series.key, series]))
-    const activeSeries = DETAIL_TOOLTIP_ORDER
-      .map((key) => seriesByKey.get(key))
+    const activeSeries = detailLegendSeries
       .filter((series) => (
         Boolean(series)
+        && series.type === 'area'
         && detailVisibleKeys[series.key]
         && Math.abs(Number(point[series.key] || 0)) > 0
       ))
@@ -687,7 +758,7 @@ function BenefitChart({
           <p>
             {chartMode === 'net_income'
               ? 'Track how annual net income changes as wages and salaries rise, with earnings dead zones shaded and cliff markers anchored to the last sampled income before a drop.'
-              : 'Turn programs on and off to see wages and salaries and supports above zero, federal and state taxes below zero, and the black line showing final annual net income.'}
+              : 'Turn programs on and off to see wages and salaries and supports above zero, household costs and taxes below zero, and the black line showing final annual net income.'}
           </p>
         </div>
         <div className="chart-view-toggle" role="tablist" aria-label="Chart view">

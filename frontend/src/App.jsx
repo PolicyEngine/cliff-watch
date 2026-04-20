@@ -10,6 +10,19 @@ import {
 import { decodeInputs, syncUrlToInputs } from './utils/urlState'
 import { refineCliffZones } from './utils/seriesRefine'
 
+function cleanSeriesErrorMessage(error) {
+  const message = error?.message?.trim()
+  if (!message) {
+    return 'The cliff chart is unavailable right now.'
+  }
+
+  if (message.startsWith('Calculation failed:')) {
+    return message
+  }
+
+  return `Chart calculation failed: ${message}`
+}
+
 function App() {
   const [metadata, setMetadata] = useState(null)
   const [inputs, setInputs] = useState(null)
@@ -91,23 +104,27 @@ function App() {
     const isCancelled = () => requestVersion !== requestVersionRef.current
 
     let primary = null
+    let primaryError = null
     try {
       primary = await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
+      primaryError = err
       console.error(err)
     }
 
     if (isCancelled()) return
 
     if (!primary) {
+      let fallbackError = null
       try {
         primary = await calculateSeries(nextInputs, metadata, { step: fallbackStep })
         if (isCancelled()) return
         setSeriesError('Sampled coarsely for speed; refining around detected cliffs.')
       } catch (err) {
+        fallbackError = err
         console.error(err)
         if (isCancelled()) return
-        setSeriesError('The cliff chart timed out. Try a smaller chart max and run it again.')
+        setSeriesError(cleanSeriesErrorMessage(fallbackError || primaryError))
         setSeriesLoading(false)
         return
       }

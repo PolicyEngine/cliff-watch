@@ -21,6 +21,7 @@ from cliff_watch.config import (
     DEFAULT_SERIES_TARGET_POINTS,
     DEFAULT_YEAR,
     FILING_STATUS_OPTIONS,
+    HOUSEHOLD_COST_DEFINITIONS,
     MARRIED_FILING_STATUSES,
     HOUSEHOLD_TYPE_BY_ID,
     PROGRAM_DEFINITIONS,
@@ -55,6 +56,9 @@ class HouseholdInput:
 
 
 PROGRAM_LABEL_BY_KEY = {item["key"]: item["label"] for item in PROGRAM_DEFINITIONS}
+HOUSEHOLD_COST_LABEL_BY_KEY = {
+    item["key"]: item["label"] for item in HOUSEHOLD_COST_DEFINITIONS
+}
 FILING_STATUS_CODES = {item["code"] for item in FILING_STATUS_OPTIONS}
 REFUNDABLE_CREDIT_COMPONENTS = (
     {"key": "eitc", "variable": "eitc", "map_to": "tax_unit"},
@@ -125,10 +129,6 @@ def _candidate_policyengine_repo() -> Path | None:
     repo = os.getenv("POLICYENGINE_US_REPO")
     if repo:
         return Path(repo).expanduser()
-
-    sibling = Path(__file__).resolve().parents[1].parent / "policyengine-us"
-    if sibling.exists():
-        return sibling
     return None
 
 
@@ -997,6 +997,24 @@ def _build_cliff_drivers(
                     "raw_change_monthly": _monthly_amount(annual_change),
                     "resource_effect_annual": annual_change,
                     "resource_effect_monthly": _monthly_amount(annual_change),
+                }
+            )
+
+    for key, label in HOUSEHOLD_COST_LABEL_BY_KEY.items():
+        annual_change = round(
+            result["household_costs"][key] - previous_result["household_costs"][key],
+            2,
+        )
+        if annual_change > 0:
+            drivers.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "kind": "household_cost_increase",
+                    "raw_change_annual": annual_change,
+                    "raw_change_monthly": _monthly_amount(annual_change),
+                    "resource_effect_annual": round(-annual_change, 2),
+                    "resource_effect_monthly": _monthly_amount(-annual_change),
                 }
             )
 

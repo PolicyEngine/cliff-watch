@@ -2,6 +2,24 @@ import { buildCliffReport } from './cliffReport'
 
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100
 const monthly = (value) => round(value / 12)
+const DEFAULT_HOUSEHOLD_COST_DEFINITIONS = [
+  {
+    key: 'chip_premium',
+    label: 'CHIP premium',
+  },
+]
+
+function getHouseholdCostDefinitions(metadata) {
+  const definitions = metadata?.household_costs
+  if (Array.isArray(definitions) && definitions.length) {
+    return definitions
+  }
+  return DEFAULT_HOUSEHOLD_COST_DEFINITIONS
+}
+
+function getHouseholdCostValue(point, key) {
+  return Number(point?.household_costs?.[key] ?? point?.[key]) || 0
+}
 
 function dedupeSorted(points) {
   if (!points.length) return points
@@ -14,7 +32,7 @@ function dedupeSorted(points) {
   return out
 }
 
-function recomputeDeltas(sortedData, programKeys, programLabels) {
+function recomputeDeltas(sortedData, programKeys, programLabels, householdCostKeys, householdCostLabels) {
   return sortedData.map((point, index) => {
     if (index === 0) {
       return {
@@ -46,6 +64,20 @@ function recomputeDeltas(sortedData, programKeys, programLabels) {
             raw_change_monthly: monthly(change),
             resource_effect_annual: change,
             resource_effect_monthly: monthly(change),
+          })
+        }
+      })
+      householdCostKeys.forEach((key) => {
+        const change = round(getHouseholdCostValue(point, key) - getHouseholdCostValue(prev, key))
+        if (change > 0) {
+          drivers.push({
+            key,
+            label: householdCostLabels[key] || key,
+            kind: 'household_cost_increase',
+            raw_change_annual: change,
+            raw_change_monthly: monthly(change),
+            resource_effect_annual: round(-change),
+            resource_effect_monthly: monthly(-change),
           })
         }
       })
@@ -95,6 +127,9 @@ export async function refineCliffZones({
   const programs = metadata?.programs || []
   const programKeys = programs.map((p) => p.key)
   const programLabels = Object.fromEntries(programs.map((p) => [p.key, p.label]))
+  const householdCosts = getHouseholdCostDefinitions(metadata)
+  const householdCostKeys = householdCosts.map((cost) => cost.key)
+  const householdCostLabels = Object.fromEntries(householdCosts.map((cost) => [cost.key, cost.label]))
 
   const refinementJobs = report.zones.map(async (zone) => {
     const margin = Math.max(coarseStep / 2, refineStep)
@@ -136,7 +171,13 @@ export async function refineCliffZones({
     .sort((a, b) => a.earned_income - b.earned_income)
 
   const deduped = dedupeSorted(mergedRaw)
-  const withDeltas = recomputeDeltas(deduped, programKeys, programLabels)
+  const withDeltas = recomputeDeltas(
+    deduped,
+    programKeys,
+    programLabels,
+    householdCostKeys,
+    householdCostLabels,
+  )
 
   return {
     ...coarseSeries,
