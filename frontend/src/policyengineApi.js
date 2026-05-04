@@ -75,7 +75,85 @@ const DEFAULT_CCDF_MODELED_STATES = new Set([
   'CA', 'CO', 'DE', 'MA', 'ME', 'NE', 'NH', 'PA', 'RI', 'VT',
 ])
 
+const DEFAULT_PUBLIC_ASSISTANCE_PROGRAM_OPTIONS = [
+  { key: 'snap', label: 'Supplemental Nutrition Assistance Program (SNAP)' },
+  { key: 'free_school_meals', label: 'Free or reduced price school meals' },
+  { key: 'wic', label: 'Women, Infants, and Children Nutrition Program (WIC)' },
+  { key: 'tanf', label: 'Temporary Assistance for Needy Families (TANF)' },
+  { key: 'child_care_subsidies', label: 'Child Care Subsidy (CCDF)' },
+  { key: 'head_start', label: 'Head Start' },
+  { key: 'early_head_start', label: 'Early Head Start' },
+  { key: 'housing_assistance', label: 'Section 8 Housing Choice Voucher' },
+  { key: 'medicaid', label: 'Medicaid for adults' },
+  { key: 'chip', label: 'Medicaid for children / CHIP' },
+  { key: 'aca_ptc', label: 'Health Insurance Marketplace Subsidy' },
+  { key: 'federal_refundable_credits', label: 'Federal refundable tax credits' },
+  { key: 'state_refundable_credits', label: 'State refundable tax credits' },
+  { key: 'ssi', label: 'Supplemental Security Income (SSI)' },
+  { key: 'ssdi', label: 'Social Security Disability Insurance (SSDI)' },
+]
+
 const DEFAULT_HOUSEHOLD_COST_DEFINITIONS = [
+  {
+    key: 'rent',
+    label: 'Rent or mortgage',
+    short_label: 'Housing',
+    description: 'Annual rent or mortgage entered by the household.',
+  },
+  {
+    key: 'utilities',
+    label: 'Utilities',
+    short_label: 'Utilities',
+    description: 'Annual utility costs entered by the household.',
+  },
+  {
+    key: 'childcare',
+    label: 'Child care expense',
+    short_label: 'Child care',
+    description: 'Annual out-of-pocket child care expense entered by the household.',
+  },
+  {
+    key: 'food',
+    label: 'Food',
+    short_label: 'Food',
+    description: 'Annual food costs entered by the household.',
+  },
+  {
+    key: 'transportation',
+    label: 'Transportation',
+    short_label: 'Transport',
+    description: 'Annual transportation costs entered by the household.',
+  },
+  {
+    key: 'health_insurance_premiums',
+    label: 'Health insurance premiums',
+    short_label: 'Health premiums',
+    description: 'Annual out-of-pocket health insurance premiums entered by the household.',
+  },
+  {
+    key: 'technology',
+    label: 'Phone and internet',
+    short_label: 'Tech',
+    description: 'Annual phone and internet costs entered by the household.',
+  },
+  {
+    key: 'debt_payments',
+    label: 'Debt payments',
+    short_label: 'Debt',
+    description: 'Annual debt payments entered by the household.',
+  },
+  {
+    key: 'education_training',
+    label: 'Education and training',
+    short_label: 'Training',
+    description: 'Annual education or training costs entered by the household.',
+  },
+  {
+    key: 'other_expenses',
+    label: 'Other expenses',
+    short_label: 'Other',
+    description: 'Other annual budget costs entered by the household.',
+  },
   {
     key: 'chip_premium',
     label: 'CHIP premium',
@@ -83,6 +161,19 @@ const DEFAULT_HOUSEHOLD_COST_DEFINITIONS = [
     description: 'Annual CHIP premium or enrollment fee paid by the household.',
   },
 ]
+
+const FIXED_HOUSEHOLD_COST_INPUTS = {
+  rent: 'rent_annual',
+  utilities: 'utility_expense_annual',
+  childcare: 'childcare_expenses',
+  food: 'food_expense_annual',
+  transportation: 'transportation_expense_annual',
+  health_insurance_premiums: 'health_insurance_premium_annual',
+  technology: 'technology_expense_annual',
+  debt_payments: 'debt_payment_annual',
+  education_training: 'education_expense_annual',
+  other_expenses: 'other_expense_annual',
+}
 
 function isCcdfModeledState(state, metadata) {
   const fromMetadata = metadata?.ccdf_modeled_states
@@ -104,6 +195,57 @@ class PolicyEngineApiError extends Error {
 const roundCurrency = (value) => Math.round((Number(value) || 0) * 100) / 100
 
 const monthlyAmount = (value) => roundCurrency((Number(value) || 0) / 12)
+
+const nonnegative = (value) => Math.max(0, Number(value) || 0)
+
+function normalizeCounty(county, state) {
+  if (!county) return null
+  const normalized = String(county)
+    .trim()
+    .toUpperCase()
+    .replaceAll(',', '')
+    .replaceAll('.', '')
+    .replaceAll('-', '_')
+    .replace(/\s+/g, '_')
+
+  if (!normalized) return null
+  return normalized.endsWith(`_${state}`) ? normalized : `${normalized}_${state}`
+}
+
+function getPublicAssistancePrograms(metadata) {
+  const options = metadata?.public_assistance_programs
+  if (Array.isArray(options) && options.length) {
+    return options
+  }
+  return DEFAULT_PUBLIC_ASSISTANCE_PROGRAM_OPTIONS
+}
+
+function selectedPrograms(payload, metadata) {
+  const knownKeys = new Set(getPublicAssistancePrograms(metadata).map((program) => program.key))
+  return new Set(
+    (payload?.selected_programs || []).filter((key) => knownKeys.has(key)),
+  )
+}
+
+function programIncluded(payload, key, metadata) {
+  const mode = payload?.programs_mode || 'all'
+  if (mode === 'none') return false
+  if (mode === 'custom') return selectedPrograms(payload, metadata).has(key)
+  return true
+}
+
+function filterProgramValue(payload, key, value, metadata) {
+  return programIncluded(payload, key, metadata) ? value : 0
+}
+
+function fixedHouseholdCostsFromPayload(payload) {
+  return Object.fromEntries(
+    Object.entries(FIXED_HOUSEHOLD_COST_INPUTS).map(([key, field]) => [
+      key,
+      roundCurrency(nonnegative(payload?.[field])),
+    ]),
+  )
+}
 
 const REFUNDABLE_CREDIT_COMPONENTS = [
   { key: 'eitc', variable: 'eitc', entity: 'tax_unit' },
@@ -179,6 +321,18 @@ const getYearValue = (entity, variable, year) => entity?.[variable]?.[String(yea
 
 const getMonthValue = (entity, variable, year) => entity?.[variable]?.[`${year}-01`]
 
+function sumPeopleYear(peopleResponse, descriptor, variable, year) {
+  return descriptor.people
+    .map((person) => Number(getYearValue(peopleResponse[person.id], variable, year)) || 0)
+    .reduce((sum, value) => sum + value, 0)
+}
+
+function sumPeopleMonthAnnualized(peopleResponse, descriptor, variable, year) {
+  return descriptor.people
+    .map((person) => Number(getMonthValue(peopleResponse[person.id], variable, year)) || 0)
+    .reduce((sum, value) => sum + value, 0) * 12
+}
+
 function buildRefundableCreditsFromResponse(taxUnit, peopleResponse, descriptor, year) {
   return Object.fromEntries(
     REFUNDABLE_CREDIT_COMPONENTS.map((component) => {
@@ -252,6 +406,13 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
         kind,
         age: Math.max(0, Number(member?.age) || 0),
         is_pregnant: Boolean(member?.is_pregnant),
+        is_disabled: Boolean(member?.is_disabled),
+        is_blind: Boolean(member?.is_blind),
+        is_full_time_student: Boolean(member?.is_full_time_student),
+        is_incapable_of_self_care: Boolean(member?.is_incapable_of_self_care),
+        earned_income: nonnegative(member?.earned_income),
+        ssi_amount: nonnegative(member?.ssi_amount),
+        ssdi_amount: nonnegative(member?.ssdi_amount),
       })
       return
     }
@@ -263,6 +424,13 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
       kind,
       age: Math.max(0, Number(member?.age) || 0),
       is_pregnant: Boolean(member?.is_pregnant),
+      is_disabled: Boolean(member?.is_disabled),
+      is_blind: Boolean(member?.is_blind),
+      is_full_time_student: Boolean(member?.is_full_time_student),
+      is_incapable_of_self_care: Boolean(member?.is_incapable_of_self_care),
+      earned_income: nonnegative(member?.earned_income),
+      ssi_amount: nonnegative(member?.ssi_amount),
+      ssdi_amount: nonnegative(member?.ssdi_amount),
     })
   })
 
@@ -332,15 +500,31 @@ function buildPersonData(person, year) {
     has_esi: { [year]: false },
     offered_aca_disqualifying_esi: { [year]: false },
     is_pregnant: { [year]: Boolean(person.is_pregnant) },
+    is_disabled: { [year]: Boolean(person.is_disabled) },
+    is_blind: { [year]: Boolean(person.is_blind) },
+    is_full_time_student: { [year]: Boolean(person.is_full_time_student) },
+    is_incapable_of_self_care: { [year]: Boolean(person.is_incapable_of_self_care) },
     under_60_days_postpartum: { [year]: false },
     immigration_status_str: { [year]: 'CITIZEN' },
     is_ccdf_reason_for_care_eligible: { [year]: true },
+    takes_up_medicaid_if_eligible: { [year]: true },
+    takes_up_chip_if_eligible: { [year]: true },
+    takes_up_ssi_if_eligible: { [year]: true },
+    takes_up_head_start_if_eligible: { [year]: true },
+    takes_up_early_head_start_if_eligible: { [year]: true },
+    is_enrolled_in_ccdf: { [year]: true },
+    is_enrolled_in_head_start: { [year]: true },
+    receives_wic: { [`${year}-01`]: true },
     is_aca_ptc_eligible: { [year]: null },
     is_medicaid_eligible: { [year]: null },
     is_chip_eligible: { [year]: null },
     wic: { [`${year}-01`]: null },
     medicaid: { [year]: null },
     chip: { [year]: null },
+    head_start: { [year]: null },
+    early_head_start: { [year]: null },
+    ssi: { [year]: null },
+    social_security_disability: { [year]: null },
   }
   if (person.kind === 'adult') {
     data.ccdf_age_group = { [year]: 'SCHOOL_AGE' }
@@ -361,23 +545,45 @@ function buildSituation(payload, options = {}) {
   const descriptor = describeHousehold(people)
   const filingStatus = effectiveFilingStatus(payload)
   const earnedIncome = Number(payload.earned_income) || 0
-  const monthlyEarnedIncome = earnedIncome / 12
   const memberIds = descriptor.people.map((person) => person.id)
 
-  const childcareExpenses = Math.max(0, Number(payload.childcare_expenses) || 0)
-  const rentAnnual = Math.max(0, Number(payload.rent_annual) || 0)
+  const childcareExpenses = nonnegative(payload.childcare_expenses)
+  const rentAnnual = nonnegative(payload.rent_annual)
+  const utilityExpenseAnnual = nonnegative(payload.utility_expense_annual)
+  const healthInsurancePremiumAnnual = nonnegative(
+    payload.health_insurance_premium_annual,
+  )
   const ccdfModeled = isCcdfModeledState(payload.state, options.metadata)
   const spmUnitEntity = {
     members: [...memberIds],
     snap: { [`${year}-01`]: null },
     free_school_meals: { [year]: null },
+    housing_assistance: { [year]: null },
     meets_ccdf_activity_test: { [year]: true },
+    takes_up_snap_if_eligible: { [year]: programIncluded(payload, 'snap', options.metadata) },
+    takes_up_tanf_if_eligible: { [year]: programIncluded(payload, 'tanf', options.metadata) },
+    receives_housing_assistance: { [year]: programIncluded(payload, 'housing_assistance', options.metadata) },
   }
   if (ccdfModeled) {
     spmUnitEntity.child_care_subsidies = { [year]: null }
   }
   if (childcareExpenses > 0) {
     spmUnitEntity.childcare_expenses = { [year]: childcareExpenses }
+    spmUnitEntity.spm_unit_pre_subsidy_childcare_expenses = { [year]: childcareExpenses }
+  }
+  if (utilityExpenseAnnual > 0) {
+    spmUnitEntity.utility_expense = { [year]: utilityExpenseAnnual }
+  }
+  if (nonnegative(payload.liquid_assets) > 0) {
+    spmUnitEntity.snap_assets = { [year]: nonnegative(payload.liquid_assets) }
+  }
+  if (programIncluded(payload, 'tanf', options.metadata)) {
+    spmUnitEntity.is_tanf_enrolled = Object.fromEntries(
+      Array.from({ length: 12 }, (_, month) => [
+        `${year}-${String(month + 1).padStart(2, '0')}`,
+        true,
+      ]),
+    )
   }
 
   const situation = {
@@ -393,17 +599,25 @@ function buildSituation(payload, options = {}) {
         tax_unit_fpg: { [year]: null },
         income_tax_refundable_credits: { [year]: null },
         premium_tax_credit: { [`${year}-01`]: null },
+        takes_up_aca_if_eligible: { [year]: programIncluded(payload, 'aca_ptc', options.metadata) },
+        takes_up_eitc: { [year]: programIncluded(payload, 'federal_refundable_credits', options.metadata) },
       },
     },
     households: {
       household: {
         members: [...memberIds],
         state_name: { [year]: payload.state },
+        county: normalizeCounty(payload.county, payload.state)
+          ? { [year]: normalizeCounty(payload.county, payload.state) }
+          : undefined,
         household_market_income: { [year]: null },
         household_tax_before_refundable_credits: { [year]: null },
         household_state_tax_before_refundable_credits: { [year]: null },
         household_refundable_state_tax_credits: { [year]: null },
         chip_premium: { [year]: null },
+        hud_utility_allowance: utilityExpenseAnnual > 0
+          ? { [year]: utilityExpenseAnnual }
+          : undefined,
       },
     },
     marital_units: {},
@@ -420,6 +634,29 @@ function buildSituation(payload, options = {}) {
     situation.spm_units.spm_unit[tanfVariable] = { [`${year}-01`]: null }
   }
 
+  const setEarnedIncome = (personData, amount) => {
+    const annualAmount = Number(amount) || 0
+    const monthlyAmountValue = annualAmount / 12
+    personData.employment_income = { [year]: annualAmount }
+    personData.tanf_gross_earned_income = Object.fromEntries(
+      Array.from({ length: 12 }, (_, month) => [
+        `${year}-${String(month + 1).padStart(2, '0')}`,
+        monthlyAmountValue,
+      ]),
+    )
+
+    const stateSpecificEarnedIncomeVariable =
+      STATE_TANF_EARNED_INCOME_VARIABLES[payload.state]
+    if (stateSpecificEarnedIncomeVariable) {
+      personData[stateSpecificEarnedIncomeVariable] = Object.fromEntries(
+        Array.from({ length: 12 }, (_, month) => [
+          `${year}-${String(month + 1).padStart(2, '0')}`,
+          monthlyAmountValue,
+        ]),
+      )
+    }
+  }
+
   descriptor.people.forEach((person, index) => {
     const personData = buildPersonData(person, year)
 
@@ -429,39 +666,98 @@ function buildSituation(payload, options = {}) {
         personData[component.variable] = { [year]: null }
       })
 
-    if (index === 0 && rentAnnual > 0) {
-      personData.rent = { [year]: rentAnnual }
+    personData.takes_up_medicaid_if_eligible = {
+      [year]: programIncluded(payload, 'medicaid', options.metadata),
+    }
+    personData.takes_up_chip_if_eligible = {
+      [year]: programIncluded(payload, 'chip', options.metadata),
+    }
+    personData.takes_up_ssi_if_eligible = {
+      [year]: programIncluded(payload, 'ssi', options.metadata),
+    }
+    personData.takes_up_head_start_if_eligible = {
+      [year]: programIncluded(payload, 'head_start', options.metadata),
+    }
+    personData.takes_up_early_head_start_if_eligible = {
+      [year]: programIncluded(payload, 'early_head_start', options.metadata),
+    }
+    personData.is_enrolled_in_ccdf = {
+      [year]: programIncluded(payload, 'child_care_subsidies', options.metadata),
+    }
+    personData.is_enrolled_in_head_start = {
+      [year]: programIncluded(payload, 'head_start', options.metadata),
+    }
+    personData.receives_wic = Object.fromEntries(
+      Array.from({ length: 12 }, (_, month) => [
+        `${year}-${String(month + 1).padStart(2, '0')}`,
+        programIncluded(payload, 'wic', options.metadata),
+      ]),
+    )
+
+    if (payload.has_employer_health_insurance) {
+      personData.has_esi = { [year]: true }
+      personData.offered_aca_disqualifying_esi = { [year]: true }
     }
 
-    if (includeIncomeOverrides && index === 0 && earnedIncome > 0) {
-      personData.employment_income = { [year]: earnedIncome }
-      personData.tanf_gross_earned_income = Object.fromEntries(
-        Array.from({ length: 12 }, (_, month) => [
-          `${year}-${String(month + 1).padStart(2, '0')}`,
-          monthlyEarnedIncome,
-        ]),
-      )
+    if (index === 0 && rentAnnual > 0) {
+      personData.pre_subsidy_rent = { [year]: rentAnnual }
+    }
 
-      const stateSpecificEarnedIncomeVariable =
-        STATE_TANF_EARNED_INCOME_VARIABLES[payload.state]
-      if (stateSpecificEarnedIncomeVariable) {
-        personData[stateSpecificEarnedIncomeVariable] = Object.fromEntries(
-          Array.from({ length: 12 }, (_, month) => [
-            `${year}-${String(month + 1).padStart(2, '0')}`,
-            monthlyEarnedIncome,
-          ]),
-        )
-      }
+    if (index === 0 && healthInsurancePremiumAnnual > 0) {
+      personData.health_insurance_premiums = { [year]: healthInsurancePremiumAnnual }
+    }
+
+    if (person.ssi_amount > 0 && programIncluded(payload, 'ssi', options.metadata)) {
+      personData.ssi = { [year]: person.ssi_amount }
+    }
+
+    if (person.ssdi_amount > 0 && programIncluded(payload, 'ssdi', options.metadata)) {
+      personData.social_security_disability = { [year]: person.ssdi_amount }
+    }
+
+    if (includeIncomeOverrides && index === 0) {
+      setEarnedIncome(personData, earnedIncome)
     } else if (!includeIncomeOverrides && index === 0) {
       personData.employment_income = { [year]: null }
+    } else if (person.earned_income > 0) {
+      setEarnedIncome(personData, person.earned_income)
+    }
+
+    if (index === 0) {
+      const extraIncomeInputs = {
+        self_employment_income: payload.self_employment_income_annual,
+        child_support_received: payload.child_support_annual,
+        taxable_interest_income: payload.taxable_interest_income_annual,
+        dividend_income: payload.dividend_income_annual,
+        rental_income: payload.rental_income_annual,
+        unemployment_compensation: payload.unemployment_compensation_annual,
+        pension_income: payload.pension_income_annual,
+        social_security: payload.social_security_annual,
+        miscellaneous_income: payload.miscellaneous_income_annual,
+      }
+      Object.entries(extraIncomeInputs).forEach(([variable, amount]) => {
+        const annualAmount = nonnegative(amount)
+        if (annualAmount > 0) {
+          personData[variable] = { [year]: annualAmount }
+        }
+      })
     }
 
     situation.people[person.id] = personData
   })
 
   if (includeIncomeOverrides) {
-    situation.tax_units.tax_unit.aca_magi = { [year]: earnedIncome }
-    situation.tax_units.tax_unit.medicaid_magi = { [year]: earnedIncome }
+    const estimatedMagi = earnedIncome
+      + descriptor.people.slice(1).reduce((sum, person) => sum + nonnegative(person.earned_income), 0)
+      + nonnegative(payload.self_employment_income_annual)
+      + nonnegative(payload.taxable_interest_income_annual)
+      + nonnegative(payload.dividend_income_annual)
+      + nonnegative(payload.rental_income_annual)
+      + nonnegative(payload.unemployment_compensation_annual)
+      + nonnegative(payload.pension_income_annual)
+      + nonnegative(payload.miscellaneous_income_annual)
+    situation.tax_units.tax_unit.aca_magi = { [year]: estimatedMagi }
+    situation.tax_units.tax_unit.medicaid_magi = { [year]: estimatedMagi }
     if (payload.state === 'CO' && earnedIncome > 0) {
       situation.spm_units.spm_unit.co_tanf_countable_gross_earned_income = {
         [year]: earnedIncome,
@@ -576,7 +872,15 @@ function getStateName(metadata, stateCode) {
 }
 
 function getProgramDefinitions(metadata) {
-  return metadata?.programs || []
+  const definitions = metadata?.programs
+  if (Array.isArray(definitions) && definitions.length) {
+    return definitions
+  }
+  return DEFAULT_PUBLIC_ASSISTANCE_PROGRAM_OPTIONS.map((program) => ({
+    ...program,
+    short_label: program.label,
+    description: '',
+  }))
 }
 
 function getHouseholdCostDefinitions(metadata) {
@@ -649,22 +953,15 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
     Math.max(0, taxes - stateTaxesBeforeRefundableCredits),
   )
   const snap = roundCurrency((Number(getMonthValue(spmUnit, 'snap', year)) || 0) * 12)
-  const wic = roundCurrency(
-    Object.values(peopleResponse)
-      .map((person) => Number(getMonthValue(person, 'wic', year)) || 0)
-      .reduce((sum, value) => sum + value, 0) * 12,
-  )
+  const wic = roundCurrency(sumPeopleMonthAnnualized(peopleResponse, descriptor, 'wic', year))
   const freeSchoolMeals = roundCurrency(getYearValue(spmUnit, 'free_school_meals', year))
-  const medicaid = roundCurrency(
-    Object.values(peopleResponse)
-      .map((person) => Number(getYearValue(person, 'medicaid', year)) || 0)
-      .reduce((sum, value) => sum + value, 0),
-  )
-  const chip = roundCurrency(
-    Object.values(peopleResponse)
-      .map((person) => Number(getYearValue(person, 'chip', year)) || 0)
-      .reduce((sum, value) => sum + value, 0),
-  )
+  const headStart = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'head_start', year))
+  const earlyHeadStart = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'early_head_start', year))
+  const housingAssistance = roundCurrency(getYearValue(spmUnit, 'housing_assistance', year))
+  const ssi = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'ssi', year))
+  const ssdi = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'social_security_disability', year))
+  const medicaid = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'medicaid', year))
+  const chip = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'chip', year))
   const acaPtc = roundCurrency((Number(getMonthValue(taxUnit, 'premium_tax_credit', year)) || 0) * 12)
   const federalRefundableCredits = roundCurrency(
     getYearValue(taxUnit, 'income_tax_refundable_credits', year),
@@ -683,18 +980,54 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
     : 0
   const taxUnitFpg = roundCurrency(getYearValue(taxUnit, 'tax_unit_fpg', year))
   const programs = {
-    snap,
-    tanf,
-    wic,
-    free_school_meals: freeSchoolMeals,
-    child_care_subsidies: childCareSubsidies,
-    medicaid,
-    chip,
-    aca_ptc: acaPtc,
-    federal_refundable_credits: federalRefundableCredits,
-    state_refundable_credits: stateRefundableCredits,
+    snap: roundCurrency(filterProgramValue(payload, 'snap', snap, metadata)),
+    tanf: roundCurrency(filterProgramValue(payload, 'tanf', tanf, metadata)),
+    wic: roundCurrency(filterProgramValue(payload, 'wic', wic, metadata)),
+    free_school_meals: roundCurrency(filterProgramValue(
+      payload,
+      'free_school_meals',
+      freeSchoolMeals,
+      metadata,
+    )),
+    head_start: roundCurrency(filterProgramValue(payload, 'head_start', headStart, metadata)),
+    early_head_start: roundCurrency(filterProgramValue(
+      payload,
+      'early_head_start',
+      earlyHeadStart,
+      metadata,
+    )),
+    child_care_subsidies: roundCurrency(filterProgramValue(
+      payload,
+      'child_care_subsidies',
+      childCareSubsidies,
+      metadata,
+    )),
+    housing_assistance: roundCurrency(filterProgramValue(
+      payload,
+      'housing_assistance',
+      housingAssistance,
+      metadata,
+    )),
+    ssi: roundCurrency(filterProgramValue(payload, 'ssi', ssi, metadata)),
+    ssdi: roundCurrency(filterProgramValue(payload, 'ssdi', ssdi, metadata)),
+    medicaid: roundCurrency(filterProgramValue(payload, 'medicaid', medicaid, metadata)),
+    chip: roundCurrency(filterProgramValue(payload, 'chip', chip, metadata)),
+    aca_ptc: roundCurrency(filterProgramValue(payload, 'aca_ptc', acaPtc, metadata)),
+    federal_refundable_credits: roundCurrency(filterProgramValue(
+      payload,
+      'federal_refundable_credits',
+      federalRefundableCredits,
+      metadata,
+    )),
+    state_refundable_credits: roundCurrency(filterProgramValue(
+      payload,
+      'state_refundable_credits',
+      stateRefundableCredits,
+      metadata,
+    )),
   }
   const householdCosts = {
+    ...fixedHouseholdCostsFromPayload(payload),
     chip_premium: chipPremium,
   }
 
@@ -745,14 +1078,44 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
       state: payload.state,
       earned_income: payload.earned_income,
       year: payload.year,
-      county: null,
+      county: payload.county || null,
       household_type: null,
       filing_status: effectiveFilingStatus(payload),
       people: descriptor.people.map((person) => ({
         kind: person.kind,
         age: person.age,
         is_pregnant: person.is_pregnant,
+        is_disabled: person.is_disabled,
+        is_blind: person.is_blind,
+        is_full_time_student: person.is_full_time_student,
+        is_incapable_of_self_care: person.is_incapable_of_self_care,
+        earned_income: person.earned_income,
+        ssi_amount: person.ssi_amount,
+        ssdi_amount: person.ssdi_amount,
       })),
+      programs_mode: payload.programs_mode || 'all',
+      selected_programs: payload.selected_programs || [],
+      has_employer_health_insurance: Boolean(payload.has_employer_health_insurance),
+      childcare_expenses: nonnegative(payload.childcare_expenses),
+      rent_annual: nonnegative(payload.rent_annual),
+      utility_expense_annual: nonnegative(payload.utility_expense_annual),
+      food_expense_annual: nonnegative(payload.food_expense_annual),
+      transportation_expense_annual: nonnegative(payload.transportation_expense_annual),
+      health_insurance_premium_annual: nonnegative(payload.health_insurance_premium_annual),
+      technology_expense_annual: nonnegative(payload.technology_expense_annual),
+      debt_payment_annual: nonnegative(payload.debt_payment_annual),
+      education_expense_annual: nonnegative(payload.education_expense_annual),
+      other_expense_annual: nonnegative(payload.other_expense_annual),
+      self_employment_income_annual: nonnegative(payload.self_employment_income_annual),
+      child_support_annual: nonnegative(payload.child_support_annual),
+      taxable_interest_income_annual: nonnegative(payload.taxable_interest_income_annual),
+      dividend_income_annual: nonnegative(payload.dividend_income_annual),
+      rental_income_annual: nonnegative(payload.rental_income_annual),
+      unemployment_compensation_annual: nonnegative(payload.unemployment_compensation_annual),
+      pension_income_annual: nonnegative(payload.pension_income_annual),
+      social_security_annual: nonnegative(payload.social_security_annual),
+      miscellaneous_income_annual: nonnegative(payload.miscellaneous_income_annual),
+      liquid_assets: nonnegative(payload.liquid_assets),
     },
     template: {
       id: descriptor.id,
@@ -797,7 +1160,10 @@ export function buildCliffDrivers(previousPoint, currentPoint, metadata) {
   const labelByKey = getProgramLabelMap(metadata)
   const householdCostLabels = getHouseholdCostLabelMap(metadata)
   const drivers = Object.keys(labelByKey).flatMap((key) => {
-    const changeAnnual = roundCurrency(currentPoint.programs[key] - previousPoint.programs[key])
+    const changeAnnual = roundCurrency(
+      (Number(currentPoint.programs?.[key]) || 0)
+        - (Number(previousPoint.programs?.[key]) || 0),
+    )
     if (changeAnnual >= 0) {
       return []
     }
@@ -885,6 +1251,38 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
     getYearValue(spmUnit, 'free_school_meals', year),
     pointCount,
   )
+  const headStartValues = sumArrays(
+    descriptor.people.map((person) => asArray(
+      getYearValue(peopleResponse[person.id], 'head_start', year),
+      pointCount,
+    )),
+    pointCount,
+  )
+  const earlyHeadStartValues = sumArrays(
+    descriptor.people.map((person) => asArray(
+      getYearValue(peopleResponse[person.id], 'early_head_start', year),
+      pointCount,
+    )),
+    pointCount,
+  )
+  const housingAssistanceValues = asArray(
+    getYearValue(spmUnit, 'housing_assistance', year),
+    pointCount,
+  )
+  const ssiValues = sumArrays(
+    descriptor.people.map((person) => asArray(
+      getYearValue(peopleResponse[person.id], 'ssi', year),
+      pointCount,
+    )),
+    pointCount,
+  )
+  const ssdiValues = sumArrays(
+    descriptor.people.map((person) => asArray(
+      getYearValue(peopleResponse[person.id], 'social_security_disability', year),
+      pointCount,
+    )),
+    pointCount,
+  )
   const premiumTaxCreditValues = asArray(
     getMonthValue(taxUnit, 'premium_tax_credit', year),
     pointCount,
@@ -928,21 +1326,63 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
     getYearValue(households, 'chip_premium', year),
     pointCount,
   )
+  const fixedHouseholdCosts = fixedHouseholdCostsFromPayload(payload)
 
   const points = earnedIncomeValues.map((earnedIncome, index) => {
     const programs = {
-      snap: roundCurrency(snapValues[index]),
-      tanf: roundCurrency(tanfValues[index]),
-      wic: roundCurrency(wicValues[index]),
-      free_school_meals: roundCurrency(freeSchoolMealValues[index]),
-      child_care_subsidies: roundCurrency(childCareSubsidyValues[index]),
-      medicaid: roundCurrency(medicaidValues[index]),
-      chip: roundCurrency(chipValues[index]),
-      aca_ptc: roundCurrency(premiumTaxCreditValues[index]),
-      federal_refundable_credits: roundCurrency(federalRefundableCreditValues[index]),
-      state_refundable_credits: roundCurrency(stateRefundableCreditValues[index]),
+      snap: roundCurrency(filterProgramValue(payload, 'snap', snapValues[index], metadata)),
+      tanf: roundCurrency(filterProgramValue(payload, 'tanf', tanfValues[index], metadata)),
+      wic: roundCurrency(filterProgramValue(payload, 'wic', wicValues[index], metadata)),
+      free_school_meals: roundCurrency(filterProgramValue(
+        payload,
+        'free_school_meals',
+        freeSchoolMealValues[index],
+        metadata,
+      )),
+      head_start: roundCurrency(filterProgramValue(
+        payload,
+        'head_start',
+        headStartValues[index],
+        metadata,
+      )),
+      early_head_start: roundCurrency(filterProgramValue(
+        payload,
+        'early_head_start',
+        earlyHeadStartValues[index],
+        metadata,
+      )),
+      child_care_subsidies: roundCurrency(filterProgramValue(
+        payload,
+        'child_care_subsidies',
+        childCareSubsidyValues[index],
+        metadata,
+      )),
+      housing_assistance: roundCurrency(filterProgramValue(
+        payload,
+        'housing_assistance',
+        housingAssistanceValues[index],
+        metadata,
+      )),
+      ssi: roundCurrency(filterProgramValue(payload, 'ssi', ssiValues[index], metadata)),
+      ssdi: roundCurrency(filterProgramValue(payload, 'ssdi', ssdiValues[index], metadata)),
+      medicaid: roundCurrency(filterProgramValue(payload, 'medicaid', medicaidValues[index], metadata)),
+      chip: roundCurrency(filterProgramValue(payload, 'chip', chipValues[index], metadata)),
+      aca_ptc: roundCurrency(filterProgramValue(payload, 'aca_ptc', premiumTaxCreditValues[index], metadata)),
+      federal_refundable_credits: roundCurrency(filterProgramValue(
+        payload,
+        'federal_refundable_credits',
+        federalRefundableCreditValues[index],
+        metadata,
+      )),
+      state_refundable_credits: roundCurrency(filterProgramValue(
+        payload,
+        'state_refundable_credits',
+        stateRefundableCreditValues[index],
+        metadata,
+      )),
     }
     const householdCosts = {
+      ...fixedHouseholdCosts,
       chip_premium: roundCurrency(chipPremiumValues[index]),
     }
     const marketIncome = roundCurrency(marketIncomeValues[index])
@@ -995,6 +1435,11 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
       aca_ptc: point.programs.aca_ptc,
       snap: point.programs.snap,
       free_school_meals: point.programs.free_school_meals,
+      head_start: point.programs.head_start,
+      early_head_start: point.programs.early_head_start,
+      housing_assistance: point.programs.housing_assistance,
+      ssi: point.programs.ssi,
+      ssdi: point.programs.ssdi,
       federal_refundable_credits: point.programs.federal_refundable_credits,
       state_refundable_credits: point.programs.state_refundable_credits,
       federal_taxes_before_refundable_credits: point.totals.federal_taxes_before_refundable_credits,
@@ -1027,14 +1472,14 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
 }
 
 export async function calculateHouseholdViaPolicyEngine(payload, metadata) {
-  const baseSituation = buildSituation(payload, { includeIncomeOverrides: true })
+  const baseSituation = buildSituation(payload, { includeIncomeOverrides: true, metadata })
   const delta = metadata?.defaults?.cliff_delta || 1000
   const bumpedSituation = buildSituation(
     {
       ...payload,
       earned_income: payload.earned_income + delta,
     },
-    { includeIncomeOverrides: true },
+    { includeIncomeOverrides: true, metadata },
   )
 
   const [baseResponse, bumpedResponse] = await Promise.all([

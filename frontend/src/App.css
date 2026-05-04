@@ -142,6 +142,10 @@ body {
   grid-template-columns: 1fr;
 }
 
+.form-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .form-group {
   margin-bottom: 0;
 }
@@ -163,7 +167,39 @@ body {
 }
 
 .advanced-grid {
+  display: grid;
+  gap: 1rem;
   padding: 0 0.9rem 0.9rem;
+}
+
+.advanced-section {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.advanced-section:first-child {
+  border-top: none;
+  padding-top: 0.2rem;
+}
+
+.advanced-section-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-navy);
+}
+
+.advanced-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.advanced-field-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .form-group label {
@@ -424,6 +460,17 @@ body {
   align-items: center;
 }
 
+.person-card-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.person-card-fields--dependent {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .compact-field {
   display: grid;
   gap: 0.28rem;
@@ -480,10 +527,100 @@ body {
   background: white;
 }
 
+.member-checkbox-label--compact,
+.member-checkbox-label--program,
+.member-checkbox-label--standalone {
+  min-height: 38px;
+  padding: 0.48rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: white;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.member-checkbox-label--standalone {
+  min-height: 48px;
+  width: 100%;
+  margin-top: 1.08rem;
+}
+
 .member-checkbox-label input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--color-teal-dark);
+}
+
+.person-option-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.28fr) minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.person-flag-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.dependent-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+}
+
+.dependent-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.program-mode-toggle {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-cream);
+}
+
+.program-mode-button {
+  min-width: 5rem;
+  padding: 0.42rem 0.85rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.program-mode-button:hover {
+  color: var(--color-navy);
+}
+
+.program-mode-button.active {
+  background: var(--color-teal-dark);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.program-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.checkbox-form-group {
+  align-self: stretch;
 }
 
 .dependent-chip-grid {
@@ -1711,6 +1848,9 @@ body {
 
 @media (max-width: 900px) {
   .form-grid,
+  .form-grid--three,
+  .advanced-field-grid,
+  .advanced-field-grid--two,
   .charts-grid {
     grid-template-columns: 1fr;
   }
@@ -1721,6 +1861,17 @@ body {
 
   .adult-card-fields {
     grid-template-columns: minmax(96px, 120px) 1fr;
+  }
+
+  .person-card-fields,
+  .person-card-fields--dependent,
+  .person-option-grid,
+  .program-checkbox-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .person-flag-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tab-content {
@@ -1792,6 +1943,25 @@ body {
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .advanced-field-grid,
+  .advanced-field-grid--two,
+  .person-card-fields,
+  .person-card-fields--dependent,
+  .person-option-grid,
+  .person-flag-grid,
+  .program-checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .program-mode-toggle {
+    width: 100%;
+  }
+
+  .program-mode-button {
+    flex: 1;
+    min-width: 0;
   }
 
   .member-section-header,
