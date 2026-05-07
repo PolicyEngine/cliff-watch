@@ -1,4 +1,5 @@
 import { buildCliffReport } from './cliffReport'
+import { applyStateProgramLabels } from './programLabels.js'
 
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100
 const monthly = (value) => round(value / 12)
@@ -124,7 +125,7 @@ export async function refineCliffZones({
   const report = buildCliffReport(coarseSeries.data)
   if (!report.zones?.length) return coarseSeries
 
-  const programs = metadata?.programs || []
+  const programs = applyStateProgramLabels(metadata?.programs || [], metadata, inputs?.state)
   const programKeys = programs.map((p) => p.key)
   const programLabels = Object.fromEntries(programs.map((p) => [p.key, p.label]))
   const householdCosts = getHouseholdCostDefinitions(metadata)

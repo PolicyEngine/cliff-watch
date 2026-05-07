@@ -1,4 +1,4 @@
-from cliff_watch.calculator import _build_cliff_drivers
+from cliff_watch.calculator import _build_cliff_drivers, _format_program_breakdown
 
 
 def test_build_cliff_drivers_includes_household_cost_increases() -> None:
@@ -54,3 +54,27 @@ def test_build_cliff_drivers_includes_household_cost_increases() -> None:
             "resource_effect_monthly": -75.0,
         }
     ]
+
+
+def test_build_cliff_drivers_uses_state_specific_program_labels() -> None:
+    previous = {
+        "programs": {"tanf": 1_200.0},
+        "household_costs": {},
+        "totals": {"taxes": 0.0},
+    }
+    current = {
+        "programs": {"tanf": 0.0},
+        "household_costs": {},
+        "totals": {"taxes": 0.0},
+    }
+
+    assert (
+        _build_cliff_drivers(previous, current, "MN")[0]["label"]
+        == "Minnesota MFIP"
+    )
+
+
+def test_format_program_breakdown_uses_state_specific_program_labels() -> None:
+    result = _format_program_breakdown({"tanf": 500.0}, "CA")
+
+    assert result[0]["label"] == "California CalWORKs Cash Benefit"

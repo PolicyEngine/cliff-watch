@@ -30,6 +30,7 @@ from cliff_watch.config import (
     PROGRAM_DEFINITIONS,
     PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
     STATE_INFO,
+    STATE_PROGRAM_OVERRIDES,
 )
 
 
@@ -47,6 +48,7 @@ def metadata_response() -> dict[str, Any]:
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,
+        "state_program_overrides": STATE_PROGRAM_OVERRIDES,
         "household_costs": HOUSEHOLD_COST_DEFINITIONS,
         "public_assistance_programs": PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
         "ccdf_modeled_states": sorted(CCDF_MODELED_STATES),
