@@ -9,7 +9,16 @@ import {
 
 const metadata = {
   states: [{ code: 'GA', name: 'Georgia' }],
-  programs: [],
+  programs: [
+    { key: 'tanf', label: 'TANF', short_label: 'TANF', description: '' },
+    { key: 'chip', label: 'CHIP', short_label: 'CHIP', description: '' },
+  ],
+  state_program_overrides: {
+    GA: {
+      tanf: { label: 'Georgia Temporary Assistance for Needy Families (TANF)' },
+      chip: { label: "Georgia Children's Health Insurance Program (CHIP)" },
+    },
+  },
   household_costs: [{ key: 'chip_premium', label: 'CHIP premium' }],
 }
 
@@ -177,6 +186,23 @@ test('buildCliffDrivers reports household cost increases as cliff drivers', () =
       },
     ],
   )
+})
+
+test('buildCliffDrivers uses state-specific benefit labels', () => {
+  const previousPoint = {
+    programs: { tanf: 1200 },
+    household_costs: {},
+    totals: { taxes: 0 },
+  }
+  const currentPoint = {
+    programs: { tanf: 0 },
+    household_costs: {},
+    totals: { taxes: 0 },
+  }
+
+  const drivers = buildCliffDrivers(previousPoint, currentPoint, metadata, 'GA')
+
+  assert.equal(drivers[0].label, 'Georgia Temporary Assistance for Needy Families (TANF)')
 })
 
 test('buildSeriesDataFromResponse carries CHIP premiums into series net resources and cliff drivers', () => {

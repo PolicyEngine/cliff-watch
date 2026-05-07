@@ -145,6 +145,60 @@ STATE_TANF_VARIABLES = {
     "WY": "wy_power",
 }
 
+STATE_TANF_LABELS = {
+    "AK": "Alaska ATAP benefit",
+    "AL": "Alabama TANF",
+    "AR": "Arkansas Transitional Employment Assistance",
+    "AZ": "Arizona TANF",
+    "CA": "California CalWORKs Cash Benefit",
+    "CO": "Colorado TANF",
+    "CT": "Connecticut Temporary Family Assistance (TFA) benefit amount",
+    "DC": "DC Temporary Assistance for Needy Families (TANF)",
+    "DE": "Delaware TANF",
+    "FL": "Florida Temporary Cash Assistance",
+    "GA": "Georgia Temporary Assistance for Needy Families (TANF)",
+    "HI": "Hawaii TANF benefit amount",
+    "IA": "Iowa Family Investment Program (FIP)",
+    "ID": "Idaho Temporary Assistance for Families in Idaho (TAFI)",
+    "IL": "Illinois Temporary Assistance for Needy Families (TANF)",
+    "IN": "Indiana Temporary Assistance for Needy Families (TANF)",
+    "KS": "Kansas Temporary Assistance for Needy Families (TANF)",
+    "KY": "Kentucky K-TAP benefit",
+    "LA": "Louisiana FITAP",
+    "MA": "Massachusetts Temporary Assistance for Families with Dependent Children (TAFDC)",
+    "MD": "Maryland Temporary Cash Assistance",
+    "ME": "Maine TANF",
+    "MI": "Michigan Family Independence Program",
+    "MN": "Minnesota MFIP",
+    "MO": "Missouri Temporary Assistance for Needy Families (TANF)",
+    "MS": "Mississippi TANF",
+    "MT": "Montana Temporary Assistance for Needy Families (TANF)",
+    "NC": "North Carolina TANF",
+    "ND": "North Dakota Temporary Assistance for Needy Families",
+    "NE": "Nebraska Aid to Dependent Children (ADC)",
+    "NH": "New Hampshire Financial Assistance to Needy Families",
+    "NJ": "New Jersey WFNJ benefit",
+    "NM": "New Mexico Works",
+    "NV": "Nevada Temporary Assistance for Needy Families (TANF)",
+    "NY": "New York TANF",
+    "OH": "Ohio OWF",
+    "OK": "Oklahoma TANF",
+    "OR": "Oregon Temporary Assistance for Needy Families (TANF)",
+    "PA": "Pennsylvania TANF",
+    "RI": "Rhode Island Works benefit",
+    "SC": "South Carolina TANF",
+    "SD": "South Dakota Temporary Assistance for Needy Families (TANF)",
+    "TN": "Tennessee Families First",
+    "TX": "Texas Temporary Assistance for Needy Families (TANF)",
+    "UT": "Utah Family Employment Program benefit",
+    "VA": "VA TANF",
+    "VT": "Vermont Reach Up (TANF)",
+    "WA": "Washington Temporary Assistance for Needy Families (TANF)",
+    "WI": "Wisconsin Works",
+    "WV": "West Virginia WV Works benefit",
+    "WY": "Wyoming POWER benefit",
+}
+
 HOUSEHOLD_TYPES = [
     {
         "id": "single_adult",
@@ -432,3 +486,47 @@ PUBLIC_ASSISTANCE_PROGRAM_OPTIONS = [
         "label": "Social Security Disability Insurance (SSDI)",
     },
 ]
+
+
+def build_state_program_overrides() -> dict[str, dict[str, dict[str, str]]]:
+    overrides = {}
+    for state in STATE_INFO:
+        state_code = state["code"]
+        state_name = state["name"]
+        state_overrides = {
+            "tanf": {
+                "label": STATE_TANF_LABELS.get(
+                    state_code,
+                    f"{state_name} Temporary Assistance for Needy Families (TANF)",
+                ),
+                "short_label": "TANF",
+                "description": "State cash assistance for families with children.",
+                "variable": STATE_TANF_VARIABLES.get(state_code, "tanf"),
+            },
+            "medicaid": {
+                "label": f"{state_name} Medicaid",
+                "short_label": "Medicaid",
+                "description": f"Public health coverage through {state_name}'s Medicaid program.",
+            },
+            "chip": {
+                "label": f"{state_name} Children's Health Insurance Program (CHIP)",
+                "short_label": "CHIP",
+                "description": f"Children's public health coverage through {state_name}'s CHIP program.",
+            },
+            "state_refundable_credits": {
+                "label": f"{state_name} refundable state tax credits",
+                "short_label": "State credits",
+                "description": f"Refundable state income tax credits modeled for {state_name}.",
+            },
+        }
+        if state_code in CCDF_MODELED_STATES:
+            state_overrides["child_care_subsidies"] = {
+                "label": f"{state_name} child care subsidy (CCDF)",
+                "short_label": "Child care",
+                "description": f"State CCDF child care subsidy modeled for {state_name}.",
+            }
+        overrides[state_code] = state_overrides
+    return overrides
+
+
+STATE_PROGRAM_OVERRIDES = build_state_program_overrides()

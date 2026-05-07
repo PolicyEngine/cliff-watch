@@ -1,3 +1,5 @@
+import { applyStateProgramLabels } from './utils/programLabels.js'
+
 const PE_API_URL = 'https://api.policyengine.org'
 
 const STATE_TANF_VARIABLES = {
@@ -871,16 +873,16 @@ function getStateName(metadata, stateCode) {
   return metadata?.states?.find((item) => item.code === stateCode)?.name || stateCode
 }
 
-function getProgramDefinitions(metadata) {
+function getProgramDefinitions(metadata, stateCode) {
   const definitions = metadata?.programs
   if (Array.isArray(definitions) && definitions.length) {
-    return definitions
+    return applyStateProgramLabels(definitions, metadata, stateCode)
   }
-  return DEFAULT_PUBLIC_ASSISTANCE_PROGRAM_OPTIONS.map((program) => ({
+  return applyStateProgramLabels(DEFAULT_PUBLIC_ASSISTANCE_PROGRAM_OPTIONS.map((program) => ({
     ...program,
     short_label: program.label,
     description: '',
-  }))
+  })), metadata, stateCode)
 }
 
 function getHouseholdCostDefinitions(metadata) {
@@ -891,9 +893,9 @@ function getHouseholdCostDefinitions(metadata) {
   return DEFAULT_HOUSEHOLD_COST_DEFINITIONS
 }
 
-function getProgramLabelMap(metadata) {
+function getProgramLabelMap(metadata, stateCode) {
   return Object.fromEntries(
-    getProgramDefinitions(metadata).map((program) => [program.key, program.label]),
+    getProgramDefinitions(metadata, stateCode).map((program) => [program.key, program.label]),
   )
 }
 
@@ -914,11 +916,11 @@ function bestAccessProgram({ acaEligible, medicaidEligible, chipEligible }) {
   return 'none'
 }
 
-function formatProgramBreakdown(programs, metadata) {
+function formatProgramBreakdown(programs, metadata, stateCode) {
   const byKey = Object.fromEntries(
-    getProgramDefinitions(metadata).map((program) => [program.key, program]),
+    getProgramDefinitions(metadata, stateCode).map((program) => [program.key, program]),
   )
-  return getProgramDefinitions(metadata)
+  return getProgramDefinitions(metadata, stateCode)
     .map((program) => {
       const annual = roundCurrency(programs[program.key])
       if (annual <= 0) {
@@ -1144,7 +1146,7 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
     },
     people,
     state_name: getStateName(metadata, payload.state),
-    program_breakdown: formatProgramBreakdown(programs, metadata),
+    program_breakdown: formatProgramBreakdown(programs, metadata, payload.state),
     eligible: coreSupport > 0,
     monthly: {
       market_income: monthlyAmount(marketIncome),
@@ -1156,8 +1158,8 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
   }
 }
 
-export function buildCliffDrivers(previousPoint, currentPoint, metadata) {
-  const labelByKey = getProgramLabelMap(metadata)
+export function buildCliffDrivers(previousPoint, currentPoint, metadata, stateCode) {
+  const labelByKey = getProgramLabelMap(metadata, stateCode)
   const householdCostLabels = getHouseholdCostLabelMap(metadata)
   const drivers = Object.keys(labelByKey).flatMap((key) => {
     const changeAnnual = roundCurrency(
@@ -1421,7 +1423,7 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
       ? roundCurrency(point.totals.net_resources - previousPoint.totals.net_resources)
       : 0
     const cliffDrivers = previousPoint
-      ? buildCliffDrivers(previousPoint, point, metadata)
+      ? buildCliffDrivers(previousPoint, point, metadata, payload.state)
       : []
     return {
       earned_income: point.earned_income,

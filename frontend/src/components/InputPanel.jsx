@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { applyStateProgramLabels } from '../utils/programLabels.js'
 
 const PROGRAM_MODES = [
   { key: 'all', label: 'All' },
@@ -123,7 +124,11 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
   const dependentCount = people.filter((person) => person.kind === 'child').length
   const maxAdults = Math.max(1, Number(metadata?.defaults?.max_adults) || 6)
   const maxDependents = Math.max(0, Number(metadata?.defaults?.max_dependents) || 6)
-  const programOptions = metadata?.public_assistance_programs || metadata?.programs || []
+  const baseProgramOptions = metadata?.public_assistance_programs || metadata?.programs || []
+  const programOptions = useMemo(
+    () => applyStateProgramLabels(baseProgramOptions, metadata, inputs?.state),
+    [baseProgramOptions, metadata, inputs?.state],
+  )
   const selectedPrograms = new Set(inputs?.selected_programs || programOptions.map((program) => program.key))
 
   const rowMeta = useMemo(() => {

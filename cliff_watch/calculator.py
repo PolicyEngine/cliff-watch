@@ -30,6 +30,7 @@ from cliff_watch.config import (
     PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
     STATE_INFO,
     STATE_NAME_BY_CODE,
+    STATE_PROGRAM_OVERRIDES,
     STATE_TANF_VARIABLES,
 )
 
@@ -87,6 +88,7 @@ class HouseholdInput:
 
 
 PROGRAM_LABEL_BY_KEY = {item["key"]: item["label"] for item in PROGRAM_DEFINITIONS}
+PROGRAM_DEFINITION_BY_KEY = {item["key"]: item for item in PROGRAM_DEFINITIONS}
 HOUSEHOLD_COST_LABEL_BY_KEY = {
     item["key"]: item["label"] for item in HOUSEHOLD_COST_DEFINITIONS
 }
@@ -94,6 +96,18 @@ PUBLIC_ASSISTANCE_PROGRAM_KEYS = {
     item["key"] for item in PUBLIC_ASSISTANCE_PROGRAM_OPTIONS
 }
 FILING_STATUS_CODES = {item["code"] for item in FILING_STATUS_OPTIONS}
+
+
+def _program_definition_for_state(key: str, state_code: str | None = None) -> dict[str, Any]:
+    definition = PROGRAM_DEFINITION_BY_KEY[key]
+    override = STATE_PROGRAM_OVERRIDES.get(state_code or "", {}).get(key, {})
+    return {**definition, **override}
+
+
+def _program_label_for_state(key: str, state_code: str | None = None) -> str:
+    return _program_definition_for_state(key, state_code)["label"]
+
+
 REFUNDABLE_CREDIT_COMPONENTS = (
     {"key": "eitc", "variable": "eitc", "map_to": "tax_unit"},
     {
@@ -1208,19 +1222,22 @@ def _attach_cliff_metrics(
     return base_result
 
 
-def _format_program_breakdown(programs: dict[str, float]) -> list[dict[str, Any]]:
-    labels = {item["key"]: item for item in PROGRAM_DEFINITIONS}
+def _format_program_breakdown(
+    programs: dict[str, float],
+    state_code: str | None = None,
+) -> list[dict[str, Any]]:
     ordered = []
     for key in [item["key"] for item in PROGRAM_DEFINITIONS]:
         annual = round(programs.get(key, 0.0), 2)
         if annual <= 0:
             continue
+        definition = _program_definition_for_state(key, state_code)
         ordered.append(
             {
                 "key": key,
-                "label": labels[key]["label"],
-                "short_label": labels[key]["short_label"],
-                "description": labels[key]["description"],
+                "label": definition["label"],
+                "short_label": definition["short_label"],
+                "description": definition["description"],
                 "annual": annual,
                 "monthly": round(annual / 12, 2),
             }
@@ -1271,10 +1288,11 @@ def _resolve_series_step(
 def _build_cliff_drivers(
     previous_result: dict[str, Any],
     result: dict[str, Any],
+    state_code: str | None = None,
 ) -> list[dict[str, Any]]:
     drivers = []
 
-    for key, label in PROGRAM_LABEL_BY_KEY.items():
+    for key in PROGRAM_LABEL_BY_KEY:
         annual_change = round(
             result["programs"].get(key, 0.0)
             - previous_result["programs"].get(key, 0.0),
@@ -1284,7 +1302,7 @@ def _build_cliff_drivers(
             drivers.append(
                 {
                     "key": key,
-                    "label": label,
+                    "label": _program_label_for_state(key, state_code),
                     "kind": "benefit_loss",
                     "raw_change_annual": annual_change,
                     "raw_change_monthly": _monthly_amount(annual_change),
@@ -1343,7 +1361,10 @@ def calculate_household(
     result = _simulate_core(payload)
     result = _attach_cliff_metrics(payload, result, delta=delta)
     result["state_name"] = STATE_NAME_BY_CODE[payload.state]
-    result["program_breakdown"] = _format_program_breakdown(result["programs"])
+    result["program_breakdown"] = _format_program_breakdown(
+        result["programs"],
+        payload.state,
+    )
     result["eligible"] = result["totals"]["core_support"] > 0
     result["monthly"] = {
         key: round(value / 12, 2) for key, value in result["totals"].items()
@@ -1710,7 +1731,7 @@ def calculate_income_series(
         net_change = net_resources - previous_net_resources
         cliff_drop = max(0.0, previous_net_resources - net_resources)
         cliff_drivers = (
-            _build_cliff_drivers(previous_result, result)
+            _build_cliff_drivers(previous_result, result, payload.state)
             if previous_result is not None and cliff_drop > 0
             else []
         )
