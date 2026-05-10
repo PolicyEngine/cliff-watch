@@ -12,8 +12,10 @@ const parseErrorMessage = async (response) => {
   }
 }
 
+const appPath = (path) => `${process.env.NEXT_PUBLIC_BASE_PATH || ''}${path}`
+
 const postJson = async (path, payload) => {
-  const response = await fetch(path, {
+  const response = await fetch(appPath(path), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -41,7 +43,7 @@ export const formatCurrency = (value, digits = 0) => new Intl.NumberFormat(
 export const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`
 
 export async function loadMetadata() {
-  const response = await fetch('/api/metadata')
+  const response = await fetch(appPath('/api/metadata'))
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response))
   }
