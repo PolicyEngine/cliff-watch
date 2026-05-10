@@ -12,11 +12,14 @@ env/
 
 # Node
 node_modules/
+frontend/node_modules/
 npm-debug.log*
 
 # Build output
 docs/
 frontend/dist/
+frontend/.next/
+frontend/out/
 
 # Environment
 .env
