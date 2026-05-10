@@ -5,7 +5,7 @@ import json
 import math
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,10 @@ from cliff_watch.config import (
     HOUSEHOLD_COST_DEFINITIONS,
     MARRIED_FILING_STATUSES,
     HOUSEHOLD_TYPE_BY_ID,
+    MAX_ADULTS,
+    MAX_DEPENDENTS,
     PROGRAM_DEFINITIONS,
+    PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
     STATE_INFO,
     STATE_NAME_BY_CODE,
     STATE_TANF_VARIABLES,
@@ -40,6 +43,13 @@ class HouseholdMemberInput:
     age: int
     kind: str
     is_pregnant: bool = False
+    is_disabled: bool = False
+    is_blind: bool = False
+    is_full_time_student: bool = False
+    is_incapable_of_self_care: bool = False
+    earned_income: float = 0.0
+    ssi_amount: float = 0.0
+    ssdi_amount: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -53,11 +63,35 @@ class HouseholdInput:
     filing_status: str | None = None
     childcare_expenses: float = 0.0
     rent_annual: float = 0.0
+    utility_expense_annual: float = 0.0
+    food_expense_annual: float = 0.0
+    transportation_expense_annual: float = 0.0
+    health_insurance_premium_annual: float = 0.0
+    technology_expense_annual: float = 0.0
+    debt_payment_annual: float = 0.0
+    education_expense_annual: float = 0.0
+    other_expense_annual: float = 0.0
+    self_employment_income_annual: float = 0.0
+    child_support_annual: float = 0.0
+    taxable_interest_income_annual: float = 0.0
+    dividend_income_annual: float = 0.0
+    rental_income_annual: float = 0.0
+    unemployment_compensation_annual: float = 0.0
+    pension_income_annual: float = 0.0
+    social_security_annual: float = 0.0
+    miscellaneous_income_annual: float = 0.0
+    liquid_assets: float = 0.0
+    has_employer_health_insurance: bool = False
+    programs_mode: str = "all"
+    selected_programs: tuple[str, ...] = ()
 
 
 PROGRAM_LABEL_BY_KEY = {item["key"]: item["label"] for item in PROGRAM_DEFINITIONS}
 HOUSEHOLD_COST_LABEL_BY_KEY = {
     item["key"]: item["label"] for item in HOUSEHOLD_COST_DEFINITIONS
+}
+PUBLIC_ASSISTANCE_PROGRAM_KEYS = {
+    item["key"] for item in PUBLIC_ASSISTANCE_PROGRAM_OPTIONS
 }
 FILING_STATUS_CODES = {item["code"] for item in FILING_STATUS_OPTIONS}
 REFUNDABLE_CREDIT_COMPONENTS = (
@@ -177,6 +211,35 @@ def _as_float_list(value: Any) -> list[float]:
     return [float(value)]
 
 
+def _nonnegative(value: Any) -> float:
+    return max(0.0, float(value or 0.0))
+
+
+def _selected_programs(payload: HouseholdInput) -> set[str]:
+    return {
+        key
+        for key in payload.selected_programs
+        if key in PUBLIC_ASSISTANCE_PROGRAM_KEYS
+    }
+
+
+def _program_included(payload: HouseholdInput, key: str) -> bool:
+    mode = (payload.programs_mode or "all").lower()
+    if mode == "none":
+        return False
+    if mode == "custom":
+        return key in _selected_programs(payload)
+    return True
+
+
+def _filtered_program_value(
+    payload: HouseholdInput,
+    key: str,
+    value: float,
+) -> float:
+    return value if _program_included(payload, key) else 0.0
+
+
 def _normalize_county(county: str | None, state: str) -> str | None:
     if county is None:
         return None
@@ -203,6 +266,12 @@ def _compat_people_from_template(
             age=int(person["age"]),
             kind="child" if person["role"] == "dependent" else "adult",
             is_pregnant=bool(person.get("is_pregnant", False)),
+            is_disabled=bool(person.get("is_disabled", False)),
+            is_blind=bool(person.get("is_blind", False)),
+            is_full_time_student=bool(person.get("is_full_time_student", False)),
+            is_incapable_of_self_care=bool(
+                person.get("is_incapable_of_self_care", False)
+            ),
         )
         for person in template["people"]
     )
@@ -245,6 +314,15 @@ def _resolved_people(payload: HouseholdInput) -> list[dict[str, Any]]:
                 "kind": member.kind,
                 "age": int(member.age),
                 "is_pregnant": bool(member.is_pregnant),
+                "is_disabled": bool(member.is_disabled),
+                "is_blind": bool(member.is_blind),
+                "is_full_time_student": bool(member.is_full_time_student),
+                "is_incapable_of_self_care": bool(
+                    member.is_incapable_of_self_care
+                ),
+                "earned_income": _nonnegative(member.earned_income),
+                "ssi_amount": _nonnegative(member.ssi_amount),
+                "ssdi_amount": _nonnegative(member.ssdi_amount),
             }
         )
 
@@ -324,6 +402,12 @@ def _validate_input(payload: HouseholdInput) -> None:
         raise ValueError("At least one household member is required")
     if not any(person.kind == "adult" for person in people):
         raise ValueError("At least one adult household member is required")
+    if sum(1 for person in people if person.kind == "adult") > MAX_ADULTS:
+        raise ValueError(f"At most {MAX_ADULTS} adult household members are supported")
+    if sum(1 for person in people if person.kind == "child") > MAX_DEPENDENTS:
+        raise ValueError(
+            f"At most {MAX_DEPENDENTS} dependent household members are supported"
+        )
     if filing_status not in FILING_STATUS_CODES:
         raise ValueError(f"Unsupported filing_status: {filing_status}")
     if (
@@ -336,6 +420,9 @@ def _validate_input(payload: HouseholdInput) -> None:
             raise ValueError(f"Unsupported household member kind: {person.kind}")
         if person.age < 0 or person.age > 120:
             raise ValueError(f"Invalid age: {person.age}")
+        for field_name in ("earned_income", "ssi_amount", "ssdi_amount"):
+            if getattr(person, field_name) < 0:
+                raise ValueError(f"{field_name} must be non-negative")
 
 
 def _base_person_data(
@@ -349,6 +436,14 @@ def _base_person_data(
         "has_esi": {year: False},
         "offered_aca_disqualifying_esi": {year: False},
         "is_pregnant": {year: bool(person.get("is_pregnant", False))},
+        "is_disabled": {year: bool(person.get("is_disabled", False))},
+        "is_blind": {year: bool(person.get("is_blind", False))},
+        "is_full_time_student": {
+            year: bool(person.get("is_full_time_student", False))
+        },
+        "is_incapable_of_self_care": {
+            year: bool(person.get("is_incapable_of_self_care", False))
+        },
         "under_60_days_postpartum": {year: False},
         "immigration_status_str": {year: "CITIZEN"},
         "is_ccdf_reason_for_care_eligible": {year: True},
@@ -369,37 +464,106 @@ def _base_household_groups(
 ) -> dict[str, Any]:
     year = payload.year
     earned_income = float(payload.earned_income)
-    monthly_earned = earned_income / 12
-    rent_annual = float(getattr(payload, "rent_annual", 0.0) or 0.0)
+    rent_annual = _nonnegative(payload.rent_annual)
+    utility_expense_annual = _nonnegative(payload.utility_expense_annual)
+    health_insurance_premium_annual = _nonnegative(
+        payload.health_insurance_premium_annual
+    )
     people: dict[str, dict[str, Any]] = {}
     member_ids = [person["id"] for person in members]
+
+    def set_earned_income(person_data: dict[str, Any], amount: float) -> None:
+        person_data["employment_income"] = {year: amount}
+        monthly_earned = amount / 12
+        person_data["tanf_gross_earned_income"] = {
+            f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
+        }
+
+        state_specific_earned_income = {
+            "DC": "dc_tanf_gross_earned_income",
+            "IL": "il_tanf_gross_earned_income",
+            "MT": "mt_tanf_gross_earned_income_person",
+            "SC": "sc_tanf_gross_earned_income",
+            "TX": "tx_tanf_gross_earned_income",
+        }
+        variable = state_specific_earned_income.get(payload.state)
+        if variable:
+            person_data[variable] = {
+                f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
+            }
 
     for index, person in enumerate(members):
         person_data = _base_person_data(person, year=year)
 
         if index == 0 and rent_annual > 0:
-            person_data["rent"] = {year: rent_annual}
+            person_data["pre_subsidy_rent"] = {year: rent_annual}
 
-        if include_income_overrides and index == 0 and earned_income > 0:
-            person_data["employment_income"] = {year: earned_income}
-            person_data["tanf_gross_earned_income"] = {
-                f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
+        if payload.has_employer_health_insurance:
+            person_data["has_esi"] = {year: True}
+            person_data["offered_aca_disqualifying_esi"] = {year: True}
+
+        if index == 0 and health_insurance_premium_annual > 0:
+            person_data["health_insurance_premiums"] = {
+                year: health_insurance_premium_annual
             }
 
-            state_specific_earned_income = {
-                "DC": "dc_tanf_gross_earned_income",
-                "IL": "il_tanf_gross_earned_income",
-                "MT": "mt_tanf_gross_earned_income_person",
-                "SC": "sc_tanf_gross_earned_income",
-                "TX": "tx_tanf_gross_earned_income",
+        person_data["takes_up_medicaid_if_eligible"] = {
+            year: _program_included(payload, "medicaid")
+        }
+        person_data["takes_up_chip_if_eligible"] = {
+            year: _program_included(payload, "chip")
+        }
+        person_data["takes_up_ssi_if_eligible"] = {
+            year: _program_included(payload, "ssi")
+        }
+        person_data["takes_up_head_start_if_eligible"] = {
+            year: _program_included(payload, "head_start")
+        }
+        person_data["takes_up_early_head_start_if_eligible"] = {
+            year: _program_included(payload, "early_head_start")
+        }
+        person_data["is_enrolled_in_ccdf"] = {
+            year: _program_included(payload, "child_care_subsidies")
+        }
+        person_data["is_enrolled_in_head_start"] = {
+            year: _program_included(payload, "head_start")
+        }
+        person_data["receives_wic"] = {
+            f"{year}-{month:02d}": _program_included(payload, "wic")
+            for month in range(1, 13)
+        }
+
+        if person["ssi_amount"] > 0 and _program_included(payload, "ssi"):
+            person_data["ssi"] = {year: person["ssi_amount"]}
+        if person["ssdi_amount"] > 0 and _program_included(payload, "ssdi"):
+            person_data["social_security_disability"] = {
+                year: person["ssdi_amount"]
             }
-            variable = state_specific_earned_income.get(payload.state)
-            if variable:
-                person_data[variable] = {
-                    f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
-                }
+
+        fixed_earned_income = person["earned_income"] if index != 0 else 0.0
+        if include_income_overrides and index == 0:
+            set_earned_income(person_data, earned_income)
         elif not include_income_overrides and index == 0:
             person_data["employment_income"] = {year: None}
+        elif fixed_earned_income > 0:
+            set_earned_income(person_data, fixed_earned_income)
+
+        if index == 0:
+            extra_income_inputs = {
+                "self_employment_income": payload.self_employment_income_annual,
+                "child_support_received": payload.child_support_annual,
+                "taxable_interest_income": payload.taxable_interest_income_annual,
+                "dividend_income": payload.dividend_income_annual,
+                "rental_income": payload.rental_income_annual,
+                "unemployment_compensation": payload.unemployment_compensation_annual,
+                "pension_income": payload.pension_income_annual,
+                "social_security": payload.social_security_annual,
+                "miscellaneous_income": payload.miscellaneous_income_annual,
+            }
+            for variable, amount in extra_income_inputs.items():
+                annual_amount = _nonnegative(amount)
+                if annual_amount > 0:
+                    person_data[variable] = {year: annual_amount}
 
         people[person["id"]] = person_data
 
@@ -415,18 +579,57 @@ def _base_household_groups(
     tax_unit = {
         "members": member_ids,
         "filing_status": {year: _effective_filing_status(payload)},
+        "takes_up_aca_if_eligible": {
+            year: _program_included(payload, "aca_ptc")
+        },
+        "takes_up_eitc": {
+            year: _program_included(payload, "federal_refundable_credits")
+        },
     }
     if include_income_overrides:
-        tax_unit["aca_magi"] = {year: earned_income}
-        tax_unit["medicaid_magi"] = {year: earned_income}
+        estimated_magi = (
+            earned_income
+            + sum(person["earned_income"] for person in members[1:])
+            + _nonnegative(payload.self_employment_income_annual)
+            + _nonnegative(payload.taxable_interest_income_annual)
+            + _nonnegative(payload.dividend_income_annual)
+            + _nonnegative(payload.rental_income_annual)
+            + _nonnegative(payload.unemployment_compensation_annual)
+            + _nonnegative(payload.pension_income_annual)
+            + _nonnegative(payload.miscellaneous_income_annual)
+        )
+        tax_unit["aca_magi"] = {year: estimated_magi}
+        tax_unit["medicaid_magi"] = {year: estimated_magi}
 
-    childcare_expenses = float(getattr(payload, "childcare_expenses", 0.0) or 0.0)
+    childcare_expenses = _nonnegative(payload.childcare_expenses)
     spm_unit: dict[str, Any] = {
         "members": member_ids,
         "meets_ccdf_activity_test": {year: True},
+        "takes_up_snap_if_eligible": {
+            year: _program_included(payload, "snap")
+        },
+        "takes_up_tanf_if_eligible": {
+            year: _program_included(payload, "tanf")
+        },
+        "receives_housing_assistance": {
+            year: _program_included(payload, "housing_assistance")
+        },
     }
     if childcare_expenses > 0:
         spm_unit["childcare_expenses"] = {year: childcare_expenses}
+        spm_unit["spm_unit_pre_subsidy_childcare_expenses"] = {
+            year: childcare_expenses
+        }
+    if utility_expense_annual > 0:
+        spm_unit["utility_expense"] = {year: utility_expense_annual}
+        household["hud_utility_allowance"] = {year: utility_expense_annual}
+    if payload.liquid_assets > 0:
+        spm_unit["snap_assets"] = {year: _nonnegative(payload.liquid_assets)}
+
+    if _program_included(payload, "tanf"):
+        spm_unit["is_tanf_enrolled"] = {
+            f"{year}-{month:02d}": True for month in range(1, 13)
+        }
 
     situation: dict[str, Any] = {
         "people": people,
@@ -703,6 +906,36 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         year,
         map_to="household",
     )
+    head_start = _calculate_variable(
+        simulation,
+        "head_start",
+        year,
+        map_to="household",
+    )
+    early_head_start = _calculate_variable(
+        simulation,
+        "early_head_start",
+        year,
+        map_to="household",
+    )
+    housing_assistance = _calculate_variable(
+        simulation,
+        "housing_assistance",
+        year,
+        map_to="spm_unit",
+    )
+    ssi = _calculate_variable(
+        simulation,
+        "ssi",
+        year,
+        map_to="household",
+    )
+    ssdi = _calculate_variable(
+        simulation,
+        "social_security_disability",
+        year,
+        map_to="household",
+    )
     medicaid_value = _calculate_variable(
         simulation,
         "medicaid",
@@ -805,18 +1038,47 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         access[key] += 1
 
     programs = {
-        "snap": snap,
-        "tanf": tanf,
-        "wic": wic,
-        "free_school_meals": free_school_meals,
-        "child_care_subsidies": child_care_subsidies,
-        "medicaid": medicaid_value,
-        "chip": chip_value,
-        "aca_ptc": aca_ptc,
-        "federal_refundable_credits": federal_refundable_credits,
-        "state_refundable_credits": state_refundable_credits,
+        "snap": _filtered_program_value(payload, "snap", snap),
+        "tanf": _filtered_program_value(payload, "tanf", tanf),
+        "wic": _filtered_program_value(payload, "wic", wic),
+        "free_school_meals": _filtered_program_value(
+            payload, "free_school_meals", free_school_meals
+        ),
+        "head_start": _filtered_program_value(payload, "head_start", head_start),
+        "early_head_start": _filtered_program_value(
+            payload, "early_head_start", early_head_start
+        ),
+        "child_care_subsidies": _filtered_program_value(
+            payload, "child_care_subsidies", child_care_subsidies
+        ),
+        "housing_assistance": _filtered_program_value(
+            payload, "housing_assistance", housing_assistance
+        ),
+        "ssi": _filtered_program_value(payload, "ssi", ssi),
+        "ssdi": _filtered_program_value(payload, "ssdi", ssdi),
+        "medicaid": _filtered_program_value(payload, "medicaid", medicaid_value),
+        "chip": _filtered_program_value(payload, "chip", chip_value),
+        "aca_ptc": _filtered_program_value(payload, "aca_ptc", aca_ptc),
+        "federal_refundable_credits": _filtered_program_value(
+            payload, "federal_refundable_credits", federal_refundable_credits
+        ),
+        "state_refundable_credits": _filtered_program_value(
+            payload, "state_refundable_credits", state_refundable_credits
+        ),
     }
     household_costs = {
+        "rent": _nonnegative(payload.rent_annual),
+        "utilities": _nonnegative(payload.utility_expense_annual),
+        "childcare": _nonnegative(payload.childcare_expenses),
+        "food": _nonnegative(payload.food_expense_annual),
+        "transportation": _nonnegative(payload.transportation_expense_annual),
+        "health_insurance_premiums": _nonnegative(
+            payload.health_insurance_premium_annual
+        ),
+        "technology": _nonnegative(payload.technology_expense_annual),
+        "debt_payments": _nonnegative(payload.debt_payment_annual),
+        "education_training": _nonnegative(payload.education_expense_annual),
+        "other_expenses": _nonnegative(payload.other_expense_annual),
         "chip_premium": chip_premium,
     }
     core_support = sum(programs.values())
@@ -836,9 +1098,47 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
                     "kind": person["kind"],
                     "age": person["age"],
                     "is_pregnant": person["is_pregnant"],
+                    "is_disabled": person["is_disabled"],
+                    "is_blind": person["is_blind"],
+                    "is_full_time_student": person["is_full_time_student"],
+                    "is_incapable_of_self_care": person[
+                        "is_incapable_of_self_care"
+                    ],
+                    "earned_income": person["earned_income"],
+                    "ssi_amount": person["ssi_amount"],
+                    "ssdi_amount": person["ssdi_amount"],
                 }
                 for person in members
             ],
+            "childcare_expenses": payload.childcare_expenses,
+            "rent_annual": payload.rent_annual,
+            "utility_expense_annual": payload.utility_expense_annual,
+            "food_expense_annual": payload.food_expense_annual,
+            "transportation_expense_annual": payload.transportation_expense_annual,
+            "health_insurance_premium_annual": (
+                payload.health_insurance_premium_annual
+            ),
+            "technology_expense_annual": payload.technology_expense_annual,
+            "debt_payment_annual": payload.debt_payment_annual,
+            "education_expense_annual": payload.education_expense_annual,
+            "other_expense_annual": payload.other_expense_annual,
+            "self_employment_income_annual": payload.self_employment_income_annual,
+            "child_support_annual": payload.child_support_annual,
+            "taxable_interest_income_annual": (
+                payload.taxable_interest_income_annual
+            ),
+            "dividend_income_annual": payload.dividend_income_annual,
+            "rental_income_annual": payload.rental_income_annual,
+            "unemployment_compensation_annual": (
+                payload.unemployment_compensation_annual
+            ),
+            "pension_income_annual": payload.pension_income_annual,
+            "social_security_annual": payload.social_security_annual,
+            "miscellaneous_income_annual": payload.miscellaneous_income_annual,
+            "liquid_assets": payload.liquid_assets,
+            "has_employer_health_insurance": payload.has_employer_health_insurance,
+            "programs_mode": payload.programs_mode,
+            "selected_programs": list(payload.selected_programs),
         },
         "template": {
             "id": descriptor["id"],
@@ -887,15 +1187,7 @@ def _attach_cliff_metrics(
     *,
     delta: int = DEFAULT_CLIFF_DELTA,
 ) -> dict[str, Any]:
-    bumped_payload = HouseholdInput(
-        state=payload.state,
-        earned_income=payload.earned_income + delta,
-        year=payload.year,
-        county=payload.county,
-        people=payload.people,
-        household_type=payload.household_type,
-        filing_status=payload.filing_status,
-    )
+    bumped_payload = replace(payload, earned_income=payload.earned_income + delta)
     bumped_result = _simulate_core(bumped_payload)
     change = (
         bumped_result["totals"]["net_resources"]
@@ -984,7 +1276,8 @@ def _build_cliff_drivers(
 
     for key, label in PROGRAM_LABEL_BY_KEY.items():
         annual_change = round(
-            result["programs"][key] - previous_result["programs"][key],
+            result["programs"].get(key, 0.0)
+            - previous_result["programs"].get(key, 0.0),
             2,
         )
         if annual_change < 0:
@@ -1002,7 +1295,8 @@ def _build_cliff_drivers(
 
     for key, label in HOUSEHOLD_COST_LABEL_BY_KEY.items():
         annual_change = round(
-            result["household_costs"][key] - previous_result["household_costs"][key],
+            result["household_costs"].get(key, 0.0)
+            - previous_result["household_costs"].get(key, 0.0),
             2,
         )
         if annual_change > 0:
@@ -1173,6 +1467,51 @@ def calculate_income_series(
         ),
         point_count,
     )
+    head_start_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "head_start",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    early_head_start_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "early_head_start",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    housing_assistance_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "housing_assistance",
+            payload.year,
+            map_to="spm_unit",
+        ),
+        point_count,
+    )
+    ssi_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "ssi",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    ssdi_values = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "social_security_disability",
+            payload.year,
+            map_to="household",
+        ),
+        point_count,
+    )
     medicaid_values = _normalize_series_values(
         _calculate_variable_array(
             simulation,
@@ -1235,27 +1574,102 @@ def calculate_income_series(
     step_monthly = _monthly_amount(effective_step)
     truncated = False
     truncation_reason = None
+    fixed_household_costs = {
+        "rent": _nonnegative(payload.rent_annual),
+        "utilities": _nonnegative(payload.utility_expense_annual),
+        "childcare": _nonnegative(payload.childcare_expenses),
+        "food": _nonnegative(payload.food_expense_annual),
+        "transportation": _nonnegative(payload.transportation_expense_annual),
+        "health_insurance_premiums": _nonnegative(
+            payload.health_insurance_premium_annual
+        ),
+        "technology": _nonnegative(payload.technology_expense_annual),
+        "debt_payments": _nonnegative(payload.debt_payment_annual),
+        "education_training": _nonnegative(payload.education_expense_annual),
+        "other_expenses": _nonnegative(payload.other_expense_annual),
+    }
 
     for index, earned_income in enumerate(earned_incomes):
         programs = {
-            "snap": round(snap_values[index], 2),
-            "tanf": round(tanf_values[index], 2),
-            "wic": round(wic_values[index], 2),
-            "free_school_meals": round(free_school_meal_values[index], 2),
-            "child_care_subsidies": round(child_care_subsidy_values[index], 2),
-            "medicaid": round(medicaid_values[index], 2),
-            "chip": round(chip_values[index], 2),
-            "aca_ptc": round(aca_ptc_values[index], 2),
+            "snap": round(
+                _filtered_program_value(payload, "snap", snap_values[index]), 2
+            ),
+            "tanf": round(
+                _filtered_program_value(payload, "tanf", tanf_values[index]), 2
+            ),
+            "wic": round(
+                _filtered_program_value(payload, "wic", wic_values[index]), 2
+            ),
+            "free_school_meals": round(
+                _filtered_program_value(
+                    payload, "free_school_meals", free_school_meal_values[index]
+                ),
+                2,
+            ),
+            "head_start": round(
+                _filtered_program_value(
+                    payload, "head_start", head_start_values[index]
+                ),
+                2,
+            ),
+            "early_head_start": round(
+                _filtered_program_value(
+                    payload, "early_head_start", early_head_start_values[index]
+                ),
+                2,
+            ),
+            "child_care_subsidies": round(
+                _filtered_program_value(
+                    payload,
+                    "child_care_subsidies",
+                    child_care_subsidy_values[index],
+                ),
+                2,
+            ),
+            "housing_assistance": round(
+                _filtered_program_value(
+                    payload,
+                    "housing_assistance",
+                    housing_assistance_values[index],
+                ),
+                2,
+            ),
+            "ssi": round(
+                _filtered_program_value(payload, "ssi", ssi_values[index]), 2
+            ),
+            "ssdi": round(
+                _filtered_program_value(payload, "ssdi", ssdi_values[index]), 2
+            ),
+            "medicaid": round(
+                _filtered_program_value(payload, "medicaid", medicaid_values[index]),
+                2,
+            ),
+            "chip": round(
+                _filtered_program_value(payload, "chip", chip_values[index]), 2
+            ),
+            "aca_ptc": round(
+                _filtered_program_value(payload, "aca_ptc", aca_ptc_values[index]),
+                2,
+            ),
             "federal_refundable_credits": round(
-                federal_refundable_credit_values[index],
+                _filtered_program_value(
+                    payload,
+                    "federal_refundable_credits",
+                    federal_refundable_credit_values[index],
+                ),
                 2,
             ),
             "state_refundable_credits": round(
-                state_refundable_credit_values[index],
+                _filtered_program_value(
+                    payload,
+                    "state_refundable_credits",
+                    state_refundable_credit_values[index],
+                ),
                 2,
             ),
         }
         household_costs = {
+            **fixed_household_costs,
             "chip_premium": round(chip_premium_values[index], 2),
         }
         market_income = round(market_income_values[index], 2)
@@ -1316,6 +1730,11 @@ def calculate_income_series(
                 "aca_ptc": programs["aca_ptc"],
                 "snap": programs["snap"],
                 "free_school_meals": programs["free_school_meals"],
+                "head_start": programs["head_start"],
+                "early_head_start": programs["early_head_start"],
+                "housing_assistance": programs["housing_assistance"],
+                "ssi": programs["ssi"],
+                "ssdi": programs["ssdi"],
                 "federal_refundable_credits": programs["federal_refundable_credits"],
                 "state_refundable_credits": programs["state_refundable_credits"],
                 "federal_taxes_before_refundable_credits": federal_taxes_before_refundable_credits,
@@ -1323,6 +1742,7 @@ def calculate_income_series(
                 "tanf": programs["tanf"],
                 "wic": programs["wic"],
                 "child_care_subsidies": programs["child_care_subsidies"],
+                "household_costs": household_costs,
                 "has_previous_point": has_previous_point,
                 "cliff_drop_annual": round(cliff_drop, 2),
                 "is_cliff": cliff_drop > 0,
@@ -1346,12 +1766,10 @@ def calculate_income_series(
 def calculate_household_types(payload: HouseholdInput) -> list[dict[str, Any]]:
     results = []
     for household_type in HOUSEHOLD_TYPE_BY_ID:
-        scenario = HouseholdInput(
-            state=payload.state,
-            earned_income=payload.earned_income,
-            year=payload.year,
-            county=payload.county,
+        scenario = replace(
+            payload,
             household_type=household_type,
+            people=(),
             filing_status=None,
         )
         result = _simulate_core(scenario)
@@ -1386,6 +1804,9 @@ def calculate_household_types(payload: HouseholdInput) -> list[dict[str, Any]]:
 
 
 def household_input_from_dict(data: dict[str, Any]) -> HouseholdInput:
+    def numeric(field: str) -> float:
+        return float(data.get(field, 0) or 0)
+
     people = tuple(
         HouseholdMemberInput(
             age=int(person["age"]),
@@ -1402,19 +1823,62 @@ def household_input_from_dict(data: dict[str, Any]) -> HouseholdInput:
                 )
             ),
             is_pregnant=bool(person.get("is_pregnant", False)),
+            is_disabled=bool(person.get("is_disabled", False)),
+            is_blind=bool(person.get("is_blind", False)),
+            is_full_time_student=bool(person.get("is_full_time_student", False)),
+            is_incapable_of_self_care=bool(
+                person.get("is_incapable_of_self_care", False)
+            ),
+            earned_income=float(person.get("earned_income", 0) or 0),
+            ssi_amount=float(person.get("ssi_amount", 0) or 0),
+            ssdi_amount=float(person.get("ssdi_amount", 0) or 0),
         )
         for person in data.get("people", [])
     )
+    selected_programs = tuple(
+        str(key)
+        for key in data.get("selected_programs", [])
+        if str(key) in PUBLIC_ASSISTANCE_PROGRAM_KEYS
+    )
     return HouseholdInput(
         state=data["state"],
-        earned_income=float(data.get("earned_income", 0)),
+        earned_income=numeric("earned_income"),
         year=int(data.get("year", DEFAULT_YEAR)),
         county=data.get("county"),
         people=people,
         household_type=data.get("household_type"),
         filing_status=data.get("filing_status"),
-        childcare_expenses=float(data.get("childcare_expenses", 0) or 0),
-        rent_annual=float(data.get("rent_annual", 0) or 0),
+        childcare_expenses=numeric("childcare_expenses"),
+        rent_annual=numeric("rent_annual"),
+        utility_expense_annual=numeric("utility_expense_annual"),
+        food_expense_annual=numeric("food_expense_annual"),
+        transportation_expense_annual=numeric("transportation_expense_annual"),
+        health_insurance_premium_annual=numeric(
+            "health_insurance_premium_annual"
+        ),
+        technology_expense_annual=numeric("technology_expense_annual"),
+        debt_payment_annual=numeric("debt_payment_annual"),
+        education_expense_annual=numeric("education_expense_annual"),
+        other_expense_annual=numeric("other_expense_annual"),
+        self_employment_income_annual=numeric("self_employment_income_annual"),
+        child_support_annual=numeric("child_support_annual"),
+        taxable_interest_income_annual=numeric(
+            "taxable_interest_income_annual"
+        ),
+        dividend_income_annual=numeric("dividend_income_annual"),
+        rental_income_annual=numeric("rental_income_annual"),
+        unemployment_compensation_annual=numeric(
+            "unemployment_compensation_annual"
+        ),
+        pension_income_annual=numeric("pension_income_annual"),
+        social_security_annual=numeric("social_security_annual"),
+        miscellaneous_income_annual=numeric("miscellaneous_income_annual"),
+        liquid_assets=numeric("liquid_assets"),
+        has_employer_health_insurance=bool(
+            data.get("has_employer_health_insurance", False)
+        ),
+        programs_mode=str(data.get("programs_mode", "all") or "all"),
+        selected_programs=selected_programs,
     )
 
 

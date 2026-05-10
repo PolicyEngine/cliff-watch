@@ -25,7 +25,10 @@ from cliff_watch.config import (
     FILING_STATUS_OPTIONS,
     HOUSEHOLD_COST_DEFINITIONS,
     HOUSEHOLD_TYPES,
+    MAX_ADULTS,
+    MAX_DEPENDENTS,
     PROGRAM_DEFINITIONS,
+    PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
     STATE_INFO,
 )
 
@@ -45,6 +48,7 @@ def metadata_response() -> dict[str, Any]:
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,
         "household_costs": HOUSEHOLD_COST_DEFINITIONS,
+        "public_assistance_programs": PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
         "ccdf_modeled_states": sorted(CCDF_MODELED_STATES),
         "filing_statuses": FILING_STATUS_OPTIONS,
         "defaults": {
@@ -59,6 +63,9 @@ def metadata_response() -> dict[str, Any]:
             "series_earnings_buffer": DEFAULT_SERIES_EARNINGS_BUFFER,
             "series_min_earnings_window": DEFAULT_SERIES_MIN_EARNINGS_WINDOW,
             "cliff_delta": DEFAULT_CLIFF_DELTA,
+            "max_adults": MAX_ADULTS,
+            "max_dependents": MAX_DEPENDENTS,
+            "programs_mode": "all",
         },
     }
 

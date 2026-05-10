@@ -9,6 +9,8 @@ DEFAULT_SERIES_MIN_EARNINGS_WINDOW = 40_000
 DEFAULT_SERIES_TARGET_POINTS = 201
 DEFAULT_SERIES_STEP_INCREMENT = 250
 DEFAULT_FILING_STATUS = "HEAD_OF_HOUSEHOLD"
+MAX_ADULTS = 6
+MAX_DEPENDENTS = 6
 FILING_STATUS_OPTIONS = [
     {"code": "SINGLE", "label": "Single"},
     {
@@ -232,10 +234,40 @@ PROGRAM_DEFINITIONS = [
         "description": "Modeled value of free school breakfast and lunch.",
     },
     {
+        "key": "head_start",
+        "label": "Head Start",
+        "short_label": "Head Start",
+        "description": "Modeled value of Head Start services for eligible children.",
+    },
+    {
+        "key": "early_head_start",
+        "label": "Early Head Start",
+        "short_label": "Early HS",
+        "description": "Modeled value of Early Head Start services for eligible infants, toddlers, and pregnant people.",
+    },
+    {
         "key": "child_care_subsidies",
         "label": "Child care subsidies",
         "short_label": "Child care",
         "description": "State CCDF child care subsidy net of family copay (modeled in CA, CO, DE, MA, ME, NE, NH, PA, RI, VT).",
+    },
+    {
+        "key": "housing_assistance",
+        "label": "Housing assistance",
+        "short_label": "Housing",
+        "description": "Modeled value of HUD housing assistance when the household is already receiving housing assistance.",
+    },
+    {
+        "key": "ssi",
+        "label": "SSI",
+        "short_label": "SSI",
+        "description": "Supplemental Security Income for eligible disabled, blind, or aged people.",
+    },
+    {
+        "key": "ssdi",
+        "label": "SSDI",
+        "short_label": "SSDI",
+        "description": "Reported Social Security Disability Insurance income.",
     },
     {
         "key": "federal_refundable_credits",
@@ -271,9 +303,132 @@ PROGRAM_DEFINITIONS = [
 
 HOUSEHOLD_COST_DEFINITIONS = [
     {
+        "key": "rent",
+        "label": "Rent or mortgage",
+        "short_label": "Housing",
+        "description": "Annual rent or mortgage entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "utilities",
+        "label": "Utilities",
+        "short_label": "Utilities",
+        "description": "Annual utility costs entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "childcare",
+        "label": "Child care expense",
+        "short_label": "Child care",
+        "description": "Annual out-of-pocket child care expense entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "food",
+        "label": "Food",
+        "short_label": "Food",
+        "description": "Annual food costs entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "transportation",
+        "label": "Transportation",
+        "short_label": "Transport",
+        "description": "Annual transportation costs entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "health_insurance_premiums",
+        "label": "Health insurance premiums",
+        "short_label": "Health premiums",
+        "description": "Annual out-of-pocket health insurance premiums entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "technology",
+        "label": "Phone and internet",
+        "short_label": "Tech",
+        "description": "Annual phone and internet costs entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "debt_payments",
+        "label": "Debt payments",
+        "short_label": "Debt",
+        "description": "Annual debt payments entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "education_training",
+        "label": "Education and training",
+        "short_label": "Training",
+        "description": "Annual education or training costs entered by the household. Subtracted from net resources.",
+    },
+    {
+        "key": "other_expenses",
+        "label": "Other expenses",
+        "short_label": "Other",
+        "description": "Other annual budget costs entered by the household. Subtracted from net resources.",
+    },
+    {
         "key": "chip_premium",
         "label": "CHIP premium",
         "short_label": "CHIP premium",
         "description": "Annual CHIP premium or enrollment fee paid by the household. Subtracted from net resources.",
+    },
+]
+
+PUBLIC_ASSISTANCE_PROGRAM_OPTIONS = [
+    {
+        "key": "snap",
+        "label": "Supplemental Nutrition Assistance Program (SNAP)",
+    },
+    {
+        "key": "free_school_meals",
+        "label": "Free or reduced price school meals",
+    },
+    {
+        "key": "wic",
+        "label": "Women, Infants, and Children Nutrition Program (WIC)",
+    },
+    {
+        "key": "tanf",
+        "label": "Temporary Assistance for Needy Families (TANF)",
+    },
+    {
+        "key": "child_care_subsidies",
+        "label": "Child Care Subsidy (CCDF)",
+    },
+    {
+        "key": "head_start",
+        "label": "Head Start",
+    },
+    {
+        "key": "early_head_start",
+        "label": "Early Head Start",
+    },
+    {
+        "key": "housing_assistance",
+        "label": "Section 8 Housing Choice Voucher",
+    },
+    {
+        "key": "medicaid",
+        "label": "Medicaid for adults",
+    },
+    {
+        "key": "chip",
+        "label": "Medicaid for children / CHIP",
+    },
+    {
+        "key": "aca_ptc",
+        "label": "Health Insurance Marketplace Subsidy",
+    },
+    {
+        "key": "federal_refundable_credits",
+        "label": "Federal refundable tax credits",
+    },
+    {
+        "key": "state_refundable_credits",
+        "label": "State refundable tax credits",
+    },
+    {
+        "key": "ssi",
+        "label": "Supplemental Security Income (SSI)",
+    },
+    {
+        "key": "ssdi",
+        "label": "Social Security Disability Insurance (SSDI)",
     },
 ]
