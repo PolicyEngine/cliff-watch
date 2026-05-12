@@ -1,5 +1,10 @@
 import { useMemo } from 'react'
 import { applyStateProgramLabels } from '../utils/programLabels.js'
+import {
+  applyFilingStatusSelection,
+  maxAdultsForMetadata,
+  newPerson,
+} from '../utils/filingStatus.js'
 
 const PROGRAM_MODES = [
   { key: 'all', label: 'All' },
@@ -38,19 +43,6 @@ const EXPENSE_FIELDS = [
   { key: 'education_expense_annual', label: 'Education and training' },
   { key: 'other_expense_annual', label: 'Other expenses' },
 ]
-
-const newPerson = (kind) => ({
-  kind,
-  age: kind === 'adult' ? 30 : 6,
-  is_pregnant: false,
-  is_disabled: false,
-  is_blind: false,
-  is_full_time_student: false,
-  is_incapable_of_self_care: false,
-  earned_income: 0,
-  ssi_amount: 0,
-  ssdi_amount: 0,
-})
 
 function InfoTooltip({ text }) {
   return (
@@ -122,7 +114,7 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
   const people = inputs?.people || []
   const adultCount = people.filter((person) => person.kind === 'adult').length
   const dependentCount = people.filter((person) => person.kind === 'child').length
-  const maxAdults = Math.max(1, Number(metadata?.defaults?.max_adults) || 6)
+  const maxAdults = maxAdultsForMetadata(metadata)
   const maxDependents = Math.max(0, Number(metadata?.defaults?.max_dependents) || 6)
   const baseProgramOptions = metadata?.public_assistance_programs || metadata?.programs || []
   const programOptions = useMemo(
@@ -258,7 +250,9 @@ function InputPanel({ metadata, inputs, loading, onCalculate, onChange, onReset 
             <select
               id="filing_status"
               value={inputs.filing_status}
-              onChange={(event) => onChange({ filing_status: event.target.value })}
+              onChange={(event) => onChange(
+                applyFilingStatusSelection(inputs, event.target.value, metadata),
+              )}
             >
               {metadata.filing_statuses.map((status) => (
                 <option key={status.code} value={status.code}>

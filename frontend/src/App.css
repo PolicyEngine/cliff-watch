@@ -1023,6 +1023,13 @@ body {
   margin-bottom: 0;
 }
 
+.share-link-control {
+  display: grid;
+  justify-items: end;
+  gap: 0.45rem;
+  max-width: min(100%, 28rem);
+}
+
 .share-link-btn {
   padding: 0.4rem 0.85rem;
   font-size: 0.78rem;
@@ -1038,6 +1045,25 @@ body {
 .share-link-btn:hover {
   background: var(--color-cream, #f8fafc);
   border-color: var(--color-teal-dark);
+}
+
+.share-link-fallback {
+  width: min(100vw - 4rem, 28rem);
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-muted);
+  background: var(--color-cream, #f8fafc);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.share-link-fallback:focus {
+  outline: none;
+  border-color: var(--color-teal-dark);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+  color: var(--color-text);
+  background: white;
 }
 
 .chart-container.full-width {

@@ -4,28 +4,78 @@ import CliffInsights from './CliffInsights'
 import { formatCurrency } from '../dataLookup'
 import { buildShareUrl } from '../utils/urlState'
 
+function copyTextFallback(text) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.top = '-9999px'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    if (!document.execCommand('copy')) {
+      throw new Error('Copy command was not accepted.')
+    }
+  } finally {
+    document.body.removeChild(textarea)
+  }
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+  } catch (err) {
+    console.warn('Clipboard API write failed; trying fallback copy.', err)
+  }
+
+  copyTextFallback(text)
+}
+
 function ShareButton({ inputs }) {
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
+  const shareUrl = buildShareUrl(inputs)
 
   const handleClick = async () => {
     try {
-      await navigator.clipboard.writeText(buildShareUrl(inputs))
+      await copyTextToClipboard(shareUrl)
       setCopied(true)
+      setCopyFailed(false)
       setTimeout(() => setCopied(false), 1800)
     } catch (err) {
       console.error('Clipboard write failed', err)
+      setCopyFailed(true)
+      setCopied(false)
+      setTimeout(() => setCopyFailed(false), 1800)
     }
   }
 
   return (
-    <button
-      type="button"
-      className="share-link-btn"
-      onClick={handleClick}
-      title="Copy a link that reproduces this scenario"
-    >
-      {copied ? 'Link copied' : 'Copy share link'}
-    </button>
+    <div className="share-link-control">
+      <button
+        type="button"
+        className="share-link-btn"
+        onClick={handleClick}
+        title="Copy a link that reproduces this scenario"
+      >
+        {copied ? 'Link copied' : copyFailed ? 'Copy failed' : 'Copy share link'}
+      </button>
+      {copyFailed ? (
+        <input
+          className="share-link-fallback"
+          type="text"
+          readOnly
+          value={shareUrl}
+          aria-label="Share link"
+          onFocus={(event) => event.target.select()}
+        />
+      ) : null}
+    </div>
   )
 }
 
