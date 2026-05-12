@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { calculateSeries } from './dataLookup.js'
 import {
   buildCliffDrivers,
   buildHouseholdResultFromResponse,
@@ -9,7 +10,14 @@ import {
 import { applyFilingStatusSelection } from './utils/filingStatus.js'
 
 const metadata = {
+  year: 2026,
   states: [{ code: 'GA', name: 'Georgia' }],
+  defaults: {
+    chart_max_earned_income: 1000,
+    max_adults: 6,
+    max_dependents: 6,
+    series_step: 500,
+  },
   programs: [
     { key: 'tanf', label: 'TANF', short_label: 'TANF', description: '' },
     { key: 'chip', label: 'CHIP', short_label: 'CHIP', description: '' },
@@ -265,4 +273,62 @@ test('applyFilingStatusSelection leaves existing household members alone for non
   )
 
   assert.deepEqual(result, { filing_status: 'HEAD_OF_HOUSEHOLD' })
+})
+
+test('calculateSeries quietly falls back after a PolicyEngine API error', async () => {
+  const originalFetch = globalThis.fetch
+  const originalConsoleError = console.error
+  const consoleErrors = []
+  const requests = []
+
+  globalThis.fetch = async (url) => {
+    requests.push(String(url))
+
+    if (String(url).includes('api.policyengine.org')) {
+      return new Response(
+        JSON.stringify({ error: 'PolicyEngine API unavailable' }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    assert.equal(String(url), '/api/series')
+    return new Response(
+      JSON.stringify({
+        data: [],
+        step_annual: 500,
+        max_earned_income: 1000,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+  console.error = (...args) => consoleErrors.push(args)
+
+  try {
+    const result = await calculateSeries(
+      {
+        state: 'GA',
+        people: [{ kind: 'adult', age: 33 }],
+        filing_status: 'SINGLE',
+        chart_max_earned_income: 1000,
+      },
+      metadata,
+      { step: 500 },
+    )
+
+    assert.deepEqual(result.data, [])
+    assert.deepEqual(consoleErrors, [])
+    assert.deepEqual(requests, [
+      'https://api.policyengine.org/us/calculate',
+      '/api/series',
+    ])
+  } finally {
+    globalThis.fetch = originalFetch
+    console.error = originalConsoleError
+  }
 })

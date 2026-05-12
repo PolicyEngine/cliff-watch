@@ -1,7 +1,8 @@
 import {
   calculateHouseholdViaPolicyEngine,
   calculateSeriesViaPolicyEngine,
-} from './policyengineApi'
+  PolicyEngineApiError,
+} from './policyengineApi.js'
 
 const parseErrorMessage = async (response) => {
   try {
@@ -28,6 +29,17 @@ const postJson = async (path, payload) => {
   }
 
   return response.json()
+}
+
+const logUnexpectedPolicyEngineFallback = (error) => {
+  if (
+    error instanceof PolicyEngineApiError
+    || error?.name === 'PolicyEngineApiError'
+  ) {
+    return
+  }
+
+  console.error(error)
 }
 
 export const formatCurrency = (value, digits = 0) => new Intl.NumberFormat(
@@ -266,7 +278,7 @@ export async function calculateStateResult(inputs, metadata) {
   try {
     return await calculateHouseholdViaPolicyEngine(payload, metadata)
   } catch (error) {
-    console.error(error)
+    logUnexpectedPolicyEngineFallback(error)
     const response = await postJson('/api/calculate', payload)
     return response.result
   }
@@ -285,7 +297,7 @@ export async function calculateSeries(inputs, metadata, options = {}) {
   try {
     return await calculateSeriesViaPolicyEngine(payload, metadata)
   } catch (error) {
-    console.error(error)
+    logUnexpectedPolicyEngineFallback(error)
     return postJson('/api/series', payload)
   }
 }
