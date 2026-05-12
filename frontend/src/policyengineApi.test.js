@@ -6,6 +6,7 @@ import {
   buildHouseholdResultFromResponse,
   buildSeriesDataFromResponse,
 } from './policyengineApi.js'
+import { applyFilingStatusSelection } from './utils/filingStatus.js'
 
 const metadata = {
   states: [{ code: 'GA', name: 'Georgia' }],
@@ -230,4 +231,38 @@ test('buildSeriesDataFromResponse carries CHIP premiums into series net resource
   assert.equal(result.data[1].cliff_drop_annual, 1300)
   assert.equal(result.data[1].cliff_drivers[0].kind, 'household_cost_increase')
   assert.equal(result.data[1].cliff_drivers[0].label, 'CHIP premium')
+})
+
+test('applyFilingStatusSelection adds a spouse when selecting a married status', () => {
+  const result = applyFilingStatusSelection(
+    {
+      people: [
+        { kind: 'adult', age: 33 },
+        { kind: 'child', age: 6 },
+      ],
+    },
+    'JOINT',
+    { defaults: { max_adults: 6 } },
+  )
+
+  assert.equal(result.filing_status, 'JOINT')
+  assert.deepEqual(
+    result.people.map((person) => person.kind),
+    ['adult', 'adult', 'child'],
+  )
+})
+
+test('applyFilingStatusSelection leaves existing household members alone for non-married statuses', () => {
+  const result = applyFilingStatusSelection(
+    {
+      people: [
+        { kind: 'adult', age: 33 },
+        { kind: 'child', age: 6 },
+      ],
+    },
+    'HEAD_OF_HOUSEHOLD',
+    { defaults: { max_adults: 6 } },
+  )
+
+  assert.deepEqual(result, { filing_status: 'HEAD_OF_HOUSEHOLD' })
 })
