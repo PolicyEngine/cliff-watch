@@ -185,7 +185,7 @@ function isCcdfModeledState(state, metadata) {
   return DEFAULT_CCDF_MODELED_STATES.has(state)
 }
 
-class PolicyEngineApiError extends Error {
+export class PolicyEngineApiError extends Error {
   constructor(message, status, response) {
     super(message)
     this.name = 'PolicyEngineApiError'
