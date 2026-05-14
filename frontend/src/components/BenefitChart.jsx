@@ -915,6 +915,7 @@ function BenefitChart({
         ) : null}
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
+            key={chartMode}
             data={annualizedData}
             margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
             stackOffset={chartMode === 'program_detail' ? 'sign' : undefined}
@@ -995,8 +996,8 @@ function BenefitChart({
               })
               : null}
 
-            {chartMode === 'net_income' ? (
-              visibleNetSeries.map((series) => (
+            {chartMode === 'net_income'
+              ? visibleNetSeries.map((series) => (
                 <Line
                   key={series.key}
                   yAxisId="left"
@@ -1013,48 +1014,51 @@ function BenefitChart({
                     : false}
                 />
               ))
-            ) : (
-              <>
-                {visibleDetailAreaSeries.map((series) => (
-                  <Area
-                    key={series.key}
-                    yAxisId="left"
-                    type="linear"
-                    dataKey={series.key}
-                    stackId="income-stack"
-                    stroke={series.hideStroke ? 'none' : series.stroke}
-                    fill={series.fill}
-                    fillOpacity={
-                      series.key === 'federal_taxes_before_refundable_credits_annual'
-                      || series.key === 'state_taxes_before_refundable_credits_annual'
-                        ? 0.78
-                        : 0.9
-                    }
-                    strokeOpacity={series.hideStroke ? 0 : 0.38}
-                    strokeWidth={series.hideStroke ? 0 : 1.15}
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                ))}
-                {visibleDetailLineSeries.map((series) => (
-                  <Line
-                    key={series.key}
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey={series.key}
-                    stroke={series.stroke}
-                    strokeWidth={series.strokeWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    dot={false}
-                    isAnimationActive={false}
-                    activeDot={{ r: 5, fill: '#111827', stroke: '#ffffff', strokeWidth: 2 }}
-                  />
-                ))}
-              </>
-            )}
+              : null}
+
+            {chartMode === 'program_detail'
+              ? visibleDetailAreaSeries.map((series) => (
+                <Area
+                  key={series.key}
+                  yAxisId="left"
+                  type="linear"
+                  dataKey={series.key}
+                  stackId="income-stack"
+                  stroke={series.hideStroke ? 'none' : series.stroke}
+                  fill={series.fill}
+                  fillOpacity={
+                    series.key === 'federal_taxes_before_refundable_credits_annual'
+                    || series.key === 'state_taxes_before_refundable_credits_annual'
+                      ? 0.78
+                      : 0.9
+                  }
+                  strokeOpacity={series.hideStroke ? 0 : 0.38}
+                  strokeWidth={series.hideStroke ? 0 : 1.15}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              ))
+              : null}
+
+            {chartMode === 'program_detail'
+              ? visibleDetailLineSeries.map((series) => (
+                <Line
+                  key={series.key}
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey={series.key}
+                  stroke={series.stroke}
+                  strokeWidth={series.strokeWidth}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  dot={false}
+                  isAnimationActive={false}
+                  activeDot={{ r: 5, fill: '#111827', stroke: '#ffffff', strokeWidth: 2 }}
+                />
+              ))
+              : null}
 
             {showMtr ? (
               <Line
