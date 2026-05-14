@@ -1933,9 +1933,16 @@ body {
   }
 
   .chart-wrapper--program-detail .chart-canvas {
+    order: 1;
     flex: 0 0 320px;
     height: 320px;
     min-height: 320px;
+  }
+
+  .chart-wrapper--program-detail .chart-legend {
+    order: 2;
+    margin-top: 0.75rem;
+    margin-bottom: 0;
   }
 
   .chart-panel-header {
@@ -2060,9 +2067,16 @@ body {
   }
 
   .chart-wrapper--program-detail .chart-canvas {
+    order: 1;
     flex: 0 0 300px;
     height: 300px;
     min-height: 300px;
+  }
+
+  .chart-wrapper--program-detail .chart-legend {
+    order: 2;
+    margin-top: 0.75rem;
+    margin-bottom: 0;
   }
 
   .chart-view-toggle {
