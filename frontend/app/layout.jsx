@@ -9,8 +9,7 @@ export const metadata = {
   title: "Cliff Watch",
   description: "PolicyEngine benefit cliff explorer",
   icons: {
-    icon: `${basePath}/policyengine-logo.png`,
-    apple: `${basePath}/policyengine-logo.png`,
+    icon: `${basePath}/favicon.svg`,
   },
 };
 
