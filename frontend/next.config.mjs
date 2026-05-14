@@ -1,6 +1,10 @@
+const defaultBasePath = process.env.VERCEL_ENV === "preview"
+  ? ""
+  : "/us/cliff-watch";
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH !== undefined
   ? process.env.NEXT_PUBLIC_BASE_PATH
-  : "/us/cliff-watch";
+  : defaultBasePath;
 const devApiOrigin = process.env.CLIFF_WATCH_DEV_API_ORIGIN
   || "http://127.0.0.1:8000";
 const isDev = process.env.NODE_ENV === "development";
