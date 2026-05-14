@@ -3,10 +3,15 @@ import "./globals.css";
 import PolicyEngineHeader from "../src/components/PolicyEngineHeader";
 
 const inter = Inter({ subsets: ["latin"] });
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata = {
   title: "Cliff Watch",
   description: "PolicyEngine benefit cliff explorer",
+  icons: {
+    icon: `${basePath}/policyengine-logo.png`,
+    apple: `${basePath}/policyengine-logo.png`,
+  },
 };
 
 export default function RootLayout({ children }) {
