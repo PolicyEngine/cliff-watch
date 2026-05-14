@@ -800,8 +800,14 @@ function BenefitChart({
     ? NET_VIEW_SERIES
     : detailLegendSeries
 
+  const wrapperClassName = [
+    'chart-wrapper',
+    'chart-wrapper--full',
+    chartMode === 'program_detail' ? 'chart-wrapper--program-detail' : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className="chart-wrapper chart-wrapper--full">
+    <div className={wrapperClassName}>
       <div className="chart-panel-header">
         <div>
           <h4>{chartMode === 'net_income' ? 'Net income over wages and salaries' : 'Program detail over wages and salaries'}</h4>
