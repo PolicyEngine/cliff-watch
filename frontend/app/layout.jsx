@@ -3,8 +3,6 @@ import "@policyengine/ui-kit/styles.css";
 
 import { Inter } from "next/font/google";
 import "./globals.css";
-import PolicyEngineHeader from "../src/components/PolicyEngineHeader";
-
 const inter = Inter({ subsets: ["latin"] });
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -21,7 +19,6 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         <PolicyEngineShell country="us">
-        <PolicyEngineHeader />
         {children}
               </PolicyEngineShell>
       </body>
