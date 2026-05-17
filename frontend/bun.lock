@@ -7,6 +7,7 @@
       "dependencies": {
         "@policyengine/ui-kit": "^0.12.0",
         "next": "^16.2.6",
+        "policyengine-household-wizard": "^0.1.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "react-simple-maps": "^3.0.0",
@@ -401,6 +402,8 @@
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
 
     "picocolors": ["picocolors@1.1.1", "", {}, "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="],
+
+    "policyengine-household-wizard": ["policyengine-household-wizard@0.1.0", "", { "peerDependencies": { "react": ">=19", "react-dom": ">=19" } }, "sha512-VHQIdZsZq4eWMZa+xgLrW0wZvClV3MXPE/TcMnZGP+QHOBGQZbEiFmHhL/roWIpZMEB8d7IB3Fl+W+DZsuRUug=="],
 
     "postcss": ["postcss@8.5.14", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-SoSL4+OSEtR99LHFZQiJLkT59C5B1amGO1NzTwj7TT1qCUgUO6hxOvzkOYxD+vMrXBM3XJIKzokoERdqQq/Zmg=="],
 
