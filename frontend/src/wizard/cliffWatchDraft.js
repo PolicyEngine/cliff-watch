@@ -1,6 +1,6 @@
 /**
  * Bridges Cliff Watch's existing `inputs` shape (filing-status-based, snake-case
- * people array) and the shared `@policyengine/household-wizard` US household
+ * people array) and the shared `policyengine-household-wizard` US household
  * draft contract. Phase 4 first-consumer integration for
  * https://github.com/PolicyEngine/policyengine-app-v2/issues/1044.
  *
@@ -12,7 +12,7 @@ import {
   createBlankDraft,
   normalizeLegacyDraft,
   validate,
-} from '@policyengine/household-wizard';
+} from 'policyengine-household-wizard';
 
 const FILING_TO_MARITAL = {
   SINGLE: 'single',

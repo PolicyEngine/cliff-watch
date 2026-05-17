@@ -10,7 +10,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@policyengine/household-wizard": "^0.1.0",
+    "policyengine-household-wizard": "^0.1.0",
     "@policyengine/ui-kit": "^0.12.0",
     "next": "^16.2.6",
     "react": "^19.2.0",
