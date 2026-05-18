@@ -132,6 +132,134 @@ body {
   flex-direction: column;
 }
 
+.wizard-progress {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.55rem 0 1.1rem;
+}
+
+.wizard-progress-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.wizard-progress-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--color-cream-dark);
+  overflow: hidden;
+}
+
+.wizard-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-teal);
+  transition: width 180ms ease;
+}
+
+.wizard-step {
+  display: grid;
+  gap: 1rem;
+}
+
+.wizard-step-heading {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.wizard-step-heading h3 {
+  margin: 0;
+  color: var(--color-navy);
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.wizard-step-heading p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.wizard-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.wizard-option-card {
+  display: grid;
+  gap: 0.45rem;
+  min-height: 7.2rem;
+  padding: 1rem;
+  text-align: left;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.wizard-option-card:hover,
+.wizard-option-card.selected {
+  border-color: var(--color-teal);
+  background: var(--color-cream);
+}
+
+.wizard-option-title {
+  color: var(--color-navy);
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.wizard-option-description {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.wizard-review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.wizard-review-item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-cream);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.wizard-review-item:hover {
+  border-color: var(--color-teal);
+  background: white;
+}
+
+.wizard-review-item span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.wizard-review-item strong {
+  color: var(--color-navy);
+  font-size: 0.94rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -311,6 +439,71 @@ body {
   border-color: var(--color-teal);
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
   background-color: white;
+}
+
+.toggle-switch {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 0.9rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-cream);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.toggle-switch:hover {
+  border-color: var(--color-teal);
+}
+
+.toggle-switch:focus-visible {
+  outline: none;
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+  background-color: white;
+}
+
+.toggle-switch-track {
+  width: 44px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  transition: var(--transition);
+}
+
+.toggle-switch-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.toggle-switch--on .toggle-switch-track {
+  background: var(--color-teal);
+}
+
+.toggle-switch--on .toggle-switch-thumb {
+  transform: translateX(20px);
+}
+
+.toggle-switch-text {
+  flex: 1;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .form-group small {
@@ -1886,6 +2079,8 @@ body {
 @media (max-width: 900px) {
   .form-grid,
   .form-grid--three,
+  .wizard-option-grid,
+  .wizard-review-grid,
   .advanced-field-grid,
   .advanced-field-grid--two,
   .charts-grid {

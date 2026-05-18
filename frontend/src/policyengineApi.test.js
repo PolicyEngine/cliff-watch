@@ -1,21 +1,38 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { calculateSeries } from './dataLookup.js'
+import {
+  buildHouseholdPayload,
+  calculateSeries,
+  createInitialInputs,
+  hasCompleteRequiredInputs,
+  reconcileInputs,
+} from './dataLookup.js'
 import {
   buildCliffDrivers,
   buildHouseholdResultFromResponse,
   buildSeriesDataFromResponse,
 } from './policyengineApi.js'
-import { applyFilingStatusSelection } from './utils/filingStatus.js'
+import {
+  applyFilingStatusSelection,
+  applyMaritalStatusSelection,
+} from './utils/filingStatus.js'
 
 const metadata = {
   year: 2026,
-  states: [{ code: 'GA', name: 'Georgia' }],
+  states: [
+    { code: 'GA', name: 'Georgia' },
+    { code: 'AL', name: 'Alabama' },
+  ],
+  counties_by_state: {
+    GA: [{ code: 'FULTON_COUNTY_GA', name: 'Fulton County' }],
+    AL: [{ code: 'MONTGOMERY_COUNTY_AL', name: 'Montgomery County' }],
+  },
   defaults: {
     chart_max_earned_income: 1000,
     max_adults: 6,
     max_dependents: 6,
+    people: [{ kind: 'adult' }],
     series_step: 500,
   },
   programs: [
@@ -273,6 +290,75 @@ test('applyFilingStatusSelection leaves existing household members alone for non
   )
 
   assert.deepEqual(result, { filing_status: 'HEAD_OF_HOUSEHOLD' })
+})
+
+test('applyMaritalStatusSelection adds a blank spouse when marking a household married', () => {
+  const result = applyMaritalStatusSelection(
+    {
+      people: [
+        { kind: 'adult', age: 33 },
+        { kind: 'child', age: 6 },
+      ],
+    },
+    'MARRIED',
+    { defaults: { max_adults: 6 } },
+  )
+
+  assert.equal(result.marital_status, 'MARRIED')
+  assert.deepEqual(
+    result.people.map((person) => person.kind),
+    ['adult', 'adult', 'child'],
+  )
+  assert.equal(result.people[1].age, '')
+})
+
+test('required inputs include state, marital status, and all visible ages', () => {
+  const initial = createInitialInputs(metadata)
+
+  assert.equal(initial.state, '')
+  assert.equal(initial.county, '')
+  assert.equal(initial.marital_status, '')
+  assert.equal(initial.people[0].age, '')
+  assert.equal('ssi_amount' in initial.people[0], false)
+  assert.equal('ssdi_amount' in initial.people[0], false)
+  assert.equal(hasCompleteRequiredInputs(initial), false)
+
+  assert.equal(hasCompleteRequiredInputs({
+    ...initial,
+    state: 'GA',
+    marital_status: 'UNMARRIED',
+    people: [{ kind: 'adult', age: 33 }],
+  }), true)
+})
+
+test('county input normalizes to the selected state dropdown code', () => {
+  const initial = createInitialInputs(metadata)
+  const georgia = reconcileInputs({
+    ...initial,
+    state: 'GA',
+    county: 'Fulton',
+  }, metadata)
+
+  assert.equal(georgia.county, 'FULTON_COUNTY_GA')
+
+  const alabama = reconcileInputs({
+    ...georgia,
+    state: 'AL',
+  }, metadata)
+
+  assert.equal(alabama.county, '')
+})
+
+test('household payload omits direct SSI and SSDI amount inputs', () => {
+  const payload = buildHouseholdPayload({
+    ...createInitialInputs(metadata),
+    state: 'GA',
+    marital_status: 'UNMARRIED',
+    people: [{ kind: 'adult', age: 33, ssi_amount: 1200, ssdi_amount: 2400 }],
+  }, metadata)
+
+  assert.equal('ssi_amount' in payload.people[0], false)
+  assert.equal('ssdi_amount' in payload.people[0], false)
 })
 
 test('calculateSeries quietly falls back after a PolicyEngine API error', async () => {

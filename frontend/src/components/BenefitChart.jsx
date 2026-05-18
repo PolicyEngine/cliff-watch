@@ -174,15 +174,6 @@ const PROGRAM_DETAIL_SUPPORT_SERIES = [
     defaultVisible: true,
   },
   {
-    key: 'ssdi_annual',
-    label: 'SSDI',
-    type: 'area',
-    family: 'support',
-    stroke: '#92400E',
-    fill: '#FED7AA',
-    defaultVisible: true,
-  },
-  {
     key: 'medicaid_annual',
     label: 'Medicaid',
     type: 'area',
@@ -426,7 +417,6 @@ function BenefitChart({
         child_care_subsidies_annual: Number(point.child_care_subsidies || 0),
         housing_assistance_annual: Number(point.housing_assistance || 0),
         ssi_annual: Number(point.ssi || 0),
-        ssdi_annual: Number(point.ssdi || 0),
         wic_annual: Number(point.wic || 0),
         net_change_annual_display: Number(point.net_change_annual || 0),
         cliff_drop_annual: Number(point.cliff_drop_annual || 0),
