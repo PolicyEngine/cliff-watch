@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
+import { createBlankDraft } from 'policyengine-household-wizard'
 import InputPanel from './components/InputPanel'
 import ResultsPanel from './components/ResultsPanel'
 import {
   calculateSeries,
-  createInitialInputs,
+  hasCompleteRequiredInputs,
   loadMetadata,
-  reconcileInputs,
 } from './dataLookup'
 import { decodeInputs, syncUrlToInputs } from './utils/urlState'
 import { refineCliffZones } from './utils/seriesRefine'
+import {
+  combineDraftAndScenarioToInputs,
+  createInitialScenario,
+  inputsToDraft,
+  inputsToScenario,
+} from './wizard/cliffWatchDraft.js'
 
 function cleanSeriesErrorMessage(error) {
   const message = error?.message?.trim()
@@ -25,7 +31,8 @@ function cleanSeriesErrorMessage(error) {
 
 function App() {
   const [metadata, setMetadata] = useState(null)
-  const [inputs, setInputs] = useState(null)
+  const [draft, setDraft] = useState(() => createBlankDraft())
+  const [scenario, setScenario] = useState(null)
   const [seriesData, setSeriesData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [seriesLoading, setSeriesLoading] = useState(false)
@@ -44,22 +51,35 @@ function App() {
         const fromUrl = typeof window !== 'undefined'
           ? decodeInputs(window.location.search)
           : null
-        const initial = createInitialInputs(meta)
-        const nextInputs = fromUrl
-          ? reconcileInputs({ ...initial, ...fromUrl }, meta)
-          : initial
-        setInputs(nextInputs)
-        syncUrlToInputs(nextInputs)
+        const initialScenario = createInitialScenario(meta)
         if (fromUrl) {
-          autoCalculateRef.current = nextInputs
+          const seededDraft = inputsToDraft(fromUrl)
+          const seededScenario = {
+            ...initialScenario,
+            ...inputsToScenario(fromUrl, meta),
+          }
+          setDraft(seededDraft)
+          setScenario(seededScenario)
+          const seededInputs = combineDraftAndScenarioToInputs(
+            seededDraft,
+            seededScenario,
+            meta,
+          )
+          syncUrlToInputs(seededInputs)
+          autoCalculateRef.current = seededInputs
+        } else {
+          setScenario(initialScenario)
         }
       })
       .catch((err) => setError(err.message || 'Failed to load app metadata.'))
   }, [])
 
   useEffect(() => {
-    if (inputs) syncUrlToInputs(inputs)
-  }, [inputs])
+    if (draft && scenario && metadata) {
+      const combined = combineDraftAndScenarioToInputs(draft, scenario, metadata)
+      syncUrlToInputs(combined)
+    }
+  }, [draft, scenario, metadata])
 
   useEffect(() => {
     if (metadata && autoCalculateRef.current && handleCalculateRef.current) {
@@ -79,14 +99,20 @@ function App() {
     setSeriesError(null)
   }
 
-  const handleInputChange = (partial) => {
-    setInputs((current) => reconcileInputs({ ...current, ...partial }, metadata))
+  const handleDraftChange = (nextDraft) => {
+    setDraft(nextDraft)
+    clearResults()
+  }
+
+  const handleScenarioChange = (partial) => {
+    setScenario((current) => ({ ...current, ...partial }))
     clearResults()
   }
 
   const handleReset = () => {
     if (!metadata) return
-    setInputs(createInitialInputs(metadata))
+    setDraft(createBlankDraft())
+    setScenario(createInitialScenario(metadata))
     clearResults()
   }
 
@@ -152,8 +178,12 @@ function App() {
     }
   }
 
-  const handleCalculate = async (nextInputs = inputs) => {
-    if (!metadata || !nextInputs) return
+  const handleCalculate = async (
+    nextInputs = (draft && scenario && metadata
+      ? combineDraftAndScenarioToInputs(draft, scenario, metadata)
+      : null),
+  ) => {
+    if (!metadata || !nextInputs || !hasCompleteRequiredInputs(nextInputs)) return
 
     const requestVersion = requestVersionRef.current + 1
     requestVersionRef.current = requestVersion
@@ -181,6 +211,10 @@ function App() {
     handleCalculateRef.current = handleCalculate
   })
 
+  const combinedInputs = metadata && scenario
+    ? combineDraftAndScenarioToInputs(draft, scenario, metadata)
+    : null
+
   return (
     <div className="app-shell">
       <header className="app-hero">
@@ -193,17 +227,19 @@ function App() {
       <main className="app">
         <InputPanel
           metadata={metadata}
-          inputs={inputs}
+          draft={draft}
+          scenario={scenario}
           loading={loading}
           onCalculate={handleCalculate}
-          onChange={handleInputChange}
+          onDraftChange={handleDraftChange}
+          onScenarioChange={handleScenarioChange}
           onReset={handleReset}
         />
 
         <div ref={resultsRef} />
         <ResultsPanel
           metadata={metadata}
-          inputs={inputs}
+          inputs={combinedInputs}
           seriesData={seriesData}
           loading={loading}
           seriesLoading={seriesLoading}

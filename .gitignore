@@ -37,3 +37,6 @@ frontend/out/
 .DS_Store
 Thumbs.db
 .vercel
+
+# Local dev preview config
+frontend/.claude/

@@ -1,5 +1,6 @@
 import { PolicyEngineShell } from "@policyengine/ui-kit/layout";
 import "@policyengine/ui-kit/styles.css";
+import "policyengine-household-wizard/styles.css";
 
 import { Inter } from "next/font/google";
 import "./globals.css";
