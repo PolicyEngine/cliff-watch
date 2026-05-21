@@ -71,6 +71,8 @@ const VALID_FILING_STATUSES = new Set([
   'SEPARATE',
 ])
 
+const DEFAULT_MARITAL_STATUS = 'UNMARRIED'
+const VALID_MARITAL_STATUSES = new Set([DEFAULT_MARITAL_STATUS, 'MARRIED'])
 const MARRIED_FILING_STATUSES = new Set(['JOINT', 'SEPARATE'])
 
 const DEFAULT_CCDF_MODELED_STATES = new Set([
@@ -92,7 +94,6 @@ const DEFAULT_PUBLIC_ASSISTANCE_PROGRAM_OPTIONS = [
   { key: 'federal_refundable_credits', label: 'Federal refundable tax credits' },
   { key: 'state_refundable_credits', label: 'State refundable tax credits' },
   { key: 'ssi', label: 'Supplemental Security Income (SSI)' },
-  { key: 'ssdi', label: 'Social Security Disability Insurance (SSDI)' },
 ]
 
 const DEFAULT_HOUSEHOLD_COST_DEFINITIONS = [
@@ -368,11 +369,28 @@ function buildRefundableCreditSeriesFromResponse(taxUnit, peopleResponse, descri
   )
 }
 
-function deriveFilingStatus(people = []) {
+function deriveMaritalStatus(people = []) {
   const adults = people.filter((person) => person?.kind !== 'child').length
+  return adults >= 2 ? 'MARRIED' : DEFAULT_MARITAL_STATUS
+}
+
+function effectiveMaritalStatus(payload = {}) {
+  if (VALID_MARITAL_STATUSES.has(payload?.marital_status)) {
+    return payload.marital_status
+  }
+  if (MARRIED_FILING_STATUSES.has(payload?.filing_status)) {
+    return 'MARRIED'
+  }
+  if (VALID_FILING_STATUSES.has(payload?.filing_status)) {
+    return DEFAULT_MARITAL_STATUS
+  }
+  return deriveMaritalStatus(payload?.people || [])
+}
+
+function deriveFilingStatus(people = [], maritalStatus = DEFAULT_MARITAL_STATUS) {
   const children = people.filter((person) => person?.kind === 'child').length
 
-  if (adults >= 2) {
+  if (maritalStatus === 'MARRIED') {
     return 'JOINT'
   }
   if (children > 0) {
@@ -382,10 +400,13 @@ function deriveFilingStatus(people = []) {
 }
 
 function effectiveFilingStatus(payload = {}) {
+  if (VALID_MARITAL_STATUSES.has(payload?.marital_status)) {
+    return deriveFilingStatus(payload?.people || [], payload.marital_status)
+  }
   if (VALID_FILING_STATUSES.has(payload?.filing_status)) {
     return payload.filing_status
   }
-  return deriveFilingStatus(payload?.people || [])
+  return deriveFilingStatus(payload?.people || [], effectiveMaritalStatus(payload))
 }
 
 function resolvePeople(people = [], filingStatus = 'SINGLE') {
@@ -413,8 +434,6 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
         is_full_time_student: Boolean(member?.is_full_time_student),
         is_incapable_of_self_care: Boolean(member?.is_incapable_of_self_care),
         earned_income: nonnegative(member?.earned_income),
-        ssi_amount: nonnegative(member?.ssi_amount),
-        ssdi_amount: nonnegative(member?.ssdi_amount),
       })
       return
     }
@@ -431,8 +450,6 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
       is_full_time_student: Boolean(member?.is_full_time_student),
       is_incapable_of_self_care: Boolean(member?.is_incapable_of_self_care),
       earned_income: nonnegative(member?.earned_income),
-      ssi_amount: nonnegative(member?.ssi_amount),
-      ssdi_amount: nonnegative(member?.ssdi_amount),
     })
   })
 
@@ -462,7 +479,7 @@ function describeHousehold(people) {
     label: `${numAdults} ${numAdults === 1 ? 'adult' : 'adults'} + ${numDependents} ${numDependents === 1 ? 'dependent' : 'dependents'}`,
     short_label: `${numAdults}A/${numDependents}D`,
     description: description.join('. ') || 'Custom household.',
-    summary: 'The first adult is treated as the primary earner. The second adult joins the tax unit, and any other household members are treated as dependents.',
+    summary: 'The first adult is treated as the primary earner. If married, the second adult joins as the spouse. Other adult earnings stay fixed.',
     people,
     counts: {
       num_adults: numAdults,
@@ -473,6 +490,12 @@ function describeHousehold(people) {
 }
 
 function validatePayload(payload) {
+  if (
+    payload?.marital_status !== undefined
+    && !VALID_MARITAL_STATUSES.has(payload.marital_status)
+  ) {
+    throw new Error(`Unsupported marital_status: ${payload.marital_status}`)
+  }
   const filingStatus = effectiveFilingStatus(payload)
   const people = resolvePeople(payload.people || [], filingStatus)
   if (!people.length) {
@@ -485,7 +508,7 @@ function validatePayload(payload) {
     MARRIED_FILING_STATUSES.has(filingStatus)
     && people.filter((person) => person.kind === 'adult').length < 2
   ) {
-    throw new Error('Married filing statuses require two adult household members')
+    throw new Error('Married households require two adult household members')
   }
   people.forEach((person) => {
     if (person.age < 0 || person.age > 120) {
@@ -526,7 +549,6 @@ function buildPersonData(person, year) {
     head_start: { [year]: null },
     early_head_start: { [year]: null },
     ssi: { [year]: null },
-    social_security_disability: { [year]: null },
   }
   if (person.kind === 'adult') {
     data.ccdf_age_group = { [year]: 'SCHOOL_AGE' }
@@ -707,14 +729,6 @@ function buildSituation(payload, options = {}) {
 
     if (index === 0 && healthInsurancePremiumAnnual > 0) {
       personData.health_insurance_premiums = { [year]: healthInsurancePremiumAnnual }
-    }
-
-    if (person.ssi_amount > 0 && programIncluded(payload, 'ssi', options.metadata)) {
-      personData.ssi = { [year]: person.ssi_amount }
-    }
-
-    if (person.ssdi_amount > 0 && programIncluded(payload, 'ssdi', options.metadata)) {
-      personData.social_security_disability = { [year]: person.ssdi_amount }
     }
 
     if (includeIncomeOverrides && index === 0) {
@@ -961,7 +975,6 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
   const earlyHeadStart = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'early_head_start', year))
   const housingAssistance = roundCurrency(getYearValue(spmUnit, 'housing_assistance', year))
   const ssi = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'ssi', year))
-  const ssdi = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'social_security_disability', year))
   const medicaid = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'medicaid', year))
   const chip = roundCurrency(sumPeopleYear(peopleResponse, descriptor, 'chip', year))
   const acaPtc = roundCurrency((Number(getMonthValue(taxUnit, 'premium_tax_credit', year)) || 0) * 12)
@@ -1011,7 +1024,6 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
       metadata,
     )),
     ssi: roundCurrency(filterProgramValue(payload, 'ssi', ssi, metadata)),
-    ssdi: roundCurrency(filterProgramValue(payload, 'ssdi', ssdi, metadata)),
     medicaid: roundCurrency(filterProgramValue(payload, 'medicaid', medicaid, metadata)),
     chip: roundCurrency(filterProgramValue(payload, 'chip', chip, metadata)),
     aca_ptc: roundCurrency(filterProgramValue(payload, 'aca_ptc', acaPtc, metadata)),
@@ -1082,7 +1094,7 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
       year: payload.year,
       county: payload.county || null,
       household_type: null,
-      filing_status: effectiveFilingStatus(payload),
+      marital_status: effectiveMaritalStatus(payload),
       people: descriptor.people.map((person) => ({
         kind: person.kind,
         age: person.age,
@@ -1092,8 +1104,6 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
         is_full_time_student: person.is_full_time_student,
         is_incapable_of_self_care: person.is_incapable_of_self_care,
         earned_income: person.earned_income,
-        ssi_amount: person.ssi_amount,
-        ssdi_amount: person.ssdi_amount,
       })),
       programs_mode: payload.programs_mode || 'all',
       selected_programs: payload.selected_programs || [],
@@ -1278,13 +1288,6 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
     )),
     pointCount,
   )
-  const ssdiValues = sumArrays(
-    descriptor.people.map((person) => asArray(
-      getYearValue(peopleResponse[person.id], 'social_security_disability', year),
-      pointCount,
-    )),
-    pointCount,
-  )
   const premiumTaxCreditValues = asArray(
     getMonthValue(taxUnit, 'premium_tax_credit', year),
     pointCount,
@@ -1366,7 +1369,6 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
         metadata,
       )),
       ssi: roundCurrency(filterProgramValue(payload, 'ssi', ssiValues[index], metadata)),
-      ssdi: roundCurrency(filterProgramValue(payload, 'ssdi', ssdiValues[index], metadata)),
       medicaid: roundCurrency(filterProgramValue(payload, 'medicaid', medicaidValues[index], metadata)),
       chip: roundCurrency(filterProgramValue(payload, 'chip', chipValues[index], metadata)),
       aca_ptc: roundCurrency(filterProgramValue(payload, 'aca_ptc', premiumTaxCreditValues[index], metadata)),
@@ -1441,7 +1443,6 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
       early_head_start: point.programs.early_head_start,
       housing_assistance: point.programs.housing_assistance,
       ssi: point.programs.ssi,
-      ssdi: point.programs.ssdi,
       federal_refundable_credits: point.programs.federal_refundable_credits,
       state_refundable_credits: point.programs.state_refundable_credits,
       federal_taxes_before_refundable_credits: point.totals.federal_taxes_before_refundable_credits,

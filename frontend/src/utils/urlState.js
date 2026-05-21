@@ -38,25 +38,30 @@ const parseNonnegative = (value) => {
 }
 
 function encodePerson(person) {
+  if (person.age === '' || person.age === null || person.age === undefined) {
+    return null
+  }
+  const age = Number(person.age)
+  if (!Number.isFinite(age) || age < 0 || age > 120) {
+    return null
+  }
   const kind = person.kind === 'adult' ? 'a' : 'c'
   const flags = Object.entries(PERSON_FLAG_KEYS)
     .filter(([, field]) => Boolean(person[field]))
     .map(([flag]) => flag)
     .join('')
   return [
-    Math.max(0, Number(person.age) || 0),
+    Math.round(age),
     kind,
     flags,
     Math.round(Number(person.earned_income) || 0),
-    Math.round(Number(person.ssi_amount) || 0),
-    Math.round(Number(person.ssdi_amount) || 0),
   ].join(':')
 }
 
 function decodePerson(token) {
   const value = token.trim()
   if (value.includes(':')) {
-    const [age, kind, flags = '', earnedIncome, ssiAmount, ssdiAmount] = value.split(':')
+    const [age, kind, flags = '', earnedIncome] = value.split(':')
     const person = {
       age: parseInt(age, 10),
       kind: kind?.toLowerCase() === 'a' ? 'adult' : 'child',
@@ -66,8 +71,6 @@ function decodePerson(token) {
       is_full_time_student: false,
       is_incapable_of_self_care: false,
       earned_income: parseNonnegative(earnedIncome) || 0,
-      ssi_amount: parseNonnegative(ssiAmount) || 0,
-      ssdi_amount: parseNonnegative(ssdiAmount) || 0,
     }
     if (!Number.isFinite(person.age)) return null
     flags.split('').forEach((flag) => {
@@ -98,8 +101,8 @@ export function encodeInputs(inputs) {
     params.set('county', inputs.county)
   }
 
-  if (inputs.filing_status) {
-    params.set('fs', inputs.filing_status)
+  if (inputs.marital_status === 'MARRIED') {
+    params.set('ms', 'married')
   }
 
   const people = (inputs.people || []).map(encodePerson).filter(Boolean)
@@ -146,6 +149,19 @@ export function decodeInputs(search) {
 
   if (params.has('fs')) {
     decoded.filing_status = params.get('fs')
+    if (['JOINT', 'SEPARATE'].includes(decoded.filing_status)) {
+      decoded.marital_status = 'MARRIED'
+    }
+  }
+
+  if (params.has('ms')) {
+    const maritalStatus = params.get('ms').toLowerCase()
+    if (['m', 'married'].includes(maritalStatus)) {
+      decoded.marital_status = 'MARRIED'
+    }
+    if (['u', 'unmarried'].includes(maritalStatus)) {
+      decoded.marital_status = 'UNMARRIED'
+    }
   }
 
   if (params.has('p')) {

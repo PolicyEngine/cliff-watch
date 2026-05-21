@@ -1,5 +1,6 @@
 import { PolicyEngineShell } from "@policyengine/ui-kit/layout";
 import "@policyengine/ui-kit/styles.css";
+import "policyengine-household-wizard/styles.css";
 
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -7,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata = {
-  title: "Cliff Watch",
+  title: "CliffWatch",
   description: "PolicyEngine benefit cliff explorer",
   icons: {
     icon: `${basePath}/favicon.svg`,
