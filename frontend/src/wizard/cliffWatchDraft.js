@@ -155,10 +155,16 @@ export function inputsToScenario(inputs, metadata) {
  */
 export function combineDraftAndScenarioToInputs(draft, scenario, metadata) {
   const hasDependents = draft.people.some((person) => person.kind === 'dependent');
+  let maritalStatus = '';
+  if (draft.maritalStatus === 'married') {
+    maritalStatus = 'MARRIED';
+  } else if (draft.maritalStatus === 'single') {
+    maritalStatus = 'UNMARRIED';
+  }
   return {
     state: isUSStateCode(draft.state) ? draft.state : '',
     county: draft.county ?? null,
-    marital_status: draft.maritalStatus === 'married' ? 'MARRIED' : 'UNMARRIED',
+    marital_status: maritalStatus,
     filing_status: maritalToFiling(draft.maritalStatus, hasDependents),
     year: draft.year ?? metadata?.year ?? new Date().getUTCFullYear(),
     people: draft.people.map((person) => ({

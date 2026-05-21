@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export const metadata = {
-  title: "Cliff Watch",
+  title: "CliffWatch",
   description: "PolicyEngine benefit cliff explorer",
   icons: {
     icon: `${basePath}/favicon.svg`,

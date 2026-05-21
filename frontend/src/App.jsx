@@ -219,7 +219,7 @@ function App() {
     <div className="app-shell">
       <header className="app-hero">
         <div className="app-hero-inner">
-          <h1>Cliff Watch</h1>
+          <h1>CliffWatch</h1>
           <p>See where benefits, refundable tax credits, and taxes create resource cliffs as wages and salaries rise.</p>
         </div>
       </header>
