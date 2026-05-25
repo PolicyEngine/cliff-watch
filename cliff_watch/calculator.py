@@ -5,6 +5,7 @@ import json
 import math
 import os
 import sys
+import warnings
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,7 @@ PUBLIC_ASSISTANCE_PROGRAM_KEYS = {
     item["key"] for item in PUBLIC_ASSISTANCE_PROGRAM_OPTIONS
 }
 FILING_STATUS_CODES = {item["code"] for item in FILING_STATUS_OPTIONS}
+_MISSING_VARIABLE_WARNINGS_EMITTED: set[str] = set()
 
 
 def _program_definition_for_state(key: str, state_code: str | None = None) -> dict[str, Any]:
@@ -722,6 +724,16 @@ def _variable_exists(simulation: Any, variable: str) -> bool:
     return variable in getattr(simulation.tax_benefit_system, "variables", {})
 
 
+def _warn_missing_variable(variable: str) -> None:
+    if variable in _MISSING_VARIABLE_WARNINGS_EMITTED:
+        return
+    warnings.warn(
+        f"Variable {variable!r} not in installed policyengine-us release; using default",
+        stacklevel=2,
+    )
+    _MISSING_VARIABLE_WARNINGS_EMITTED.add(variable)
+
+
 def _calculate_variable(
     simulation: Any,
     variable: str,
@@ -733,6 +745,7 @@ def _calculate_variable(
     default: float = 0.0,
 ) -> float:
     if not _variable_exists(simulation, variable):
+        _warn_missing_variable(variable)
         return default
     period = f"{year}-01" if monthly else year
     kwargs: dict[str, Any] = {"period": period}
@@ -754,6 +767,7 @@ def _calculate_variable_array(
     annualize: bool = False,
 ) -> list[float]:
     if not _variable_exists(simulation, variable):
+        _warn_missing_variable(variable)
         return []
     period = f"{year}-01" if monthly else year
     kwargs: dict[str, Any] = {"period": period}
