@@ -317,6 +317,7 @@ test('required inputs include state, marital status, and all visible ages', () =
 
   assert.equal(initial.state, '')
   assert.equal(initial.county, '')
+  assert.equal(initial.zip, '')
   assert.equal(initial.marital_status, '')
   assert.equal(initial.people[0].age, '')
   assert.equal('ssi_amount' in initial.people[0], false)
@@ -326,9 +327,35 @@ test('required inputs include state, marital status, and all visible ages', () =
   assert.equal(hasCompleteRequiredInputs({
     ...initial,
     state: 'GA',
+    zip: '30303',
     marital_status: 'UNMARRIED',
     people: [{ kind: 'adult', age: 33 }],
   }), true)
+
+  assert.equal(hasCompleteRequiredInputs({
+    ...initial,
+    state: 'GA',
+    zip: '3030',
+    marital_status: 'UNMARRIED',
+    people: [{ kind: 'adult', age: 33 }],
+  }), false)
+})
+
+test('zip input is normalized and included in household payload', () => {
+  const initial = createInitialInputs(metadata)
+  const reconciled = reconcileInputs({
+    ...initial,
+    state: 'GA',
+    zip: '30303-1234',
+  }, metadata)
+  const payload = buildHouseholdPayload({
+    ...reconciled,
+    marital_status: 'UNMARRIED',
+    people: [{ kind: 'adult', age: 33 }],
+  }, metadata)
+
+  assert.equal(reconciled.zip, '30303')
+  assert.equal(payload.zip, '30303')
 })
 
 test('county input normalizes to the selected state dropdown code', () => {

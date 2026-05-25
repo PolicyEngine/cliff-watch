@@ -10,14 +10,15 @@ import {
   WizardProgress,
   applyMaritalStatusChange,
   addPerson as addPersonToDraft,
-  getCountiesByState,
+  getStateFromZip,
   removePerson as removePersonFromDraft,
   updatePerson as updatePersonInDraft,
 } from 'policyengine-household-wizard'
 import {
   combineDraftAndScenarioToInputs,
-  inputsToDraft,
 } from '../wizard/cliffWatchDraft.js'
+
+const sanitizeZip = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 5)
 
 const PERSON_FIELD_TO_DRAFT_KEY = {
   age: 'age',
@@ -184,11 +185,7 @@ function InputPanel({
     () => applyStateProgramLabels(baseProgramOptions, metadata, inputs?.state),
     [baseProgramOptions, metadata, inputs?.state],
   )
-  const countyOptions = getCountiesByState(inputs?.state || null)
-  const countyNameByCode = new Map(countyOptions.map((county) => [county.code, county.name]))
-  const countyLabel = inputs?.county
-    ? countyNameByCode.get(inputs.county) || inputs.county
-    : ''
+  const zipCode = sanitizeZip(inputs?.zip)
   const selectedPrograms = new Set(inputs?.selected_programs || programOptions.map((program) => program.key))
 
   const rowMeta = useMemo(() => {
@@ -219,11 +216,25 @@ function InputPanel({
   }, [isMarried, people])
 
   const setStateCode = (code) => {
-    onDraftChange({ ...draft, state: code || null })
+    const nextState = code || null
+    const zipState = getStateFromZip(draft.zip)
+    onDraftChange({
+      ...draft,
+      state: nextState,
+      county: null,
+      zip: zipState && nextState && zipState !== nextState ? null : draft.zip,
+    })
   }
 
-  const setCounty = (code) => {
-    onDraftChange({ ...draft, county: code || null })
+  const setZipCode = (value) => {
+    const zip = sanitizeZip(value)
+    const derivedState = getStateFromZip(zip)
+    onDraftChange({
+      ...draft,
+      state: derivedState || draft.state || null,
+      county: null,
+      zip: zip || null,
+    })
   }
 
   const updatePerson = (index, partial) => {
@@ -270,7 +281,7 @@ function InputPanel({
     .map((person, index) => ({ person, index, meta: rowMeta[index] }))
     .filter(({ person }) => person.kind === 'child')
 
-  const locationStepComplete = Boolean(inputs?.state)
+  const locationStepComplete = Boolean(inputs?.state) && zipCode.length === 5
   const adultStepComplete = adultMembers.length > 0
     && adultMembers.every(({ person }) => hasValidAge(person.age))
   const dependentStepComplete = dependentMembers.every(({ person }) => hasValidAge(person.age))
@@ -368,7 +379,7 @@ function InputPanel({
           <section className="wizard-step">
             <div className="wizard-step-heading">
               <h3>Where does the household live?</h3>
-              <p>State is required. County is optional and can refine local assumptions later.</p>
+              <p>State and ZIP code are required for the household location.</p>
             </div>
             <div className="form-grid form-grid--two">
               <div className="form-group">
@@ -391,22 +402,20 @@ function InputPanel({
               </div>
 
               <div className="form-group">
-                <label htmlFor="county">County</label>
-                <select
-                  id="county"
-                  value={inputs.county || ''}
-                  onChange={(event) => setCounty(event.target.value)}
-                  disabled={!inputs.state}
-                >
-                  <option value="">
-                    {inputs.state ? 'Select county (optional)' : 'Select state first'}
-                  </option>
-                  {countyOptions.map((county) => (
-                    <option key={county.code} value={county.code}>
-                      {county.name}
-                    </option>
-                  ))}
-                </select>
+                <label htmlFor="zip">ZIP code</label>
+                <input
+                  id="zip"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{5}"
+                  maxLength="5"
+                  autoComplete="postal-code"
+                  required
+                  value={zipCode}
+                  onChange={(event) => setZipCode(event.target.value)}
+                  placeholder="Enter ZIP code"
+                  aria-label="ZIP code"
+                />
               </div>
             </div>
           </section>
@@ -620,7 +629,7 @@ function InputPanel({
             <div className="wizard-review-grid">
               <button type="button" className="wizard-review-item" onClick={() => goToStep('location')}>
                 <span>Location</span>
-                <strong>{inputs.state || 'Missing'}{countyLabel ? `, ${countyLabel}` : ''}</strong>
+                <strong>{inputs.state || 'Missing'}{zipCode ? `, ${zipCode}` : ''}</strong>
               </button>
               <button type="button" className="wizard-review-item" onClick={() => goToStep('marital')}>
                 <span>Marital status</span>

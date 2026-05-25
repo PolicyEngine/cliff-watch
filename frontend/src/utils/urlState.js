@@ -101,6 +101,10 @@ export function encodeInputs(inputs) {
     params.set('county', inputs.county)
   }
 
+  if (inputs.zip) {
+    params.set('zip', inputs.zip)
+  }
+
   if (inputs.marital_status === 'MARRIED') {
     params.set('ms', 'married')
   }
@@ -145,6 +149,10 @@ export function decodeInputs(search) {
 
   if (params.has('county')) {
     decoded.county = params.get('county')
+  }
+
+  if (params.has('zip')) {
+    decoded.zip = params.get('zip')
   }
 
   if (params.has('fs')) {
