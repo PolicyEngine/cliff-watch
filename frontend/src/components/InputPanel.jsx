@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
+  getZipState,
   hasCompleteRequiredInputs,
   hasValidAge,
   hasValidZip,
@@ -11,7 +12,6 @@ import {
   WizardProgress,
   applyMaritalStatusChange,
   addPerson as addPersonToDraft,
-  getStateFromZip,
   removePerson as removePersonFromDraft,
   updatePerson as updatePersonInDraft,
 } from 'policyengine-household-wizard'
@@ -187,8 +187,13 @@ function InputPanel({
     [baseProgramOptions, metadata, inputs?.state],
   )
   const zipCode = sanitizeZip(inputs?.zip)
-  const zipState = zipCode.length === 5 ? getStateFromZip(zipCode) : null
+  const zipState = getZipState(zipCode)
   const zipIsValid = hasValidZip(zipCode, inputs?.state)
+  const selectedState = metadata?.states?.find((state) => state.code === inputs?.state)
+  const stateDisplayName = selectedState?.name || inputs?.state || ''
+  const reviewLocation = zipCode && stateDisplayName
+    ? `${zipCode}, ${stateDisplayName}`
+    : zipCode || stateDisplayName || 'Missing'
   const zipValidationMessage = zipCode.length === 0
     ? ''
     : zipCode.length < 5
@@ -227,23 +232,12 @@ function InputPanel({
     })
   }, [isMarried, people])
 
-  const setStateCode = (code) => {
-    const nextState = code || null
-    const zipState = getStateFromZip(draft.zip)
-    onDraftChange({
-      ...draft,
-      state: nextState,
-      county: null,
-      zip: zipState && nextState && zipState !== nextState ? null : draft.zip,
-    })
-  }
-
   const setZipCode = (value) => {
     const zip = sanitizeZip(value)
-    const derivedState = getStateFromZip(zip)
+    const derivedState = getZipState(zip)
     onDraftChange({
       ...draft,
-      state: derivedState || draft.state || null,
+      state: derivedState || null,
       county: null,
       zip: zip || null,
     })
@@ -391,28 +385,9 @@ function InputPanel({
           <section className="wizard-step">
             <div className="wizard-step-heading">
               <h3>Where does the household live?</h3>
-              <p>State and ZIP code are required for the household location.</p>
+              <p>ZIP code is required; state is detected from the ZIP code.</p>
             </div>
             <div className="form-grid form-grid--two">
-              <div className="form-group">
-                <label htmlFor="state">State</label>
-                <select
-                  id="state"
-                  required
-                  value={inputs.state || ''}
-                  onChange={(event) => setStateCode(event.target.value)}
-                >
-                  <option value="" disabled>
-                    Select state
-                  </option>
-                  {metadata.states.map((state) => (
-                    <option key={state.code} value={state.code}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               <div className="form-group">
                 <label htmlFor="zip">ZIP code</label>
                 <input
@@ -435,6 +410,17 @@ function InputPanel({
                     {zipValidationMessage}
                   </small>
                 ) : null}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="state">State</label>
+                <input
+                  id="state"
+                  type="text"
+                  value={stateDisplayName}
+                  readOnly
+                  placeholder="Detected from ZIP code"
+                />
               </div>
             </div>
           </section>
@@ -648,7 +634,7 @@ function InputPanel({
             <div className="wizard-review-grid">
               <button type="button" className="wizard-review-item" onClick={() => goToStep('location')}>
                 <span>Location</span>
-                <strong>{inputs.state || 'Missing'}{zipCode ? `, ${zipCode}` : ''}</strong>
+                <strong>{reviewLocation}</strong>
               </button>
               <button type="button" className="wizard-review-item" onClick={() => goToStep('marital')}>
                 <span>Marital status</span>

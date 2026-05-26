@@ -261,6 +261,9 @@ const deriveFilingStatus = (people = [], maritalStatus = DEFAULT_MARITAL_STATUS)
 
 export function reconcileInputs(inputs, metadata) {
   const normalizedPeople = normalizePeople(inputs?.people || [], metadata)
+  const normalizedZip = normalizeZip(inputs?.zip ?? inputs?.zip_code)
+  const stateFromZip = getZipState(normalizedZip)
+  const normalizedState = stateFromZip || (normalizedZip ? '' : inputs?.state || '')
   let maritalStatus = ''
   if (MARITAL_STATUS_CODES.has(inputs?.marital_status)) {
     maritalStatus = inputs.marital_status
@@ -308,7 +311,7 @@ export function reconcileInputs(inputs, metadata) {
 
   const next = {
     ...inputs,
-    state: inputs?.state || '',
+    state: normalizedState,
     marital_status: maritalStatus,
     people: normalizedPeople,
     chart_max_earned_income: Math.max(
@@ -319,7 +322,7 @@ export function reconcileInputs(inputs, metadata) {
     selected_programs: publicAssistanceProgramKeys.filter((key) => selectedProgramSet.has(key)),
     has_employer_health_insurance: Boolean(inputs?.has_employer_health_insurance),
     year: metadata?.year || 2026,
-    zip: normalizeZip(inputs?.zip ?? inputs?.zip_code),
+    zip: normalizedZip,
   }
   next.county = normalizeCounty(inputs?.county, next.state, metadata)
 

@@ -438,6 +438,23 @@ test('ZIP validation requires a known ZIP prefix matching the selected state', (
   assert.equal(hasValidZip('00001', 'GA'), false)
 })
 
+test('reconcileInputs derives state from ZIP code', () => {
+  const initial = createInitialInputs(metadata)
+  const georgia = reconcileInputs({
+    ...initial,
+    state: 'AL',
+    zip: '30303',
+  }, metadata)
+  const invalidZip = reconcileInputs({
+    ...initial,
+    state: 'GA',
+    zip: '00001',
+  }, metadata)
+
+  assert.equal(georgia.state, 'GA')
+  assert.equal(invalidZip.state, '')
+})
+
 test('zip input is normalized and included in household payload', () => {
   const initial = createInitialInputs(metadata)
   const reconciled = reconcileInputs({

@@ -81,6 +81,16 @@ test('inputsToDraft: ZIP code can derive state when state is absent', () => {
   assert.equal(draft.zip, '30303');
 });
 
+test('inputsToDraft: ZIP code overrides a conflicting state', () => {
+  const draft = inputsToDraft({
+    ...baseInputs,
+    state: 'CA',
+    zip: '30303',
+  });
+  assert.equal(draft.state, 'GA');
+  assert.equal(draft.zip, '30303');
+});
+
 test('inputsToDraft: null input yields a blank draft', () => {
   const draft = inputsToDraft(null);
   assert.equal(draft.state, null);

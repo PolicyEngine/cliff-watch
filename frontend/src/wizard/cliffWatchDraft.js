@@ -11,6 +11,7 @@
  */
 import {
   createBlankDraft,
+  getStateFromZip,
   isUSStateCode,
   normalizeLegacyDraft,
   validate,
@@ -112,10 +113,12 @@ export function inputsToDraft(inputs) {
   if (!inputs) {
     return createBlankDraft();
   }
+  const zip = normalizeZip(inputs.zip ?? inputs.zip_code);
+  const stateFromZip = zip.length === 5 ? getStateFromZip(zip) : null;
   return normalizeLegacyDraft(
     {
-      state: inputs.state,
-      zip: normalizeZip(inputs.zip ?? inputs.zip_code),
+      state: stateFromZip || (zip ? null : inputs.state),
+      zip,
       county: inputs.county,
       filing_status: inputs.filing_status,
       marital_status: inputs.marital_status,

@@ -441,6 +441,17 @@ body {
   background-color: white;
 }
 
+.form-group input[readonly] {
+  cursor: default;
+}
+
+.form-group input[readonly]:hover,
+.form-group input[readonly]:focus {
+  border-color: var(--color-border);
+  box-shadow: none;
+  background: var(--color-cream);
+}
+
 .toggle-switch {
   width: 100%;
   min-height: 50px;
