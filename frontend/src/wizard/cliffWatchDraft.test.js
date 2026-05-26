@@ -5,6 +5,7 @@ import { draftToInputs, inputsToDraft, isDraftReady } from './cliffWatchDraft.js
 
 const baseInputs = {
   state: 'CA',
+  zip: '94612',
   county: null,
   filing_status: 'SINGLE',
   year: 2026,
@@ -28,6 +29,7 @@ test('inputsToDraft: SINGLE filing status becomes single marital status', () => 
   const draft = inputsToDraft(baseInputs);
   assert.equal(draft.maritalStatus, 'single');
   assert.equal(draft.state, 'CA');
+  assert.equal(draft.zip, '94612');
   assert.equal(draft.people.length, 1);
   assert.equal(draft.people[0].kind, 'adult');
   assert.equal(draft.people[0].age, 30);
@@ -67,6 +69,16 @@ test('inputsToDraft: canonical county code passes through unchanged', () => {
     county: 'ALAMEDA_COUNTY_CA',
   });
   assert.equal(draft.county, 'ALAMEDA_COUNTY_CA');
+});
+
+test('inputsToDraft: ZIP code can derive state when state is absent', () => {
+  const draft = inputsToDraft({
+    ...baseInputs,
+    state: null,
+    zip: '30303',
+  });
+  assert.equal(draft.state, 'GA');
+  assert.equal(draft.zip, '30303');
 });
 
 test('inputsToDraft: null input yields a blank draft', () => {
@@ -109,6 +121,7 @@ test('draftToInputs: married couple round-trips', () => {
 test('draftToInputs: single adult round-trips', () => {
   const back = draftToInputs(inputsToDraft(baseInputs));
   assert.equal(back.filing_status, 'SINGLE');
+  assert.equal(back.zip, '94612');
   assert.equal(back.people[0].earned_income, 50000);
 });
 
@@ -131,6 +144,6 @@ test('isDraftReady: complete single-adult draft passes', () => {
 });
 
 test('isDraftReady: missing state fails', () => {
-  const draft = inputsToDraft({ ...baseInputs, state: null });
+  const draft = inputsToDraft({ ...baseInputs, state: null, zip: null });
   assert.equal(isDraftReady(draft), false);
 });

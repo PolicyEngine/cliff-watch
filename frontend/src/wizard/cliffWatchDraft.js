@@ -4,7 +4,7 @@
  * draft contract. Phase 4 first-consumer integration for
  * https://github.com/PolicyEngine/policyengine-app-v2/issues/1044.
  *
- * The wizard owns the household draft (state, county, marital status, people).
+ * The wizard owns the household draft (state, ZIP, county, marital status, people).
  * Cliff Watch keeps a parallel `scenario` object for the cliff-watch-specific
  * fields the wizard's contract doesn't carry (chart range, program take-up
  * toggles, expenses, secondary incomes).
@@ -44,6 +44,10 @@ function coerceNumber(value) {
 function nonnegative(value) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function normalizeZip(value) {
+  return String(value ?? '').replace(/\D/g, '').slice(0, 5);
 }
 
 /** Cliff-watch-specific fields the shared draft doesn't carry. */
@@ -111,6 +115,7 @@ export function inputsToDraft(inputs) {
   return normalizeLegacyDraft(
     {
       state: inputs.state,
+      zip: normalizeZip(inputs.zip ?? inputs.zip_code),
       county: inputs.county,
       filing_status: inputs.filing_status,
       marital_status: inputs.marital_status,
@@ -163,6 +168,7 @@ export function combineDraftAndScenarioToInputs(draft, scenario, metadata) {
   }
   return {
     state: isUSStateCode(draft.state) ? draft.state : '',
+    zip: normalizeZip(draft.zip),
     county: draft.county ?? null,
     marital_status: maritalStatus,
     filing_status: maritalToFiling(draft.maritalStatus, hasDependents),
@@ -194,6 +200,7 @@ export function draftToInputs(draft, defaults = {}) {
   return {
     ...defaults,
     state: draft.state ?? defaults.state ?? '',
+    zip: normalizeZip(draft.zip ?? defaults.zip),
     county: draft.county ?? defaults.county ?? null,
     filing_status: maritalToFiling(draft.maritalStatus, hasDependents),
     year: draft.year,

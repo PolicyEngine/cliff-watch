@@ -104,6 +104,8 @@ const INCOME_AND_ASSET_FIELDS = [
 
 const nonnegative = (value) => Math.max(0, Number(value) || 0)
 
+const normalizeZip = (zip) => String(zip || '').replace(/\D/g, '').slice(0, 5)
+
 const normalizeAge = (age) => {
   if (age === '' || age === null || age === undefined) {
     return ''
@@ -162,6 +164,8 @@ export const hasValidAge = (age) => {
   return Number.isFinite(normalized) && normalized >= 0 && normalized <= 120
 }
 
+export const hasValidZip = (zip) => normalizeZip(zip).length === 5
+
 export function hasCompleteHouseholdAges(inputs) {
   const people = inputs?.people || []
   return people.length > 0
@@ -171,6 +175,7 @@ export function hasCompleteHouseholdAges(inputs) {
 
 export function hasCompleteRequiredInputs(inputs) {
   return Boolean(inputs?.state)
+    && hasValidZip(inputs?.zip)
     && MARITAL_STATUS_CODES.has(inputs?.marital_status)
     && hasCompleteHouseholdAges(inputs)
 }
@@ -304,6 +309,7 @@ export function reconcileInputs(inputs, metadata) {
     selected_programs: publicAssistanceProgramKeys.filter((key) => selectedProgramSet.has(key)),
     has_employer_health_insurance: Boolean(inputs?.has_employer_health_insurance),
     year: metadata?.year || 2026,
+    zip: normalizeZip(inputs?.zip ?? inputs?.zip_code),
   }
   next.county = normalizeCounty(inputs?.county, next.state, metadata)
 
@@ -318,11 +324,16 @@ export function reconcileInputs(inputs, metadata) {
 }
 
 export function createInitialInputs(metadata) {
+  const defaultPeople = Array.isArray(metadata?.defaults?.people) && metadata.defaults.people.length
+    ? metadata.defaults.people
+    : []
+
   return reconcileInputs({
     state: '',
     county: '',
+    zip: '',
     marital_status: '',
-    people: normalizePeople([], metadata),
+    people: normalizePeople(defaultPeople, metadata),
     chart_max_earned_income:
       metadata?.defaults?.chart_max_earned_income
       || metadata?.defaults?.series_max_earned_income
@@ -340,6 +351,7 @@ export function normalizeInputs(inputs, metadata) {
   return {
     state: reconciled.state,
     county: reconciled.county,
+    zip: reconciled.zip,
     marital_status: reconciled.marital_status,
     people: reconciled.people,
     chart_max_earned_income: reconciled.chart_max_earned_income,
@@ -363,6 +375,7 @@ export function buildHouseholdPayload(inputs, metadata) {
     earned_income: 0,
     year: normalized.year,
     county: normalized.county || null,
+    zip: normalized.zip || null,
     programs_mode: normalized.programs_mode,
     selected_programs: normalized.selected_programs,
     has_employer_health_insurance: normalized.has_employer_health_insurance,
