@@ -1,0 +1,23 @@
+{
+  "name": "CliffWatch — PolicyEngine benefit cliff explorer",
+  "short_name": "CliffWatch",
+  "description": "Map benefit cliffs and marginal tax rates by household across all 50 US states.",
+  "start_url": "/us/cliffwatch/",
+  "scope": "/us/cliffwatch/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2C6496",
+  "icons": [
+    {
+      "src": "/us/cliff-watch/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/us/cliff-watch/policyengine-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

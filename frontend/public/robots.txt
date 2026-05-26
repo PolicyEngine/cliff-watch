@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cliff-watch.policyengine.org/sitemap.xml
+Sitemap: https://policyengine.org/us/cliffwatch/sitemap.xml
