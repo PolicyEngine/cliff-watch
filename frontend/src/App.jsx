@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createBlankDraft } from 'policyengine-household-wizard'
 import InputPanel from './components/InputPanel'
-import ResultsPanel from './components/ResultsPanel'
+// Lazy-load the chart-heavy ResultsPanel (and its recharts dependencies) so
+// the initial JS bundle is small. The panel is only mounted after the user
+// hits "Find cliffs," so this defers ~hundreds of KB of chart code.
+const ResultsPanel = lazy(() => import('./components/ResultsPanel'))
 import {
   calculateSeries,
   hasCompleteRequiredInputs,
@@ -237,16 +240,27 @@ function App() {
         />
 
         <div ref={resultsRef} />
-        <ResultsPanel
-          metadata={metadata}
-          inputs={combinedInputs}
-          seriesData={seriesData}
-          loading={loading}
-          seriesLoading={seriesLoading}
-          hasCalculated={hasCalculated}
-          error={error}
-          seriesError={seriesError}
-        />
+        <Suspense
+          fallback={
+            <div
+              className="results-panel-loading"
+              style={{ padding: '32px 16px', textAlign: 'center', color: '#475569' }}
+            >
+              Loading cliff chart…
+            </div>
+          }
+        >
+          <ResultsPanel
+            metadata={metadata}
+            inputs={combinedInputs}
+            seriesData={seriesData}
+            loading={loading}
+            seriesLoading={seriesLoading}
+            hasCalculated={hasCalculated}
+            error={error}
+            seriesError={seriesError}
+          />
+        </Suspense>
       </main>
     </div>
   )
