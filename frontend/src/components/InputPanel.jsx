@@ -709,15 +709,25 @@ function InputPanel({
                       onChange={(value) => onScenarioChange({ chart_max_earned_income: value || 100000 })}
                       tooltip="Optional upper bound for the wage chart."
                     />
-                    <div className="form-group checkbox-form-group">
-                      <label className="member-checkbox-label member-checkbox-label--standalone">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(inputs.has_employer_health_insurance)}
-                          onChange={(event) => onScenarioChange({ has_employer_health_insurance: event.target.checked })}
-                        />
-                        <span>Employer health insurance offer</span>
+                    <div className="form-group">
+                      <label id="employer-health-insurance-offer-label">
+                        Employer health insurance offer
                       </label>
+                      <button
+                        type="button"
+                        className={inputs.has_employer_health_insurance ? 'toggle-switch toggle-switch--on' : 'toggle-switch'}
+                        role="switch"
+                        aria-checked={Boolean(inputs.has_employer_health_insurance)}
+                        aria-labelledby="employer-health-insurance-offer-label employer-health-insurance-offer-value"
+                        onClick={() => onScenarioChange({ has_employer_health_insurance: !inputs.has_employer_health_insurance })}
+                      >
+                        <span id="employer-health-insurance-offer-value" className="toggle-switch-text">
+                          {inputs.has_employer_health_insurance ? 'Offered' : 'Not offered'}
+                        </span>
+                        <span className="toggle-switch-track" aria-hidden="true">
+                          <span className="toggle-switch-thumb" />
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </section>
