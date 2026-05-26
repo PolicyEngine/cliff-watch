@@ -385,9 +385,9 @@ function InputPanel({
           <section className="wizard-step">
             <div className="wizard-step-heading">
               <h3>Where does the household live?</h3>
-              <p>ZIP code is required; state is detected from the ZIP code.</p>
+              <p>Enter the household ZIP code.</p>
             </div>
-            <div className="form-grid form-grid--two">
+            <div className="form-grid form-grid--single">
               <div className="form-group">
                 <label htmlFor="zip">ZIP code</label>
                 <input
@@ -410,17 +410,12 @@ function InputPanel({
                     {zipValidationMessage}
                   </small>
                 ) : null}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="state">State</label>
-                <input
-                  id="state"
-                  type="text"
-                  value={stateDisplayName}
-                  readOnly
-                  placeholder="Detected from ZIP code"
-                />
+                {stateDisplayName ? (
+                  <div className="zip-state-result" role="status" aria-live="polite">
+                    <span>State</span>
+                    <strong>{stateDisplayName}</strong>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
