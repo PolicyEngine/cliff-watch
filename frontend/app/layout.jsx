@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const CANONICAL_URL = "https://policyengine.org/us/cliffwatch";
-const OG_IMAGE = "https://policyengine.org/us/cliffwatch/policyengine-logo.png";
+const OG_IMAGE = "https://policyengine.org/us/cliffwatch/cliffwatch-og.png";
 
 const TITLE = "CliffWatch — PolicyEngine benefit cliff explorer";
 const DESCRIPTION =
@@ -97,7 +97,7 @@ export const metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#2C6496",
+  themeColor: "#2C7A7B",
 };
 
 const jsonLd = {
