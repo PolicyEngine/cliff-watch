@@ -513,6 +513,10 @@ body {
   font-size: 0.8rem;
 }
 
+.form-group small.form-field-error {
+  color: #dc2626;
+}
+
 .form-group-wide {
   grid-column: 1 / -1;
 }

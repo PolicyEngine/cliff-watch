@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   hasCompleteRequiredInputs,
   hasValidAge,
+  hasValidZip,
 } from '../dataLookup.js'
 import { applyStateProgramLabels } from '../utils/programLabels.js'
 import { maxAdultsForMetadata } from '../utils/filingStatus.js'
@@ -186,6 +187,17 @@ function InputPanel({
     [baseProgramOptions, metadata, inputs?.state],
   )
   const zipCode = sanitizeZip(inputs?.zip)
+  const zipState = zipCode.length === 5 ? getStateFromZip(zipCode) : null
+  const zipIsValid = hasValidZip(zipCode, inputs?.state)
+  const zipValidationMessage = zipCode.length === 0
+    ? ''
+    : zipCode.length < 5
+      ? 'Enter a 5-digit ZIP code.'
+      : !zipState
+        ? 'Enter a valid US ZIP code.'
+        : inputs?.state && zipState !== inputs.state
+          ? 'ZIP code must match the selected state.'
+          : ''
   const selectedPrograms = new Set(inputs?.selected_programs || programOptions.map((program) => program.key))
 
   const rowMeta = useMemo(() => {
@@ -281,7 +293,7 @@ function InputPanel({
     .map((person, index) => ({ person, index, meta: rowMeta[index] }))
     .filter(({ person }) => person.kind === 'child')
 
-  const locationStepComplete = Boolean(inputs?.state) && zipCode.length === 5
+  const locationStepComplete = Boolean(inputs?.state) && zipIsValid
   const adultStepComplete = adultMembers.length > 0
     && adultMembers.every(({ person }) => hasValidAge(person.age))
   const dependentStepComplete = dependentMembers.every(({ person }) => hasValidAge(person.age))
@@ -415,7 +427,14 @@ function InputPanel({
                   onChange={(event) => setZipCode(event.target.value)}
                   placeholder="Enter ZIP code"
                   aria-label="ZIP code"
+                  aria-describedby={zipValidationMessage ? 'zip-validation-message' : undefined}
+                  aria-invalid={zipValidationMessage ? 'true' : undefined}
                 />
+                {zipValidationMessage ? (
+                  <small id="zip-validation-message" className="form-field-error">
+                    {zipValidationMessage}
+                  </small>
+                ) : null}
               </div>
             </div>
           </section>

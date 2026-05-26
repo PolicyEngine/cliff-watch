@@ -178,6 +178,13 @@ const FIXED_HOUSEHOLD_COST_INPUTS = {
   other_expenses: 'other_expense_annual',
 }
 
+const PERSON_LEVEL_DRIVER_PROGRAMS = {
+  medicaid: {
+    variable: 'medicaid',
+    label: 'Medicaid',
+  },
+}
+
 function isCcdfModeledState(state, metadata) {
   const fromMetadata = metadata?.ccdf_modeled_states
   if (Array.isArray(fromMetadata) && fromMetadata.length) {
@@ -239,6 +246,64 @@ function programIncluded(payload, key, metadata) {
 
 function filterProgramValue(payload, key, value, metadata) {
   return programIncluded(payload, key, metadata) ? value : 0
+}
+
+function personDisplayLabels(people = []) {
+  let adultCount = 0
+  let childCount = 0
+
+  return Object.fromEntries(
+    people.map((person) => {
+      if (person.kind === 'adult') {
+        adultCount += 1
+        return [person.id, `Adult ${adultCount}`]
+      }
+
+      childCount += 1
+      return [person.id, `Child ${childCount}`]
+    }),
+  )
+}
+
+function buildPersonProgramSeries(peopleResponse, descriptor, year, pointCount, payload, metadata) {
+  const labelsByPersonId = personDisplayLabels(descriptor.people)
+
+  return Object.fromEntries(
+    Object.entries(PERSON_LEVEL_DRIVER_PROGRAMS).map(([programKey, program]) => [
+      programKey,
+      Object.fromEntries(
+        descriptor.people.map((person) => [
+          person.id,
+          {
+            label: `${labelsByPersonId[person.id]} ${program.label}`,
+            values: asArray(
+              getYearValue(peopleResponse[person.id], program.variable, year),
+              pointCount,
+            ).map((value) => roundCurrency(
+              filterProgramValue(payload, programKey, value, metadata),
+            )),
+          },
+        ]),
+      ),
+    ]),
+  )
+}
+
+function buildPersonProgramsAtIndex(personProgramSeries, index) {
+  return Object.fromEntries(
+    Object.entries(personProgramSeries).map(([programKey, people]) => [
+      programKey,
+      Object.fromEntries(
+        Object.entries(people).map(([personId, personProgram]) => [
+          personId,
+          {
+            label: personProgram.label,
+            value: roundCurrency(personProgram.values[index]),
+          },
+        ]),
+      ),
+    ]),
+  )
 }
 
 function fixedHouseholdCostsFromPayload(payload) {
@@ -1172,6 +1237,11 @@ export function buildCliffDrivers(previousPoint, currentPoint, metadata, stateCo
   const labelByKey = getProgramLabelMap(metadata, stateCode)
   const householdCostLabels = getHouseholdCostLabelMap(metadata)
   const drivers = Object.keys(labelByKey).flatMap((key) => {
+    const personDrivers = buildPersonProgramLossDrivers(previousPoint, currentPoint, key)
+    if (personDrivers.length) {
+      return personDrivers
+    }
+
     const changeAnnual = roundCurrency(
       (Number(currentPoint.programs?.[key]) || 0)
         - (Number(previousPoint.programs?.[key]) || 0),
@@ -1226,6 +1296,40 @@ export function buildCliffDrivers(previousPoint, currentPoint, metadata, stateCo
       return left.resource_effect_annual - right.resource_effect_annual
     }
     return left.label.localeCompare(right.label)
+  })
+}
+
+function buildPersonProgramLossDrivers(previousPoint, currentPoint, programKey) {
+  const previousPeople = previousPoint?.person_programs?.[programKey] || {}
+  const currentPeople = currentPoint?.person_programs?.[programKey] || {}
+  const personIds = new Set([
+    ...Object.keys(previousPeople),
+    ...Object.keys(currentPeople),
+  ])
+
+  return [...personIds].flatMap((personId) => {
+    const previousPersonProgram = previousPeople[personId] || {}
+    const currentPersonProgram = currentPeople[personId] || {}
+    const changeAnnual = roundCurrency(
+      (Number(currentPersonProgram.value) || 0)
+        - (Number(previousPersonProgram.value) || 0),
+    )
+
+    if (changeAnnual >= 0) {
+      return []
+    }
+
+    return [{
+      key: `${programKey}:${personId}`,
+      label: currentPersonProgram.label || previousPersonProgram.label || programKey,
+      kind: 'benefit_loss',
+      program_key: programKey,
+      person_id: personId,
+      raw_change_annual: changeAnnual,
+      raw_change_monthly: monthlyAmount(changeAnnual),
+      resource_effect_annual: changeAnnual,
+      resource_effect_monthly: monthlyAmount(changeAnnual),
+    }]
   })
 }
 
@@ -1332,6 +1436,14 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
     pointCount,
   )
   const fixedHouseholdCosts = fixedHouseholdCostsFromPayload(payload)
+  const personProgramSeries = buildPersonProgramSeries(
+    peopleResponse,
+    descriptor,
+    year,
+    pointCount,
+    payload,
+    metadata,
+  )
 
   const points = earnedIncomeValues.map((earnedIncome, index) => {
     const programs = {
@@ -1416,6 +1528,7 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
       },
       programs,
       household_costs: householdCosts,
+      person_programs: buildPersonProgramsAtIndex(personProgramSeries, index),
     }
   })
 
@@ -1452,6 +1565,7 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
       child_care_subsidies: point.programs.child_care_subsidies,
       chip_premium: point.household_costs.chip_premium,
       household_costs: point.household_costs,
+      person_programs: point.person_programs,
       has_previous_point: Boolean(previousPoint),
       cliff_drop_annual: previousPoint && netChangeAnnual < 0
         ? roundCurrency(-netChangeAnnual)

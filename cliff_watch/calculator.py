@@ -96,6 +96,12 @@ HOUSEHOLD_COST_LABEL_BY_KEY = {
 PUBLIC_ASSISTANCE_PROGRAM_KEYS = {
     item["key"] for item in PUBLIC_ASSISTANCE_PROGRAM_OPTIONS
 }
+PERSON_LEVEL_DRIVER_PROGRAMS = {
+    "medicaid": {
+        "variable": "medicaid",
+        "label": "Medicaid",
+    }
+}
 FILING_STATUS_CODES = {item["code"] for item in FILING_STATUS_OPTIONS}
 _MISSING_VARIABLE_WARNINGS_EMITTED: set[str] = set()
 
@@ -794,6 +800,107 @@ def _normalize_series_values(
     raise ValueError(f"Expected {point_count} series values but received {len(values)}")
 
 
+def _person_display_labels(members: list[dict[str, Any]]) -> dict[str, str]:
+    adult_count = 0
+    child_count = 0
+    labels = {}
+
+    for person in members:
+        if person["kind"] == "adult":
+            adult_count += 1
+            labels[person["id"]] = f"Adult {adult_count}"
+        else:
+            child_count += 1
+            labels[person["id"]] = f"Child {child_count}"
+
+    return labels
+
+
+def _calculate_person_variable_series(
+    simulation: Any,
+    variable: str,
+    year: int,
+    *,
+    members: list[dict[str, Any]],
+    point_count: int,
+) -> dict[str, list[float]]:
+    member_count = len(members)
+    if member_count == 0:
+        return {}
+
+    values = _calculate_variable_array(simulation, variable, year)
+    if not values:
+        return {person["id"]: [0.0] * point_count for person in members}
+
+    if len(values) == point_count * member_count:
+        return {
+            person["id"]: [
+                values[(point_index * member_count) + person_index]
+                for point_index in range(point_count)
+            ]
+            for person_index, person in enumerate(members)
+        }
+
+    if len(values) == member_count:
+        return {
+            person["id"]: [values[person_index]] * point_count
+            for person_index, person in enumerate(members)
+        }
+
+    if member_count == 1:
+        normalized = _normalize_series_values(values, point_count)
+        return {members[0]["id"]: normalized}
+
+    return {person["id"]: [0.0] * point_count for person in members}
+
+
+def _build_person_program_series(
+    simulation: Any,
+    members: list[dict[str, Any]],
+    payload: HouseholdInput,
+    point_count: int,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    labels_by_person_id = _person_display_labels(members)
+    result = {}
+
+    for program_key, definition in PERSON_LEVEL_DRIVER_PROGRAMS.items():
+        values_by_person_id = _calculate_person_variable_series(
+            simulation,
+            definition["variable"],
+            payload.year,
+            members=members,
+            point_count=point_count,
+        )
+        result[program_key] = {
+            person["id"]: {
+                "label": f"{labels_by_person_id[person['id']]} {definition['label']}",
+                "values": [
+                    round(_filtered_program_value(payload, program_key, value), 2)
+                    for value in values_by_person_id[person["id"]]
+                ],
+            }
+            for person in members
+        }
+
+    return result
+
+
+def _person_programs_at_index(
+    person_program_series: dict[str, dict[str, dict[str, Any]]],
+    index: int,
+) -> dict[str, dict[str, dict[str, Any]]]:
+    return {
+        program_key: {
+            person_id: {
+                "label": person_series["label"],
+                "value": round(person_series["values"][index], 2),
+            }
+            for person_id, person_series in people.items()
+        }
+        for program_key, people in person_program_series.items()
+    }
+
+
 def _calculate_tanf_amount(simulation: Any, payload: HouseholdInput) -> float:
     variable = STATE_TANF_VARIABLES.get(payload.state)
     if not variable:
@@ -1307,6 +1414,15 @@ def _build_cliff_drivers(
     drivers = []
 
     for key in PROGRAM_LABEL_BY_KEY:
+        person_drivers = _build_person_program_loss_drivers(
+            previous_result,
+            result,
+            key,
+        )
+        if person_drivers:
+            drivers.extend(person_drivers)
+            continue
+
         annual_change = round(
             result["programs"].get(key, 0.0)
             - previous_result["programs"].get(key, 0.0),
@@ -1367,6 +1483,46 @@ def _build_cliff_drivers(
     )
 
 
+def _build_person_program_loss_drivers(
+    previous_result: dict[str, Any],
+    result: dict[str, Any],
+    program_key: str,
+) -> list[dict[str, Any]]:
+    previous_people = previous_result.get("person_programs", {}).get(program_key, {})
+    current_people = result.get("person_programs", {}).get(program_key, {})
+    person_ids = sorted(set(previous_people) | set(current_people))
+    drivers = []
+
+    for person_id in person_ids:
+        previous_program = previous_people.get(person_id, {})
+        current_program = current_people.get(person_id, {})
+        annual_change = round(
+            float(current_program.get("value", 0.0) or 0.0)
+            - float(previous_program.get("value", 0.0) or 0.0),
+            2,
+        )
+        if annual_change >= 0:
+            continue
+
+        drivers.append(
+            {
+                "key": f"{program_key}:{person_id}",
+                "label": current_program.get("label")
+                or previous_program.get("label")
+                or program_key,
+                "kind": "benefit_loss",
+                "program_key": program_key,
+                "person_id": person_id,
+                "raw_change_annual": annual_change,
+                "raw_change_monthly": _monthly_amount(annual_change),
+                "resource_effect_annual": annual_change,
+                "resource_effect_monthly": _monthly_amount(annual_change),
+            }
+        )
+
+    return drivers
+
+
 def calculate_household(
     payload: HouseholdInput,
     *,
@@ -1407,6 +1563,8 @@ def calculate_income_series(
         aligned_min_earned_income = 0
     effective_window = aligned_max_earned_income - aligned_min_earned_income
     point_count = max(2, (effective_window // effective_step) + 1)
+    descriptor = _household_descriptor(payload)
+    members = descriptor["people"]
     Simulation = _load_simulation()
     simulation = Simulation(
         situation=build_household_variation_situation(
@@ -1603,6 +1761,12 @@ def calculate_income_series(
         child_care_subsidy_series,
         point_count,
     )
+    person_program_series = _build_person_program_series(
+        simulation,
+        members,
+        payload,
+        point_count,
+    )
 
     series = []
     previous_result = None
@@ -1722,6 +1886,10 @@ def calculate_income_series(
         result = {
             "programs": programs,
             "household_costs": household_costs,
+            "person_programs": _person_programs_at_index(
+                person_program_series,
+                index,
+            ),
             "totals": {
                 "market_income": market_income,
                 "taxes": taxes,
@@ -1778,6 +1946,7 @@ def calculate_income_series(
                 "wic": programs["wic"],
                 "child_care_subsidies": programs["child_care_subsidies"],
                 "household_costs": household_costs,
+                "person_programs": result["person_programs"],
                 "has_previous_point": has_previous_point,
                 "cliff_drop_annual": round(cliff_drop, 2),
                 "is_cliff": cliff_drop > 0,

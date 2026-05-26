@@ -2,6 +2,7 @@ import { useState } from 'react'
 import BenefitChart from './BenefitChart'
 import CliffInsights from './CliffInsights'
 import { formatCurrency } from '../dataLookup'
+import { householdSummary } from '../utils/householdSummary'
 import { buildShareUrl } from '../utils/urlState'
 
 function copyTextFallback(text) {
@@ -77,21 +78,6 @@ function ShareButton({ inputs }) {
       ) : null}
     </div>
   )
-}
-
-function householdSummary(inputs, metadata) {
-  const people = inputs?.people || []
-  const adults = people.filter((person) => person.kind === 'adult').length
-  const dependents = people.filter((person) => person.kind === 'child').length
-  const stateName = metadata?.states?.find((state) => state.code === inputs?.state)?.name || inputs?.state || ''
-
-  const parts = [
-    stateName,
-    `${adults} adult${adults === 1 ? '' : 's'}`,
-    `${dependents} dependent${dependents === 1 ? '' : 's'}`,
-  ].filter(Boolean)
-
-  return parts.join(' · ')
 }
 
 function ResultsPanel({

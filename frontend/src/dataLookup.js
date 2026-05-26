@@ -3,6 +3,7 @@ import {
   calculateSeriesViaPolicyEngine,
   PolicyEngineApiError,
 } from './policyengineApi.js'
+import { getStateFromZip } from 'policyengine-household-wizard'
 
 const parseErrorMessage = async (response) => {
   try {
@@ -164,7 +165,16 @@ export const hasValidAge = (age) => {
   return Number.isFinite(normalized) && normalized >= 0 && normalized <= 120
 }
 
-export const hasValidZip = (zip) => normalizeZip(zip).length === 5
+export const getZipState = (zip) => {
+  const normalized = normalizeZip(zip)
+  return normalized.length === 5 ? getStateFromZip(normalized) : null
+}
+
+export const hasValidZip = (zip, state) => {
+  const zipState = getZipState(zip)
+  if (!zipState) return false
+  return !state || zipState === state
+}
 
 export function hasCompleteHouseholdAges(inputs) {
   const people = inputs?.people || []
@@ -175,7 +185,7 @@ export function hasCompleteHouseholdAges(inputs) {
 
 export function hasCompleteRequiredInputs(inputs) {
   return Boolean(inputs?.state)
-    && hasValidZip(inputs?.zip)
+    && hasValidZip(inputs?.zip, inputs?.state)
     && MARITAL_STATUS_CODES.has(inputs?.marital_status)
     && hasCompleteHouseholdAges(inputs)
 }
