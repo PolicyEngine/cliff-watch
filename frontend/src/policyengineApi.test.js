@@ -438,6 +438,20 @@ test('ZIP validation requires a known ZIP prefix matching the selected state', (
   assert.equal(hasValidZip('00001', 'GA'), false)
 })
 
+test('adult ages below 18 normalize to 18', () => {
+  const initial = createInitialInputs(metadata)
+  const result = reconcileInputs({
+    ...initial,
+    people: [
+      { kind: 'adult', age: 1 },
+      { kind: 'child', age: 1 },
+    ],
+  }, metadata)
+
+  assert.equal(result.people[0].age, 18)
+  assert.equal(result.people[1].age, 1)
+})
+
 test('reconcileInputs derives state from ZIP code', () => {
   const initial = createInitialInputs(metadata)
   const georgia = reconcileInputs({

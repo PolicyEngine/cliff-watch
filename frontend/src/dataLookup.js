@@ -65,6 +65,8 @@ export async function loadMetadata() {
 
 const MAX_ADULTS_FALLBACK = 6
 const MAX_DEPENDENTS_FALLBACK = 6
+const MIN_ADULT_AGE = 18
+const MAX_AGE = 120
 
 const VALID_FILING_STATUSES = new Set([
   'SINGLE',
@@ -107,12 +109,14 @@ const nonnegative = (value) => Math.max(0, Number(value) || 0)
 
 const normalizeZip = (zip) => String(zip || '').replace(/\D/g, '').slice(0, 5)
 
-const normalizeAge = (age) => {
+const normalizeAge = (age, minimum = 0) => {
   if (age === '' || age === null || age === undefined) {
     return ''
   }
   const normalized = Number(age)
-  return Number.isFinite(normalized) ? Math.max(0, normalized) : ''
+  return Number.isFinite(normalized)
+    ? Math.min(MAX_AGE, Math.max(minimum, normalized))
+    : ''
 }
 
 const normalizeMaritalStatus = (status) => (
@@ -218,7 +222,7 @@ const normalizePeople = (people = [], metadata) => {
 
     return [{
       kind,
-      age: normalizeAge(person?.age),
+      age: normalizeAge(person?.age, kind === 'adult' ? MIN_ADULT_AGE : 0),
       is_pregnant: kind === 'adult' ? Boolean(person?.is_pregnant) : false,
       is_disabled: Boolean(person?.is_disabled),
       is_blind: Boolean(person?.is_blind),

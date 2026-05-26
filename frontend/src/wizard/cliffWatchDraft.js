@@ -51,6 +51,28 @@ function normalizeZip(value) {
   return String(value ?? '').replace(/\D/g, '').slice(0, 5);
 }
 
+const MIN_ADULT_AGE = 18;
+const MAX_AGE = 120;
+
+function ageWithAdultFloor(person) {
+  const age = coerceNumber(person?.age);
+  if (age === undefined) {
+    return person?.age;
+  }
+  const isAdult = person?.kind !== 'child' && person?.kind !== 'dependent';
+  return Math.min(MAX_AGE, Math.max(isAdult ? MIN_ADULT_AGE : 0, age));
+}
+
+function clampAdultAges(people) {
+  if (!Array.isArray(people)) {
+    return people;
+  }
+  return people.map((person) => ({
+    ...person,
+    age: ageWithAdultFloor(person),
+  }));
+}
+
 /** Cliff-watch-specific fields the shared draft doesn't carry. */
 export const COST_FIELDS = [
   'childcare_expenses',
@@ -122,7 +144,7 @@ export function inputsToDraft(inputs) {
       county: inputs.county,
       filing_status: inputs.filing_status,
       marital_status: inputs.marital_status,
-      people: inputs.people,
+      people: clampAdultAges(inputs.people),
       year: inputs.year,
     },
     { year: inputs.year },

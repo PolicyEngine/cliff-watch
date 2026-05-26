@@ -63,6 +63,18 @@ test('inputsToDraft: HEAD_OF_HOUSEHOLD becomes single with dependents', () => {
   assert.equal(dependents.length, 1);
 });
 
+test('inputsToDraft: adult ages below 18 normalize to 18', () => {
+  const draft = inputsToDraft({
+    ...baseInputs,
+    people: [
+      { kind: 'adult', age: 1 },
+      { kind: 'child', age: 1 },
+    ],
+  });
+  assert.equal(draft.people[0].age, 18);
+  assert.equal(draft.people[1].age, 1);
+});
+
 test('inputsToDraft: canonical county code passes through unchanged', () => {
   const draft = inputsToDraft({
     ...baseInputs,

@@ -20,6 +20,28 @@ import {
 } from '../wizard/cliffWatchDraft.js'
 
 const sanitizeZip = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 5)
+const MIN_ADULT_AGE = 18
+const MAX_AGE = 120
+
+const clampAdultAge = (age) => {
+  if (age === '' || age === null || age === undefined) return ''
+  const normalized = Number(age)
+  return Number.isFinite(normalized)
+    ? Math.min(MAX_AGE, Math.max(MIN_ADULT_AGE, normalized))
+    : ''
+}
+
+const clampDraftAdultAges = (sourceDraft) => {
+  let changed = false
+  const people = sourceDraft.people.map((person) => {
+    if (person.kind !== 'adult') return person
+    const nextAge = clampAdultAge(person.age)
+    if (nextAge === person.age) return person
+    changed = true
+    return { ...person, age: nextAge }
+  })
+  return changed ? { ...sourceDraft, people } : sourceDraft
+}
 
 const PERSON_FIELD_TO_DRAFT_KEY = {
   age: 'age',
@@ -314,6 +336,12 @@ function InputPanel({
 
   const goNext = () => {
     if (isLastStep) return
+    if (currentStepId === 'adults') {
+      const nextDraft = clampDraftAdultAges(draft)
+      if (nextDraft !== draft) {
+        onDraftChange(nextDraft)
+      }
+    }
     setCurrentStepId(WIZARD_STEPS[currentStepIndex + 1].id)
   }
 
