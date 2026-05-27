@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import {
+  getZipState,
   hasCompleteRequiredInputs,
   hasValidAge,
+  hasValidZip,
 } from '../dataLookup.js'
 import { applyStateProgramLabels } from '../utils/programLabels.js'
 import { maxAdultsForMetadata } from '../utils/filingStatus.js'
@@ -10,7 +12,6 @@ import {
   WizardProgress,
   applyMaritalStatusChange,
   addPerson as addPersonToDraft,
-  getStateFromZip,
   removePerson as removePersonFromDraft,
   updatePerson as updatePersonInDraft,
 } from 'policyengine-household-wizard'
@@ -19,6 +20,28 @@ import {
 } from '../wizard/cliffWatchDraft.js'
 
 const sanitizeZip = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 5)
+const MIN_ADULT_AGE = 18
+const MAX_AGE = 120
+
+const clampAdultAge = (age) => {
+  if (age === '' || age === null || age === undefined) return ''
+  const normalized = Number(age)
+  return Number.isFinite(normalized)
+    ? Math.min(MAX_AGE, Math.max(MIN_ADULT_AGE, normalized))
+    : ''
+}
+
+const clampDraftAdultAges = (sourceDraft) => {
+  let changed = false
+  const people = sourceDraft.people.map((person) => {
+    if (person.kind !== 'adult') return person
+    const nextAge = clampAdultAge(person.age)
+    if (nextAge === person.age) return person
+    changed = true
+    return { ...person, age: nextAge }
+  })
+  return changed ? { ...sourceDraft, people } : sourceDraft
+}
 
 const PERSON_FIELD_TO_DRAFT_KEY = {
   age: 'age',
@@ -186,6 +209,22 @@ function InputPanel({
     [baseProgramOptions, metadata, inputs?.state],
   )
   const zipCode = sanitizeZip(inputs?.zip)
+  const zipState = getZipState(zipCode)
+  const zipIsValid = hasValidZip(zipCode, inputs?.state)
+  const selectedState = metadata?.states?.find((state) => state.code === inputs?.state)
+  const stateDisplayName = selectedState?.name || inputs?.state || ''
+  const reviewLocation = zipCode && stateDisplayName
+    ? `${zipCode}, ${stateDisplayName}`
+    : zipCode || stateDisplayName || 'Missing'
+  const zipValidationMessage = zipCode.length === 0
+    ? ''
+    : zipCode.length < 5
+      ? 'Enter a 5-digit ZIP code.'
+      : !zipState
+        ? 'Enter a valid US ZIP code.'
+        : inputs?.state && zipState !== inputs.state
+          ? 'ZIP code must match the selected state.'
+          : ''
   const selectedPrograms = new Set(inputs?.selected_programs || programOptions.map((program) => program.key))
 
   const rowMeta = useMemo(() => {
@@ -215,23 +254,12 @@ function InputPanel({
     })
   }, [isMarried, people])
 
-  const setStateCode = (code) => {
-    const nextState = code || null
-    const zipState = getStateFromZip(draft.zip)
-    onDraftChange({
-      ...draft,
-      state: nextState,
-      county: null,
-      zip: zipState && nextState && zipState !== nextState ? null : draft.zip,
-    })
-  }
-
   const setZipCode = (value) => {
     const zip = sanitizeZip(value)
-    const derivedState = getStateFromZip(zip)
+    const derivedState = getZipState(zip)
     onDraftChange({
       ...draft,
-      state: derivedState || draft.state || null,
+      state: derivedState || null,
       county: null,
       zip: zip || null,
     })
@@ -281,7 +309,7 @@ function InputPanel({
     .map((person, index) => ({ person, index, meta: rowMeta[index] }))
     .filter(({ person }) => person.kind === 'child')
 
-  const locationStepComplete = Boolean(inputs?.state) && zipCode.length === 5
+  const locationStepComplete = Boolean(inputs?.state) && zipIsValid
   const adultStepComplete = adultMembers.length > 0
     && adultMembers.every(({ person }) => hasValidAge(person.age))
   const dependentStepComplete = dependentMembers.every(({ person }) => hasValidAge(person.age))
@@ -308,6 +336,12 @@ function InputPanel({
 
   const goNext = () => {
     if (isLastStep) return
+    if (currentStepId === 'adults') {
+      const nextDraft = clampDraftAdultAges(draft)
+      if (nextDraft !== draft) {
+        onDraftChange(nextDraft)
+      }
+    }
     setCurrentStepId(WIZARD_STEPS[currentStepIndex + 1].id)
   }
 
@@ -379,28 +413,9 @@ function InputPanel({
           <section className="wizard-step">
             <div className="wizard-step-heading">
               <h3>Where does the household live?</h3>
-              <p>State and ZIP code are required for the household location.</p>
+              <p>Enter the household ZIP code.</p>
             </div>
-            <div className="form-grid form-grid--two">
-              <div className="form-group">
-                <label htmlFor="state">State</label>
-                <select
-                  id="state"
-                  required
-                  value={inputs.state || ''}
-                  onChange={(event) => setStateCode(event.target.value)}
-                >
-                  <option value="" disabled>
-                    Select state
-                  </option>
-                  {metadata.states.map((state) => (
-                    <option key={state.code} value={state.code}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            <div className="form-grid form-grid--single">
               <div className="form-group">
                 <label htmlFor="zip">ZIP code</label>
                 <input
@@ -415,7 +430,20 @@ function InputPanel({
                   onChange={(event) => setZipCode(event.target.value)}
                   placeholder="Enter ZIP code"
                   aria-label="ZIP code"
+                  aria-describedby={zipValidationMessage ? 'zip-validation-message' : undefined}
+                  aria-invalid={zipValidationMessage ? 'true' : undefined}
                 />
+                {zipValidationMessage ? (
+                  <small id="zip-validation-message" className="form-field-error">
+                    {zipValidationMessage}
+                  </small>
+                ) : null}
+                {stateDisplayName ? (
+                  <div className="zip-state-result" role="status" aria-live="polite">
+                    <span>State</span>
+                    <strong>{stateDisplayName}</strong>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
@@ -629,7 +657,7 @@ function InputPanel({
             <div className="wizard-review-grid">
               <button type="button" className="wizard-review-item" onClick={() => goToStep('location')}>
                 <span>Location</span>
-                <strong>{inputs.state || 'Missing'}{zipCode ? `, ${zipCode}` : ''}</strong>
+                <strong>{reviewLocation}</strong>
               </button>
               <button type="button" className="wizard-review-item" onClick={() => goToStep('marital')}>
                 <span>Marital status</span>
@@ -690,15 +718,25 @@ function InputPanel({
                       onChange={(value) => onScenarioChange({ chart_max_earned_income: value || 100000 })}
                       tooltip="Optional upper bound for the wage chart."
                     />
-                    <div className="form-group checkbox-form-group">
-                      <label className="member-checkbox-label member-checkbox-label--standalone">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(inputs.has_employer_health_insurance)}
-                          onChange={(event) => onScenarioChange({ has_employer_health_insurance: event.target.checked })}
-                        />
-                        <span>Employer health insurance offer</span>
+                    <div className="form-group">
+                      <label id="employer-health-insurance-offer-label">
+                        Employer health insurance offer
                       </label>
+                      <button
+                        type="button"
+                        className={inputs.has_employer_health_insurance ? 'toggle-switch toggle-switch--on' : 'toggle-switch'}
+                        role="switch"
+                        aria-checked={Boolean(inputs.has_employer_health_insurance)}
+                        aria-labelledby="employer-health-insurance-offer-label employer-health-insurance-offer-value"
+                        onClick={() => onScenarioChange({ has_employer_health_insurance: !inputs.has_employer_health_insurance })}
+                      >
+                        <span id="employer-health-insurance-offer-value" className="toggle-switch-text">
+                          {inputs.has_employer_health_insurance ? 'Offered' : 'Not offered'}
+                        </span>
+                        <span className="toggle-switch-track" aria-hidden="true">
+                          <span className="toggle-switch-thumb" />
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </section>

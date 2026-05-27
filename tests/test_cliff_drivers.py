@@ -74,6 +74,45 @@ def test_build_cliff_drivers_uses_state_specific_program_labels() -> None:
     )
 
 
+def test_build_cliff_drivers_identifies_person_losing_medicaid() -> None:
+    previous = {
+        "programs": {"medicaid": 6_332.0},
+        "household_costs": {},
+        "totals": {"taxes": 0.0},
+        "person_programs": {
+            "medicaid": {
+                "adult_1": {"label": "Adult 1 Medicaid", "value": 6_332.0},
+                "child_1": {"label": "Child 1 Medicaid", "value": 0.0},
+            }
+        },
+    }
+    current = {
+        "programs": {"medicaid": 0.0},
+        "household_costs": {},
+        "totals": {"taxes": 0.0},
+        "person_programs": {
+            "medicaid": {
+                "adult_1": {"label": "Adult 1 Medicaid", "value": 0.0},
+                "child_1": {"label": "Child 1 Medicaid", "value": 0.0},
+            }
+        },
+    }
+
+    assert _build_cliff_drivers(previous, current, "MN") == [
+        {
+            "key": "medicaid:adult_1",
+            "label": "Adult 1 Medicaid",
+            "kind": "benefit_loss",
+            "program_key": "medicaid",
+            "person_id": "adult_1",
+            "raw_change_annual": -6_332.0,
+            "raw_change_monthly": -527.67,
+            "resource_effect_annual": -6_332.0,
+            "resource_effect_monthly": -527.67,
+        }
+    ]
+
+
 def test_format_program_breakdown_uses_state_specific_program_labels() -> None:
     result = _format_program_breakdown({"tanf": 500.0}, "CA")
 

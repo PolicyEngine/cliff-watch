@@ -63,6 +63,18 @@ test('inputsToDraft: HEAD_OF_HOUSEHOLD becomes single with dependents', () => {
   assert.equal(dependents.length, 1);
 });
 
+test('inputsToDraft: adult ages below 18 normalize to 18', () => {
+  const draft = inputsToDraft({
+    ...baseInputs,
+    people: [
+      { kind: 'adult', age: 1 },
+      { kind: 'child', age: 1 },
+    ],
+  });
+  assert.equal(draft.people[0].age, 18);
+  assert.equal(draft.people[1].age, 1);
+});
+
 test('inputsToDraft: canonical county code passes through unchanged', () => {
   const draft = inputsToDraft({
     ...baseInputs,
@@ -75,6 +87,16 @@ test('inputsToDraft: ZIP code can derive state when state is absent', () => {
   const draft = inputsToDraft({
     ...baseInputs,
     state: null,
+    zip: '30303',
+  });
+  assert.equal(draft.state, 'GA');
+  assert.equal(draft.zip, '30303');
+});
+
+test('inputsToDraft: ZIP code overrides a conflicting state', () => {
+  const draft = inputsToDraft({
+    ...baseInputs,
+    state: 'CA',
     zip: '30303',
   });
   assert.equal(draft.state, 'GA');

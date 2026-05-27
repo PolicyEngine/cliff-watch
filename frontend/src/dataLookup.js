@@ -3,6 +3,7 @@ import {
   calculateSeriesViaPolicyEngine,
   PolicyEngineApiError,
 } from './policyengineApi.js'
+import { getStateFromZip } from 'policyengine-household-wizard'
 
 const parseErrorMessage = async (response) => {
   try {
@@ -64,6 +65,8 @@ export async function loadMetadata() {
 
 const MAX_ADULTS_FALLBACK = 6
 const MAX_DEPENDENTS_FALLBACK = 6
+const MIN_ADULT_AGE = 18
+const MAX_AGE = 120
 
 const VALID_FILING_STATUSES = new Set([
   'SINGLE',
@@ -106,12 +109,14 @@ const nonnegative = (value) => Math.max(0, Number(value) || 0)
 
 const normalizeZip = (zip) => String(zip || '').replace(/\D/g, '').slice(0, 5)
 
-const normalizeAge = (age) => {
+const normalizeAge = (age, minimum = 0) => {
   if (age === '' || age === null || age === undefined) {
     return ''
   }
   const normalized = Number(age)
-  return Number.isFinite(normalized) ? Math.max(0, normalized) : ''
+  return Number.isFinite(normalized)
+    ? Math.min(MAX_AGE, Math.max(minimum, normalized))
+    : ''
 }
 
 const normalizeMaritalStatus = (status) => (
@@ -164,7 +169,16 @@ export const hasValidAge = (age) => {
   return Number.isFinite(normalized) && normalized >= 0 && normalized <= 120
 }
 
-export const hasValidZip = (zip) => normalizeZip(zip).length === 5
+export const getZipState = (zip) => {
+  const normalized = normalizeZip(zip)
+  return normalized.length === 5 ? getStateFromZip(normalized) : null
+}
+
+export const hasValidZip = (zip, state) => {
+  const zipState = getZipState(zip)
+  if (!zipState) return false
+  return !state || zipState === state
+}
 
 export function hasCompleteHouseholdAges(inputs) {
   const people = inputs?.people || []
@@ -175,7 +189,7 @@ export function hasCompleteHouseholdAges(inputs) {
 
 export function hasCompleteRequiredInputs(inputs) {
   return Boolean(inputs?.state)
-    && hasValidZip(inputs?.zip)
+    && hasValidZip(inputs?.zip, inputs?.state)
     && MARITAL_STATUS_CODES.has(inputs?.marital_status)
     && hasCompleteHouseholdAges(inputs)
 }
@@ -208,7 +222,7 @@ const normalizePeople = (people = [], metadata) => {
 
     return [{
       kind,
-      age: normalizeAge(person?.age),
+      age: normalizeAge(person?.age, kind === 'adult' ? MIN_ADULT_AGE : 0),
       is_pregnant: kind === 'adult' ? Boolean(person?.is_pregnant) : false,
       is_disabled: Boolean(person?.is_disabled),
       is_blind: Boolean(person?.is_blind),
@@ -251,6 +265,9 @@ const deriveFilingStatus = (people = [], maritalStatus = DEFAULT_MARITAL_STATUS)
 
 export function reconcileInputs(inputs, metadata) {
   const normalizedPeople = normalizePeople(inputs?.people || [], metadata)
+  const normalizedZip = normalizeZip(inputs?.zip ?? inputs?.zip_code)
+  const stateFromZip = getZipState(normalizedZip)
+  const normalizedState = stateFromZip || (normalizedZip ? '' : inputs?.state || '')
   let maritalStatus = ''
   if (MARITAL_STATUS_CODES.has(inputs?.marital_status)) {
     maritalStatus = inputs.marital_status
@@ -298,7 +315,7 @@ export function reconcileInputs(inputs, metadata) {
 
   const next = {
     ...inputs,
-    state: inputs?.state || '',
+    state: normalizedState,
     marital_status: maritalStatus,
     people: normalizedPeople,
     chart_max_earned_income: Math.max(
@@ -309,7 +326,7 @@ export function reconcileInputs(inputs, metadata) {
     selected_programs: publicAssistanceProgramKeys.filter((key) => selectedProgramSet.has(key)),
     has_employer_health_insurance: Boolean(inputs?.has_employer_health_insurance),
     year: metadata?.year || 2026,
-    zip: normalizeZip(inputs?.zip ?? inputs?.zip_code),
+    zip: normalizedZip,
   }
   next.county = normalizeCounty(inputs?.county, next.state, metadata)
 

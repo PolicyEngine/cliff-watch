@@ -5,7 +5,9 @@ import {
   buildHouseholdPayload,
   calculateSeries,
   createInitialInputs,
+  getZipState,
   hasCompleteRequiredInputs,
+  hasValidZip,
   reconcileInputs,
 } from './dataLookup.js'
 import {
@@ -38,11 +40,13 @@ const metadata = {
   programs: [
     { key: 'tanf', label: 'TANF', short_label: 'TANF', description: '' },
     { key: 'chip', label: 'CHIP', short_label: 'CHIP', description: '' },
+    { key: 'medicaid', label: 'Medicaid', short_label: 'Medicaid', description: '' },
   ],
   state_program_overrides: {
     GA: {
       tanf: { label: 'Georgia Temporary Assistance for Needy Families (TANF)' },
       chip: { label: "Georgia Children's Health Insurance Program (CHIP)" },
+      medicaid: { label: 'Georgia Medicaid' },
     },
   },
   household_costs: [{ key: 'chip_premium', label: 'CHIP premium' }],
@@ -231,6 +235,48 @@ test('buildCliffDrivers uses state-specific benefit labels', () => {
   assert.equal(drivers[0].label, 'Georgia Temporary Assistance for Needy Families (TANF)')
 })
 
+test('buildCliffDrivers identifies the person losing Medicaid', () => {
+  const previousPoint = {
+    programs: { medicaid: 6332 },
+    household_costs: {},
+    totals: { taxes: 0 },
+    person_programs: {
+      medicaid: {
+        adult_1: { label: 'Adult 1 Medicaid', value: 6332 },
+        child_1: { label: 'Child 1 Medicaid', value: 0 },
+      },
+    },
+  }
+  const currentPoint = {
+    programs: { medicaid: 0 },
+    household_costs: {},
+    totals: { taxes: 0 },
+    person_programs: {
+      medicaid: {
+        adult_1: { label: 'Adult 1 Medicaid', value: 0 },
+        child_1: { label: 'Child 1 Medicaid', value: 0 },
+      },
+    },
+  }
+
+  assert.deepEqual(
+    buildCliffDrivers(previousPoint, currentPoint, metadata, 'GA'),
+    [
+      {
+        key: 'medicaid:adult_1',
+        label: 'Adult 1 Medicaid',
+        kind: 'benefit_loss',
+        program_key: 'medicaid',
+        person_id: 'adult_1',
+        raw_change_annual: -6332,
+        raw_change_monthly: -527.67,
+        resource_effect_annual: -6332,
+        resource_effect_monthly: -527.67,
+      },
+    ],
+  )
+})
+
 test('buildSeriesDataFromResponse carries CHIP premiums into series net resources and cliff drivers', () => {
   const payload = {
     state: 'GA',
@@ -256,6 +302,34 @@ test('buildSeriesDataFromResponse carries CHIP premiums into series net resource
   assert.equal(result.data[1].cliff_drop_annual, 1300)
   assert.equal(result.data[1].cliff_drivers[0].kind, 'household_cost_increase')
   assert.equal(result.data[1].cliff_drivers[0].label, 'CHIP premium')
+})
+
+test('buildSeriesDataFromResponse carries person-level Medicaid cliff drivers', () => {
+  const payload = {
+    state: 'GA',
+    year: 2026,
+    filing_status: 'HEAD_OF_HOUSEHOLD',
+  }
+  const seriesMeta = {
+    pointCount: 2,
+    effectiveStep: 500,
+    alignedMaxEarnedIncome: 1500,
+  }
+  const response = JSON.parse(JSON.stringify(seriesResponse()))
+  response.result.people.adult_1.medicaid = { 2026: [6332, 0] }
+
+  const result = buildSeriesDataFromResponse(
+    payload,
+    metadata,
+    response,
+    descriptor,
+    seriesMeta,
+  )
+
+  assert.equal(result.data[0].person_programs.medicaid.adult_1.value, 6332)
+  assert.equal(result.data[0].person_programs.medicaid.adult_1.label, 'Adult 1 Medicaid')
+  assert.equal(result.data[1].cliff_drivers[0].key, 'medicaid:adult_1')
+  assert.equal(result.data[1].cliff_drivers[0].label, 'Adult 1 Medicaid')
 })
 
 test('applyFilingStatusSelection adds a spouse when selecting a married status', () => {
@@ -339,6 +413,60 @@ test('required inputs include state, marital status, and all visible ages', () =
     marital_status: 'UNMARRIED',
     people: [{ kind: 'adult', age: 33 }],
   }), false)
+
+  assert.equal(hasCompleteRequiredInputs({
+    ...initial,
+    state: 'GA',
+    zip: '00001',
+    marital_status: 'UNMARRIED',
+    people: [{ kind: 'adult', age: 33 }],
+  }), false)
+
+  assert.equal(hasCompleteRequiredInputs({
+    ...initial,
+    state: 'MN',
+    zip: '30303',
+    marital_status: 'UNMARRIED',
+    people: [{ kind: 'adult', age: 33 }],
+  }), false)
+})
+
+test('ZIP validation requires a known ZIP prefix matching the selected state', () => {
+  assert.equal(getZipState('30303'), 'GA')
+  assert.equal(hasValidZip('30303', 'GA'), true)
+  assert.equal(hasValidZip('30303', 'MN'), false)
+  assert.equal(hasValidZip('00001', 'GA'), false)
+})
+
+test('adult ages below 18 normalize to 18', () => {
+  const initial = createInitialInputs(metadata)
+  const result = reconcileInputs({
+    ...initial,
+    people: [
+      { kind: 'adult', age: 1 },
+      { kind: 'child', age: 1 },
+    ],
+  }, metadata)
+
+  assert.equal(result.people[0].age, 18)
+  assert.equal(result.people[1].age, 1)
+})
+
+test('reconcileInputs derives state from ZIP code', () => {
+  const initial = createInitialInputs(metadata)
+  const georgia = reconcileInputs({
+    ...initial,
+    state: 'AL',
+    zip: '30303',
+  }, metadata)
+  const invalidZip = reconcileInputs({
+    ...initial,
+    state: 'GA',
+    zip: '00001',
+  }, metadata)
+
+  assert.equal(georgia.state, 'GA')
+  assert.equal(invalidZip.state, '')
 })
 
 test('zip input is normalized and included in household payload', () => {
