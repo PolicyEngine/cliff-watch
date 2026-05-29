@@ -556,7 +556,7 @@ test('calculateSeries uses the Cliff Watch API directly', async () => {
   }
 })
 
-test('calculateSeries does not prefix API calls with the Next base path', async () => {
+test('calculateSeries prefixes API calls with the Next base path', async () => {
   const originalFetch = globalThis.fetch
   const originalBasePath = process.env.NEXT_PUBLIC_BASE_PATH
   const requests = []
@@ -565,7 +565,7 @@ test('calculateSeries does not prefix API calls with the Next base path', async 
   globalThis.fetch = async (url) => {
     requests.push(String(url))
 
-    assert.equal(String(url), '/api/series')
+    assert.equal(String(url), '/us/cliff-watch/api/series')
     return new Response(
       JSON.stringify({
         data: [],
@@ -591,12 +591,65 @@ test('calculateSeries does not prefix API calls with the Next base path', async 
       { step: 500 },
     )
 
-    assert.deepEqual(requests, ['/api/series'])
+    assert.deepEqual(requests, ['/us/cliff-watch/api/series'])
   } finally {
     if (originalBasePath === undefined) {
       delete process.env.NEXT_PUBLIC_BASE_PATH
     } else {
       process.env.NEXT_PUBLIC_BASE_PATH = originalBasePath
+    }
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('calculateSeries lets an API origin override the base path', async () => {
+  const originalFetch = globalThis.fetch
+  const originalBasePath = process.env.NEXT_PUBLIC_BASE_PATH
+  const originalApiOrigin = process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN
+  const requests = []
+
+  process.env.NEXT_PUBLIC_BASE_PATH = '/us/cliff-watch'
+  process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN = 'https://example.test/backend/'
+  globalThis.fetch = async (url) => {
+    requests.push(String(url))
+
+    assert.equal(String(url), 'https://example.test/backend/api/series')
+    return new Response(
+      JSON.stringify({
+        data: [],
+        step_annual: 500,
+        max_earned_income: 1000,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  try {
+    await calculateSeries(
+      {
+        state: 'GA',
+        people: [{ kind: 'adult', age: 33 }],
+        filing_status: 'SINGLE',
+        chart_max_earned_income: 1000,
+      },
+      metadata,
+      { step: 500 },
+    )
+
+    assert.deepEqual(requests, ['https://example.test/backend/api/series'])
+  } finally {
+    if (originalBasePath === undefined) {
+      delete process.env.NEXT_PUBLIC_BASE_PATH
+    } else {
+      process.env.NEXT_PUBLIC_BASE_PATH = originalBasePath
+    }
+    if (originalApiOrigin === undefined) {
+      delete process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN
+    } else {
+      process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN = originalApiOrigin
     }
     globalThis.fetch = originalFetch
   }

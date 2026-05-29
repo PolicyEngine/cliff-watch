@@ -11,8 +11,10 @@ const parseErrorMessage = async (response) => {
 
 const apiPath = (path) => {
   const origin = process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN || ''
-  if (!origin) return path
-  return `${origin.replace(/\/$/, '')}${path}`
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+  const prefix = origin || basePath
+  if (!prefix) return path
+  return `${prefix.replace(/\/$/, '')}${path}`
 }
 
 const postJson = async (path, payload) => {
