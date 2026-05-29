@@ -85,6 +85,42 @@ npm run dev
 
 The app will run at `http://localhost:3000/`, with `/api/*` proxied to the local Python server.
 
+## Modal Fallback API
+
+If the public PolicyEngine API has not yet picked up a required
+`policyengine-us` fix, deploy the same CliffWatch compute layer to Modal and
+point the frontend at it.
+
+First verify the Modal CLI is using the PolicyEngine workspace:
+
+```bash
+modal token new --profile policyengine  # only needed the first time
+modal profile activate policyengine
+modal profile list
+```
+
+Then deploy the backend:
+
+```bash
+modal deploy modal_app.py --env main
+```
+
+The production URL should look like:
+
+```text
+https://policyengine--cliff-watch-fastapi-app.modal.run
+```
+
+Set the frontend environment variable to that origin and redeploy the frontend:
+
+```bash
+vercel env add NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN production
+vercel --prod --force --yes --scope policy-engine
+```
+
+With that variable set, browser requests go to the Modal backend's
+`/api/metadata`, `/api/calculate`, `/api/series`, and `/api/households` routes.
+
 ## Quick CLI Smoke Test
 
 You can also run the calculator without the frontend:

@@ -1,8 +1,3 @@
-import {
-  calculateHouseholdViaPolicyEngine,
-  calculateSeriesViaPolicyEngine,
-  PolicyEngineApiError,
-} from './policyengineApi.js'
 import { getStateFromZip } from 'policyengine-household-wizard'
 
 const parseErrorMessage = async (response) => {
@@ -14,10 +9,16 @@ const parseErrorMessage = async (response) => {
   }
 }
 
-const appPath = (path) => `${process.env.NEXT_PUBLIC_BASE_PATH || ''}${path}`
+const apiPath = (path) => {
+  const origin = process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN || ''
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+  const prefix = origin || basePath
+  if (!prefix) return path
+  return `${prefix.replace(/\/$/, '')}${path}`
+}
 
 const postJson = async (path, payload) => {
-  const response = await fetch(appPath(path), {
+  const response = await fetch(apiPath(path), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -30,17 +31,6 @@ const postJson = async (path, payload) => {
   }
 
   return response.json()
-}
-
-const logUnexpectedPolicyEngineFallback = (error) => {
-  if (
-    error instanceof PolicyEngineApiError
-    || error?.name === 'PolicyEngineApiError'
-  ) {
-    return
-  }
-
-  console.error(error)
 }
 
 export const formatCurrency = (value, digits = 0) => new Intl.NumberFormat(
@@ -56,7 +46,7 @@ export const formatCurrency = (value, digits = 0) => new Intl.NumberFormat(
 export const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`
 
 export async function loadMetadata() {
-  const response = await fetch(appPath('/api/metadata'))
+  const response = await fetch(apiPath('/api/metadata'))
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response))
   }
@@ -405,13 +395,8 @@ export function buildHouseholdPayload(inputs, metadata) {
 
 export async function calculateStateResult(inputs, metadata) {
   const payload = buildHouseholdPayload(inputs, metadata)
-  try {
-    return await calculateHouseholdViaPolicyEngine(payload, metadata)
-  } catch (error) {
-    logUnexpectedPolicyEngineFallback(error)
-    const response = await postJson('/api/calculate', payload)
-    return response.result
-  }
+  const response = await postJson('/api/calculate', payload)
+  return response.result
 }
 
 export async function calculateSeries(inputs, metadata, options = {}) {
@@ -424,12 +409,7 @@ export async function calculateSeries(inputs, metadata, options = {}) {
   if (options.minEarnedIncome) {
     payload.min_earned_income = Math.max(0, Math.round(options.minEarnedIncome))
   }
-  try {
-    return await calculateSeriesViaPolicyEngine(payload, metadata)
-  } catch (error) {
-    logUnexpectedPolicyEngineFallback(error)
-    return postJson('/api/series', payload)
-  }
+  return postJson('/api/series', payload)
 }
 
 export async function calculateHouseholdTypes(inputs, metadata) {

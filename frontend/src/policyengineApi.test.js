@@ -516,24 +516,12 @@ test('household payload omits direct SSI and SSDI amount inputs', () => {
   assert.equal('ssdi_amount' in payload.people[0], false)
 })
 
-test('calculateSeries quietly falls back after a PolicyEngine API error', async () => {
+test('calculateSeries uses the Cliff Watch API directly', async () => {
   const originalFetch = globalThis.fetch
-  const originalConsoleError = console.error
-  const consoleErrors = []
   const requests = []
 
   globalThis.fetch = async (url) => {
     requests.push(String(url))
-
-    if (String(url).includes('api.policyengine.org')) {
-      return new Response(
-        JSON.stringify({ error: 'PolicyEngine API unavailable' }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      )
-    }
 
     assert.equal(String(url), '/api/series')
     return new Response(
@@ -548,7 +536,6 @@ test('calculateSeries quietly falls back after a PolicyEngine API error', async 
       },
     )
   }
-  console.error = (...args) => consoleErrors.push(args)
 
   try {
     const result = await calculateSeries(
@@ -563,13 +550,143 @@ test('calculateSeries quietly falls back after a PolicyEngine API error', async 
     )
 
     assert.deepEqual(result.data, [])
-    assert.deepEqual(consoleErrors, [])
-    assert.deepEqual(requests, [
-      'https://api.policyengine.org/us/calculate',
-      '/api/series',
-    ])
+    assert.deepEqual(requests, ['/api/series'])
   } finally {
     globalThis.fetch = originalFetch
-    console.error = originalConsoleError
+  }
+})
+
+test('calculateSeries prefixes API calls with the Next base path', async () => {
+  const originalFetch = globalThis.fetch
+  const originalBasePath = process.env.NEXT_PUBLIC_BASE_PATH
+  const requests = []
+
+  process.env.NEXT_PUBLIC_BASE_PATH = '/us/cliff-watch'
+  globalThis.fetch = async (url) => {
+    requests.push(String(url))
+
+    assert.equal(String(url), '/us/cliff-watch/api/series')
+    return new Response(
+      JSON.stringify({
+        data: [],
+        step_annual: 500,
+        max_earned_income: 1000,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  try {
+    await calculateSeries(
+      {
+        state: 'GA',
+        people: [{ kind: 'adult', age: 33 }],
+        filing_status: 'SINGLE',
+        chart_max_earned_income: 1000,
+      },
+      metadata,
+      { step: 500 },
+    )
+
+    assert.deepEqual(requests, ['/us/cliff-watch/api/series'])
+  } finally {
+    if (originalBasePath === undefined) {
+      delete process.env.NEXT_PUBLIC_BASE_PATH
+    } else {
+      process.env.NEXT_PUBLIC_BASE_PATH = originalBasePath
+    }
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('calculateSeries lets an API origin override the base path', async () => {
+  const originalFetch = globalThis.fetch
+  const originalBasePath = process.env.NEXT_PUBLIC_BASE_PATH
+  const originalApiOrigin = process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN
+  const requests = []
+
+  process.env.NEXT_PUBLIC_BASE_PATH = '/us/cliff-watch'
+  process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN = 'https://example.test/backend/'
+  globalThis.fetch = async (url) => {
+    requests.push(String(url))
+
+    assert.equal(String(url), 'https://example.test/backend/api/series')
+    return new Response(
+      JSON.stringify({
+        data: [],
+        step_annual: 500,
+        max_earned_income: 1000,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  try {
+    await calculateSeries(
+      {
+        state: 'GA',
+        people: [{ kind: 'adult', age: 33 }],
+        filing_status: 'SINGLE',
+        chart_max_earned_income: 1000,
+      },
+      metadata,
+      { step: 500 },
+    )
+
+    assert.deepEqual(requests, ['https://example.test/backend/api/series'])
+  } finally {
+    if (originalBasePath === undefined) {
+      delete process.env.NEXT_PUBLIC_BASE_PATH
+    } else {
+      process.env.NEXT_PUBLIC_BASE_PATH = originalBasePath
+    }
+    if (originalApiOrigin === undefined) {
+      delete process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN
+    } else {
+      process.env.NEXT_PUBLIC_CLIFF_WATCH_API_ORIGIN = originalApiOrigin
+    }
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('calculateSeries surfaces backend failures instead of using the public API fallback', async () => {
+  const originalFetch = globalThis.fetch
+  const requests = []
+
+  globalThis.fetch = async (url) => {
+    requests.push(String(url))
+
+    return new Response(
+      JSON.stringify({ error: 'backend unavailable' }),
+      {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  try {
+    await assert.rejects(
+      calculateSeries(
+        {
+          state: 'GA',
+          people: [{ kind: 'adult', age: 33 }],
+          filing_status: 'SINGLE',
+          chart_max_earned_income: 1000,
+        },
+        metadata,
+        { step: 500 },
+      ),
+      /backend unavailable/,
+    )
+    assert.deepEqual(requests, ['/api/series'])
+  } finally {
+    globalThis.fetch = originalFetch
   }
 })
