@@ -46,6 +46,7 @@ function App() {
   const requestVersionRef = useRef(0)
   const handleCalculateRef = useRef(null)
   const autoCalculateRef = useRef(null)
+  const pendingAutoScrollRef = useRef(false)
 
   useEffect(() => {
     loadMetadata()
@@ -88,9 +89,31 @@ function App() {
     if (metadata && autoCalculateRef.current && handleCalculateRef.current) {
       const pending = autoCalculateRef.current
       autoCalculateRef.current = null
+      pendingAutoScrollRef.current = true
       handleCalculateRef.current(pending)
     }
   })
+
+  // On share-link auto-calculation the browser's initial-load scroll
+  // restoration overrides handleCalculate's one-shot scroll, so retry as the
+  // results section renders — but never move a user who has already scrolled.
+  useEffect(() => {
+    if (!pendingAutoScrollRef.current) return undefined
+    if (!(loading || seriesData)) return undefined
+
+    const id = setTimeout(() => {
+      if (window.scrollY < 50) {
+        // Instant, not smooth: this fires during page load, where browsers
+        // throttle animated scrolling in background tabs and scroll
+        // restoration competes with it.
+        resultsRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' })
+      }
+    }, 300)
+    if (seriesData) {
+      pendingAutoScrollRef.current = false
+    }
+    return () => clearTimeout(id)
+  }, [loading, seriesData])
 
   const clearResults = () => {
     requestVersionRef.current += 1

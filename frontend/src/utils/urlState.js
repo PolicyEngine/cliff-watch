@@ -107,6 +107,8 @@ export function encodeInputs(inputs) {
 
   if (inputs.marital_status === 'MARRIED') {
     params.set('ms', 'married')
+  } else if (inputs.marital_status === 'UNMARRIED') {
+    params.set('ms', 'unmarried')
   }
 
   const people = (inputs.people || []).map(encodePerson).filter(Boolean)
@@ -175,6 +177,12 @@ export function decodeInputs(search) {
   if (params.has('p')) {
     const people = params.get('p').split(',').map(decodePerson).filter(Boolean)
     if (people.length) decoded.people = people
+  }
+
+  // Share links minted before ms=unmarried existed encoded nothing for single
+  // filers; default them so the link still auto-calculates.
+  if (!decoded.marital_status && decoded.people?.length) {
+    decoded.marital_status = 'UNMARRIED'
   }
 
   if (params.has('pm')) {
