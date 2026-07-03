@@ -85,15 +85,6 @@ function App() {
     }
   }, [draft, scenario, metadata])
 
-  useEffect(() => {
-    if (metadata && autoCalculateRef.current && handleCalculateRef.current) {
-      const pending = autoCalculateRef.current
-      autoCalculateRef.current = null
-      pendingAutoScrollRef.current = true
-      handleCalculateRef.current(pending)
-    }
-  })
-
   // On share-link auto-calculation the browser's initial-load scroll
   // restoration overrides handleCalculate's one-shot scroll, so retry as the
   // results section renders — but never move a user who has already scrolled.
@@ -235,6 +226,20 @@ function App() {
 
   useEffect(() => {
     handleCalculateRef.current = handleCalculate
+  })
+
+  // This must run after the effect above: effects fire in declaration order,
+  // and firing before the ref refresh would call a stale closure whose
+  // metadata is still null — the auto-calculation then bails silently and the
+  // pending inputs are consumed. Dev's StrictMode double-mount hid exactly
+  // that by re-arming the trigger for a second, fresh-closure pass.
+  useEffect(() => {
+    if (metadata && autoCalculateRef.current && handleCalculateRef.current) {
+      const pending = autoCalculateRef.current
+      autoCalculateRef.current = null
+      pendingAutoScrollRef.current = true
+      handleCalculateRef.current(pending)
+    }
   })
 
   const combinedInputs = metadata && scenario
