@@ -18,6 +18,17 @@ The v1 metric is:
 
 `net resources = market income + modeled support - taxes before refundable credits`
 
+## Chart views
+
+The cliff chart draws one accounting identity — `net income = earnings + supports − taxes − household costs` — from four angles, controlled by two toggles:
+
+| | Total | By program |
+| --- | --- | --- |
+| **Net income** | net income line with cliff markers and dead-zone shading | stacked program areas summing to the net income line |
+| **Marginal tax rate** | step line of the rate between sampled earnings points | stacked per-program contributions (`−Δprogram / Δearnings`) summing to the total rate |
+
+Because differencing is linear, the marginal tax rate decomposes exactly: each program's phase-out (or phase-in, shown below zero) stacks to the combined rate. The rate axis caps at 100% — cliffs push far past it, and the tooltip reports exact rates. The registry that drives all four views lives in `frontend/src/utils/chartModel.js`.
+
 ## Architecture
 
 | Layer | Technology |
