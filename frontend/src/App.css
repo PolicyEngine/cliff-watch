@@ -1353,6 +1353,15 @@ body {
   margin: 0;
 }
 
+.chart-view-toggles {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
 .chart-view-toggle {
   display: inline-flex;
   align-items: center;
@@ -2174,8 +2183,14 @@ body {
     align-items: flex-start;
   }
 
-  .chart-view-toggle {
+  .chart-view-toggles {
     width: 100%;
+    justify-content: stretch;
+  }
+
+  .chart-view-toggle {
+    flex: 1;
+    width: auto;
     justify-content: stretch;
   }
 
@@ -2303,8 +2318,13 @@ body {
     margin-bottom: 0;
   }
 
-  .chart-view-toggle {
+  .chart-view-toggles {
     width: 100%;
+  }
+
+  .chart-view-toggle {
+    flex: 1;
+    width: auto;
   }
 
   .result-banner {
