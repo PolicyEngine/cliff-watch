@@ -81,18 +81,39 @@ const OTHER_INCOME_FIELDS = [
   { key: 'self_employment_income_annual', label: 'Self-employment' },
   { key: 'child_support_annual', label: 'Child support' },
   { key: 'taxable_interest_income_annual', label: 'Interest' },
-  { key: 'dividend_income_annual', label: 'Dividends' },
+  {
+    key: 'dividend_income_annual',
+    label: 'Qualified dividends',
+    tooltip: 'Dividends taxed at capital gains rates, such as from most stocks and index funds.',
+  },
   { key: 'rental_income_annual', label: 'Rental income' },
   { key: 'unemployment_compensation_annual', label: 'Unemployment' },
-  { key: 'pension_income_annual', label: 'Pension' },
-  { key: 'social_security_annual', label: 'Social Security' },
+  {
+    key: 'pension_income_annual',
+    label: 'Private pension',
+    tooltip: 'Taxable pension or annuity income from a private employer. Use this if you are unsure of the source.',
+  },
+  {
+    key: 'public_pension_income_annual',
+    label: 'Government pension',
+    tooltip: 'Taxable pension from federal, state, local, or military service. Several states exempt it from income tax.',
+  },
+  {
+    key: 'social_security_annual',
+    label: 'Social Security retirement',
+    tooltip: 'Social Security retirement benefits. Cliff Watch calculates SSI itself.',
+  },
   { key: 'miscellaneous_income_annual', label: 'Other income' },
 ]
 
 const EXPENSE_FIELDS = [
   { key: 'childcare_expenses', label: 'Child care' },
   { key: 'rent_annual', label: 'Rent or mortgage' },
-  { key: 'utility_expense_annual', label: 'Utilities' },
+  {
+    key: 'utility_expense_annual',
+    label: 'Utilities',
+    tooltip: 'Utility bills paid separately from rent. Treated as including heating or cooling, which qualifies for the SNAP standard utility allowance.',
+  },
   { key: 'food_expense_annual', label: 'Food' },
   { key: 'transportation_expense_annual', label: 'Transportation' },
   { key: 'health_insurance_premium_annual', label: 'Health premiums' },
@@ -751,6 +772,7 @@ function InputPanel({
                         label={field.label}
                         value={inputs[field.key]}
                         onChange={(value) => onScenarioChange({ [field.key]: value })}
+                        tooltip={field.tooltip}
                       />
                     ))}
                     <CurrencyField
@@ -758,7 +780,7 @@ function InputPanel({
                       label="Checking and savings"
                       value={inputs.liquid_assets}
                       onChange={(value) => onScenarioChange({ liquid_assets: value })}
-                      tooltip="Liquid assets used by asset-tested programs such as SNAP where modeled."
+                      tooltip="Counts toward SNAP, TANF and SSI asset limits where modeled."
                     />
                   </div>
                 </section>
@@ -773,6 +795,7 @@ function InputPanel({
                         label={field.label}
                         value={inputs[field.key]}
                         onChange={(value) => onScenarioChange({ [field.key]: value })}
+                        tooltip={field.tooltip}
                       />
                     ))}
                   </div>

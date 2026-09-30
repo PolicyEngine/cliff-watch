@@ -7,12 +7,19 @@ name = "cliff-watch"
 version = "0.2.0"
 description = "Dynamic benefit cliff calculator built on PolicyEngine-US."
 requires-python = ">=3.11"
+# Exact pins: Vercel installs these on every deploy, and newer releases break
+# the API (policyengine-us 2.x drops is_ccdf_reason_for_care_eligible; old
+# policyengine-us releases fail to import with newer policyengine-core and
+# spm-calculator). 1.755.5 reproduces production's outputs exactly.
 dependencies = [
-    "policyengine-us>=1.715.2",
+    "policyengine-us==1.755.5",
+    "policyengine-core==3.28.0",
+    "spm-calculator==0.3.1",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "hypothesis>=6",
     "pytest>=8",
     "pytest-cov>=5",
     "ruff>=0.6",
