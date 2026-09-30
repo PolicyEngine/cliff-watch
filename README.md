@@ -78,7 +78,7 @@ export POLICYENGINE_US_REPO=../policyengine-us
 
 ```bash
 cd frontend
-npm install
+bun install
 ```
 
 ### 3. Run locally
@@ -93,10 +93,39 @@ In a second terminal:
 
 ```bash
 cd frontend
-npm run dev
+bun run dev
 ```
 
 The app will run at `http://localhost:3000/`, with `/api/*` proxied to the local Python server.
+
+## Tests
+
+```bash
+uv run pytest                  # calculator, payload invariants, JS-vs-Python builder differential
+cd frontend && bun run test    # Vitest, including fast-check payload invariants
+```
+
+Both suites check the situation builders (`cliff_watch/calculator.py` and
+`frontend/src/policyengineApi.js`) against the PolicyEngine US variable graph.
+Some PolicyEngine US variables are sums of components (`adds`). An input on
+such a total replaces the sum, so every rule that reads a component sees zero:
+sending `pension_income` once left pension income out of AGI. The builders
+therefore send each income field to a component (`HEAD_INCOME_INPUTS`), and the
+invariant tests fail if either builder sets a total that isn't listed, with a
+reason, in `REVIEWED_TOTAL_INPUTS`. The frontend tests read a snapshot of the
+graph; regenerate it after changing either builder or the pinned
+`policyengine-us`:
+
+```bash
+uv run python scripts/generate_variable_graph.py
+```
+
+Opt-in live checks post built situations to api.policyengine.org:
+
+```bash
+POLICYENGINE_LIVE_API=1 uv run pytest tests/test_live_policyengine_api.py
+cd frontend && bun run test:live
+```
 
 ## Modal Fallback API
 

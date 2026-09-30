@@ -26,6 +26,7 @@ const NUMERIC_FIELDS = [
   ['ri', 'rental_income_annual'],
   ['ui', 'unemployment_compensation_annual'],
   ['pen', 'pension_income_annual'],
+  ['gpen', 'public_pension_income_annual'],
   ['ss', 'social_security_annual'],
   ['mi', 'miscellaneous_income_annual'],
   ['assets', 'liquid_assets'],
