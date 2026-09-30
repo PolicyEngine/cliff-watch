@@ -80,6 +80,7 @@ class HouseholdInput:
     rental_income_annual: float = 0.0
     unemployment_compensation_annual: float = 0.0
     pension_income_annual: float = 0.0
+    public_pension_income_annual: float = 0.0
     social_security_annual: float = 0.0
     miscellaneous_income_annual: float = 0.0
     liquid_assets: float = 0.0
@@ -104,6 +105,27 @@ PERSON_LEVEL_DRIVER_PROGRAMS = {
 }
 FILING_STATUS_CODES = {item["code"] for item in FILING_STATUS_OPTIONS}
 _MISSING_VARIABLE_WARNINGS_EMITTED: set[str] = set()
+
+# Household-level income fields (entered for the first adult) and the
+# policyengine-us variable each one sets. Every target must be a component,
+# never a total: an input on a variable that `adds` others replaces the sum,
+# so rules reading the components see zero. Sending `pension_income`, for
+# example, left `taxable_pension_income` and AGI at 0, and sending
+# `social_security` left `social_security_retirement` at 0.
+HEAD_INCOME_INPUTS = {
+    "self_employment_income_annual": "self_employment_income",
+    "child_support_annual": "child_support_received",
+    "taxable_interest_income_annual": "taxable_interest_income",
+    "dividend_income_annual": "qualified_dividend_income",
+    "rental_income_annual": "rental_income",
+    "unemployment_compensation_annual": "unemployment_compensation",
+    # Private or unknown-source pensions; government pensions get their own
+    # field because several states exempt them.
+    "pension_income_annual": "taxable_private_pension_income",
+    "public_pension_income_annual": "taxable_public_pension_income",
+    "social_security_annual": "social_security_retirement",
+    "miscellaneous_income_annual": "miscellaneous_income",
+}
 
 
 def _program_definition_for_state(key: str, state_code: str | None = None) -> dict[str, Any]:
@@ -478,6 +500,27 @@ def _base_person_data(
     return data
 
 
+def _liquid_asset_holder(members: list[dict[str, Any]]) -> str | None:
+    """The person whose ``bank_account_assets`` carry the household's savings.
+
+    SNAP and TANF asset tests sum over the SPM unit, so only the SSI resource
+    test depends on the holder. Savings go to the head, or to the spouse when
+    only the spouse could claim SSI (aged 65+, blind or disabled), whose
+    resources would include the couple's savings.
+    """
+
+    def could_claim_ssi(person: dict[str, Any]) -> bool:
+        return person["age"] >= 65 or person["is_blind"] or person["is_disabled"]
+
+    head = next((person for person in members if person["role"] == "head"), None)
+    spouse = next((person for person in members if person["role"] == "spouse"), None)
+    if head is None:
+        return None
+    if spouse is not None and could_claim_ssi(spouse) and not could_claim_ssi(head):
+        return spouse["id"]
+    return head["id"]
+
+
 def _base_household_groups(
     members: list[dict[str, Any]],
     *,
@@ -494,25 +537,7 @@ def _base_household_groups(
     people: dict[str, dict[str, Any]] = {}
     member_ids = [person["id"] for person in members]
 
-    def set_earned_income(person_data: dict[str, Any], amount: float) -> None:
-        person_data["employment_income"] = {year: amount}
-        monthly_earned = amount / 12
-        person_data["tanf_gross_earned_income"] = {
-            f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
-        }
-
-        state_specific_earned_income = {
-            "DC": "dc_tanf_gross_earned_income",
-            "IL": "il_tanf_gross_earned_income",
-            "MT": "mt_tanf_gross_earned_income_person",
-            "SC": "sc_tanf_gross_earned_income",
-            "TX": "tx_tanf_gross_earned_income",
-        }
-        variable = state_specific_earned_income.get(payload.state)
-        if variable:
-            person_data[variable] = {
-                f"{year}-{month:02d}": monthly_earned for month in range(1, 13)
-            }
+    asset_holder_id = _liquid_asset_holder(members)
 
     for index, person in enumerate(members):
         person_data = _base_person_data(person, year=year)
@@ -562,30 +587,29 @@ def _base_household_groups(
                 year: person["ssdi_amount"]
             }
 
+        # Only wages are set: TANF, SNAP and the rest derive their earned
+        # income from them. Setting a derived variable such as
+        # tanf_gross_earned_income on some people fixes it at zero for
+        # everyone else, which froze TANF across the earnings axis whenever
+        # a second adult had wages.
         fixed_earned_income = person["earned_income"] if index != 0 else 0.0
         if include_income_overrides and index == 0:
-            set_earned_income(person_data, earned_income)
+            person_data["employment_income"] = {year: earned_income}
         elif not include_income_overrides and index == 0:
             person_data["employment_income"] = {year: None}
         elif fixed_earned_income > 0:
-            set_earned_income(person_data, fixed_earned_income)
+            person_data["employment_income"] = {year: fixed_earned_income}
 
         if index == 0:
-            extra_income_inputs = {
-                "self_employment_income": payload.self_employment_income_annual,
-                "child_support_received": payload.child_support_annual,
-                "taxable_interest_income": payload.taxable_interest_income_annual,
-                "dividend_income": payload.dividend_income_annual,
-                "rental_income": payload.rental_income_annual,
-                "unemployment_compensation": payload.unemployment_compensation_annual,
-                "pension_income": payload.pension_income_annual,
-                "social_security": payload.social_security_annual,
-                "miscellaneous_income": payload.miscellaneous_income_annual,
-            }
-            for variable, amount in extra_income_inputs.items():
-                annual_amount = _nonnegative(amount)
+            for field_name, variable in HEAD_INCOME_INPUTS.items():
+                annual_amount = _nonnegative(getattr(payload, field_name))
                 if annual_amount > 0:
                     person_data[variable] = {year: annual_amount}
+
+        if person["id"] == asset_holder_id and payload.liquid_assets > 0:
+            person_data["bank_account_assets"] = {
+                year: _nonnegative(payload.liquid_assets)
+            }
 
         people[person["id"]] = person_data
 
@@ -608,20 +632,6 @@ def _base_household_groups(
             year: _program_included(payload, "federal_refundable_credits")
         },
     }
-    if include_income_overrides:
-        estimated_magi = (
-            earned_income
-            + sum(person["earned_income"] for person in members[1:])
-            + _nonnegative(payload.self_employment_income_annual)
-            + _nonnegative(payload.taxable_interest_income_annual)
-            + _nonnegative(payload.dividend_income_annual)
-            + _nonnegative(payload.rental_income_annual)
-            + _nonnegative(payload.unemployment_compensation_annual)
-            + _nonnegative(payload.pension_income_annual)
-            + _nonnegative(payload.miscellaneous_income_annual)
-        )
-        tax_unit["aca_magi"] = {year: estimated_magi}
-        tax_unit["medicaid_magi"] = {year: estimated_magi}
 
     childcare_expenses = _nonnegative(payload.childcare_expenses)
     spm_unit: dict[str, Any] = {
@@ -643,10 +653,11 @@ def _base_household_groups(
             year: childcare_expenses
         }
     if utility_expense_annual > 0:
-        spm_unit["utility_expense"] = {year: utility_expense_annual}
+        # utility_expense sums the per-utility bills, and SNAP picks its
+        # utility allowance from them; a bill that includes heating or cooling
+        # qualifies for the standard allowance.
+        spm_unit["heating_cooling_expense"] = {year: utility_expense_annual}
         household["hud_utility_allowance"] = {year: utility_expense_annual}
-    if payload.liquid_assets > 0:
-        spm_unit["snap_assets"] = {year: _nonnegative(payload.liquid_assets)}
 
     if _program_included(payload, "tanf"):
         spm_unit["is_tanf_enrolled"] = {
@@ -661,11 +672,6 @@ def _base_household_groups(
         "households": {"household": household},
         "marital_units": {},
     }
-
-    if include_income_overrides and payload.state == "CO" and earned_income > 0:
-        situation["spm_units"]["spm_unit"]["co_tanf_countable_gross_earned_income"] = {
-            year: earned_income
-        }
 
     head_and_spouse = [
         person["id"] for person in members if person["role"] in {"head", "spouse"}
@@ -1268,6 +1274,7 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
                 payload.unemployment_compensation_annual
             ),
             "pension_income_annual": payload.pension_income_annual,
+            "public_pension_income_annual": payload.public_pension_income_annual,
             "social_security_annual": payload.social_security_annual,
             "miscellaneous_income_annual": payload.miscellaneous_income_annual,
             "liquid_assets": payload.liquid_assets,
@@ -2075,6 +2082,7 @@ def household_input_from_dict(data: dict[str, Any]) -> HouseholdInput:
             "unemployment_compensation_annual"
         ),
         pension_income_annual=numeric("pension_income_annual"),
+        public_pension_income_annual=numeric("public_pension_income_annual"),
         social_security_annual=numeric("social_security_annual"),
         miscellaneous_income_annual=numeric("miscellaneous_income_annual"),
         liquid_assets=numeric("liquid_assets"),

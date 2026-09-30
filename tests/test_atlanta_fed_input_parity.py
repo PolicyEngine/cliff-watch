@@ -94,11 +94,13 @@ def test_atlanta_fed_parity_inputs_reach_policyengine_situation() -> None:
     assert spm_unit["takes_up_tanf_if_eligible"][2026] is False
     assert spm_unit["receives_housing_assistance"][2026] is True
     assert spm_unit["childcare_expenses"][2026] == 6_000
-    assert spm_unit["utility_expense"][2026] == 2_400
-    assert spm_unit["snap_assets"][2026] == 1_500
+    assert spm_unit["heating_cooling_expense"][2026] == 2_400
+    assert adult_1["bank_account_assets"][2026] == 1_500
 
     assert tax_unit["takes_up_aca_if_eligible"][2026] is False
-    assert tax_unit["aca_magi"][2026] == 47_200
+    # policyengine-us derives MAGI from the income inputs on every path.
+    assert "aca_magi" not in tax_unit
+    assert "medicaid_magi" not in tax_unit
 
 
 def test_household_type_comparison_preserves_advanced_inputs(monkeypatch) -> None:

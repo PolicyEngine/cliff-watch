@@ -90,6 +90,7 @@ const INCOME_AND_ASSET_FIELDS = [
   'rental_income_annual',
   'unemployment_compensation_annual',
   'pension_income_annual',
+  'public_pension_income_annual',
   'social_security_annual',
   'miscellaneous_income_annual',
   'liquid_assets',

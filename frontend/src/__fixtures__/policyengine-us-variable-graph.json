@@ -1,0 +1,3081 @@
+{
+  "source": "scripts/generate_variable_graph.py",
+  "policyengine_us_version": "1.755.5",
+  "variables": {
+    "age": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ak_atap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ak_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ak_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ak_ccap"
+      ],
+      "subtracts": []
+    },
+    "ak_permanent_fund_dividend": {
+      "entity": "person",
+      "adds": [],
+      "adds_parameters": [
+        "gov.states.ak.dor.permanent_fund_dividend"
+      ],
+      "subtracts": []
+    },
+    "al_ccsp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "al_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "al_ccsp"
+      ],
+      "subtracts": []
+    },
+    "al_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "al_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "al_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "alimony_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ar_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ar_sra"
+      ],
+      "subtracts": []
+    },
+    "ar_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ar_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ar_sra": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ar_tea": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "assigned_aca_ptc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "az_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "az_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "az_ccap"
+      ],
+      "subtracts": []
+    },
+    "az_families_tax_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "az_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "az_increased_excise_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "az_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "az_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "az_families_tax_rebate",
+        "az_increased_excise_tax_credit",
+        "az_property_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "az_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "bank_account_assets": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_calworks_child_care": {
+      "entity": "spm_unit",
+      "adds": [
+        "ca_calworks_child_care_payment"
+      ],
+      "subtracts": []
+    },
+    "ca_calworks_child_care_payment": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_calworks_stage_2": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_calworks_stage_3": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_capp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ca_calworks_child_care",
+        "ca_calworks_stage_2",
+        "ca_calworks_stage_3",
+        "ca_capp"
+      ],
+      "subtracts": []
+    },
+    "ca_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_foster_youth_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [
+        "ca_foster_youth_tax_credit_person"
+      ],
+      "subtracts": []
+    },
+    "ca_foster_youth_tax_credit_person": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ca_eitc",
+        "ca_foster_youth_tax_credit",
+        "ca_sf_wftc",
+        "ca_yctc"
+      ],
+      "subtracts": []
+    },
+    "ca_sf_wftc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_use_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ca_yctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "capital_gains": {
+      "entity": "person",
+      "adds": [
+        "long_term_capital_gains",
+        "short_term_capital_gains"
+      ],
+      "subtracts": []
+    },
+    "capital_gains_behavioral_response": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ccdf_age_group": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ak_child_care_subsidies",
+        "al_child_care_subsidies",
+        "ar_child_care_subsidies",
+        "az_child_care_subsidies",
+        "ca_child_care_subsidies",
+        "co_child_care_subsidies",
+        "ct_child_care_subsidies",
+        "de_child_care_subsidies",
+        "fl_child_care_subsidies",
+        "ga_child_care_subsidies",
+        "hi_child_care_subsidies",
+        "ia_child_care_subsidies",
+        "id_child_care_subsidies",
+        "in_child_care_subsidies",
+        "ks_child_care_subsidies",
+        "ky_child_care_subsidies",
+        "la_child_care_subsidies",
+        "ma_child_care_subsidies",
+        "md_child_care_subsidies",
+        "me_child_care_subsidies",
+        "mi_child_care_subsidies",
+        "mn_child_care_subsidies",
+        "mo_child_care_subsidies",
+        "ms_child_care_subsidies",
+        "ne_child_care_subsidies",
+        "nh_child_care_subsidies",
+        "nj_child_care_subsidies",
+        "pa_child_care_subsidies",
+        "ri_child_care_subsidies",
+        "sc_child_care_subsidies",
+        "va_child_care_subsidies",
+        "vt_child_care_subsidies",
+        "wa_child_care_subsidies",
+        "wv_child_care_subsidies"
+      ],
+      "subtracts": []
+    },
+    "child_support_received": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "childcare_expenses": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "chip": {
+      "entity": "person",
+      "adds": [
+        "per_capita_chip"
+      ],
+      "subtracts": []
+    },
+    "chip_premium": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_care_worker_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_ccap_subsidy": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "co_ccap_subsidy"
+      ],
+      "subtracts": []
+    },
+    "co_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_denver_employee_occupational_privilege_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_family_affordability_credit": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_glendale_employee_occupational_privilege_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_greenwood_village_employee_occupational_privilege_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_income_qualified_senior_housing_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_low_income_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "co_care_worker_credit",
+        "co_cdcc",
+        "co_ctc",
+        "co_eitc",
+        "co_family_affordability_credit",
+        "co_income_qualified_senior_housing_credit",
+        "co_low_income_cdcc",
+        "co_sales_tax_refund",
+        "co_tabor_cash_back"
+      ],
+      "subtracts": []
+    },
+    "co_sales_tax_refund": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_sheridan_employee_occupational_privilege_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_tabor_cash_back": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "co_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "county": {
+      "entity": "household",
+      "adds": [],
+      "subtracts": []
+    },
+    "ct_c4k": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ct_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ct_c4k"
+      ],
+      "subtracts": []
+    },
+    "ct_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ct_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ct_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ct_eitc"
+      ],
+      "subtracts": []
+    },
+    "ct_tfa": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_kccatc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_ptc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "dc_ctc",
+        "dc_eitc",
+        "dc_kccatc",
+        "dc_ptc"
+      ],
+      "subtracts": []
+    },
+    "dc_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "de_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "de_poc"
+      ],
+      "subtracts": []
+    },
+    "de_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "de_poc": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "de_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "de_refundable_eitc",
+        "de_relief_rebate"
+      ],
+      "subtracts": []
+    },
+    "de_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [
+        "de_refundable_eitc_if_claimed"
+      ],
+      "subtracts": []
+    },
+    "de_refundable_eitc_if_claimed": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "de_relief_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "de_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "debt_relief": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "dividend_income": {
+      "entity": "person",
+      "adds": [
+        "ordinary_dividend_income"
+      ],
+      "subtracts": []
+    },
+    "early_head_start": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "employee_payroll_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "employment_income": {
+      "entity": "person",
+      "adds": [
+        "employment_income_before_lsr",
+        "employment_income_behavioral_response"
+      ],
+      "subtracts": []
+    },
+    "employment_income_before_lsr": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "employment_income_behavioral_response": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "farm_operations_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "farm_rent_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "filing_status": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "fl_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "fl_sr"
+      ],
+      "subtracts": []
+    },
+    "fl_sr": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "fl_tca": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "flat_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "free_school_meals": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ga_caps": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ga_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ga_caps"
+      ],
+      "subtracts": []
+    },
+    "ga_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ga_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ga_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "gi_cash_assistance": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "has_esi": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "has_itin": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "head_start": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "health_insurance_premiums": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "heating_cooling_expense": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_act_115_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "hi_ccap"
+      ],
+      "subtracts": []
+    },
+    "hi_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_food_excise_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "hi_act_115_rebate",
+        "hi_cdcc",
+        "hi_eitc",
+        "hi_food_excise_credit",
+        "hi_tax_credit_for_low_income_household_renters"
+      ],
+      "subtracts": []
+    },
+    "hi_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hi_tax_credit_for_low_income_household_renters": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "household_market_income": {
+      "entity": "household",
+      "adds": [
+        "ak_permanent_fund_dividend",
+        "alimony_income",
+        "capital_gains",
+        "debt_relief",
+        "dividend_income",
+        "employment_income",
+        "farm_operations_income",
+        "farm_rent_income",
+        "gi_cash_assistance",
+        "illicit_income",
+        "interest_income",
+        "miscellaneous_income",
+        "partnership_s_corp_income",
+        "pension_income",
+        "rental_income",
+        "retirement_distributions",
+        "self_employment_income",
+        "sstb_self_employment_income",
+        "strike_benefits"
+      ],
+      "subtracts": []
+    },
+    "household_refundable_state_tax_credits": {
+      "entity": "household",
+      "adds": [
+        "al_refundable_credits",
+        "ar_refundable_credits",
+        "az_refundable_credits",
+        "ca_refundable_credits",
+        "co_refundable_credits",
+        "ct_refundable_credits",
+        "dc_refundable_credits",
+        "de_refundable_credits",
+        "ga_refundable_credits",
+        "hi_refundable_credits",
+        "ia_refundable_credits",
+        "id_refundable_credits",
+        "il_refundable_credits",
+        "in_refundable_credits",
+        "ks_refundable_credits",
+        "ky_refundable_credits",
+        "la_refundable_credits",
+        "ma_refundable_credits",
+        "md_refundable_credits",
+        "me_refundable_credits",
+        "mi_refundable_credits",
+        "mn_refundable_credits",
+        "mo_refundable_credits",
+        "ms_refundable_credits",
+        "mt_refundable_credits",
+        "nd_refundable_credits",
+        "ne_refundable_credits",
+        "nh_refundable_credits",
+        "nj_refundable_credits",
+        "nm_refundable_credits",
+        "ny_refundable_credits",
+        "nyc_refundable_credits",
+        "oh_refundable_credits",
+        "ok_refundable_credits",
+        "or_refundable_credits",
+        "pa_refundable_tax_credits",
+        "ri_refundable_credits",
+        "sc_refundable_credits",
+        "ut_refundable_credits",
+        "va_refundable_credits",
+        "vt_refundable_credits",
+        "wa_refundable_credits",
+        "wi_refundable_credits",
+        "wv_refundable_credits"
+      ],
+      "subtracts": []
+    },
+    "household_state_tax_before_refundable_credits": {
+      "entity": "household",
+      "adds": [
+        "state_income_tax_before_refundable_credits",
+        "state_use_tax"
+      ],
+      "subtracts": []
+    },
+    "household_tax_before_refundable_credits": {
+      "entity": "household",
+      "adds": [
+        "employee_payroll_tax",
+        "flat_tax",
+        "household_state_tax_before_refundable_credits",
+        "income_tax_before_refundable_credits",
+        "local_income_tax_before_refundable_credits",
+        "local_occupational_tax",
+        "self_employment_tax"
+      ],
+      "subtracts": []
+    },
+    "housing_assistance": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hud_utility_allowance": {
+      "entity": "household",
+      "adds": [],
+      "subtracts": []
+    },
+    "ia_cca": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ia_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ia_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ia_cca"
+      ],
+      "subtracts": []
+    },
+    "ia_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ia_fip": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ia_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ia_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ia_cdcc",
+        "ia_eitc"
+      ],
+      "subtracts": []
+    },
+    "id_2022_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "id_aged_or_disabled_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "id_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "id_iccp"
+      ],
+      "subtracts": []
+    },
+    "id_grocery_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "id_iccp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "id_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "id_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "id_2022_rebate",
+        "id_aged_or_disabled_credit",
+        "id_grocery_credit",
+        "id_special_season_rebate"
+      ],
+      "subtracts": []
+    },
+    "id_special_season_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "id_tafi": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_income_tax_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_pass_through_entity_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_pass_through_withholding": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "il_ctc",
+        "il_eitc",
+        "il_income_tax_rebate",
+        "il_pass_through_entity_tax_credit",
+        "il_pass_through_withholding"
+      ],
+      "subtracts": []
+    },
+    "il_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_use_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "illicit_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "immigration_status_str": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "in_ccdf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "in_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "in_ccdf"
+      ],
+      "subtracts": []
+    },
+    "in_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "in_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "in_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "in_eitc",
+        "in_unified_elderly_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "in_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "in_unified_elderly_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "in_use_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "income_tax_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "cdcc",
+        "eitc",
+        "recovery_rebate_credit",
+        "refundable_american_opportunity_credit",
+        "refundable_ctc",
+        "refundable_payroll_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "interest_income": {
+      "entity": "person",
+      "adds": [
+        "tax_exempt_interest_income",
+        "taxable_interest_income"
+      ],
+      "subtracts": []
+    },
+    "is_aca_ptc_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_blind": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_ccdf_reason_for_care_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_chip_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_disabled": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_enrolled_in_ccdf": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_enrolled_in_head_start": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_full_time_student": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_incapable_of_self_care": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_medicaid_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_pregnant": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "is_tanf_enrolled": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "keogh_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ks_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ks_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ks_ccap"
+      ],
+      "subtracts": []
+    },
+    "ks_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ks_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ks_refundable_eitc"
+      ],
+      "subtracts": []
+    },
+    "ks_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ks_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ky_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ky_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ky_ccap"
+      ],
+      "subtracts": []
+    },
+    "ky_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ky_ktap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ky_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "la_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "la_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "la_ccap"
+      ],
+      "subtracts": []
+    },
+    "la_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "la_fitap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "la_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "la_refundable_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "la_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "la_eitc",
+        "la_refundable_cdcc"
+      ],
+      "subtracts": []
+    },
+    "local_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "mo_kansas_city_earnings_tax",
+        "mo_st_louis_earnings_tax",
+        "pa_philadelphia_wage_tax"
+      ],
+      "subtracts": []
+    },
+    "local_occupational_tax": {
+      "entity": "tax_unit",
+      "adds": [
+        "co_denver_employee_occupational_privilege_tax",
+        "co_glendale_employee_occupational_privilege_tax",
+        "co_greenwood_village_employee_occupational_privilege_tax",
+        "co_sheridan_employee_occupational_privilege_tax"
+      ],
+      "subtracts": []
+    },
+    "long_term_capital_gains": {
+      "entity": "person",
+      "adds": [
+        "capital_gains_behavioral_response",
+        "long_term_capital_gains_before_response"
+      ],
+      "subtracts": []
+    },
+    "long_term_capital_gains_before_response": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_ccfa": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_child_and_family_credit_or_dependent_care_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ma_ccfa"
+      ],
+      "subtracts": []
+    },
+    "ma_covid_19_essential_employee_premium_pay_program": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ma_child_and_family_credit_or_dependent_care_credit",
+        "ma_covid_19_essential_employee_premium_pay_program",
+        "ma_eitc",
+        "ma_senior_circuit_breaker",
+        "ma_taxpayer_refund_rebate"
+      ],
+      "subtracts": []
+    },
+    "ma_senior_circuit_breaker": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_tafdc": {
+      "entity": "spm_unit",
+      "adds": [
+        "ma_tafdc_if_claimed"
+      ],
+      "subtracts": []
+    },
+    "ma_tafdc_clothing_allowance": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_tafdc_if_claimed": {
+      "entity": "spm_unit",
+      "adds": [
+        "ma_tafdc_clothing_allowance",
+        "ma_tafdc_infant_benefit",
+        "ma_tafdc_potential_main_benefit"
+      ],
+      "subtracts": []
+    },
+    "ma_tafdc_infant_benefit": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_tafdc_potential_main_benefit": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ma_taxpayer_refund_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_ccs": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "md_ccs"
+      ],
+      "subtracts": []
+    },
+    "md_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_married_or_has_child_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_montgomery_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_refundable_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "md_ctc",
+        "md_montgomery_eitc",
+        "md_refundable_cdcc",
+        "md_refundable_eitc"
+      ],
+      "subtracts": []
+    },
+    "md_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [
+        "md_married_or_has_child_refundable_eitc",
+        "md_unmarried_childless_refundable_eitc"
+      ],
+      "subtracts": []
+    },
+    "md_tca": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_unmarried_childless_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_affordability_payment": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "me_ccap"
+      ],
+      "subtracts": []
+    },
+    "me_dependent_exemption_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_property_tax_fairness_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_refundable_child_care_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "me_affordability_payment",
+        "me_dependent_exemption_credit",
+        "me_eitc",
+        "me_property_tax_fairness_credit",
+        "me_refundable_child_care_credit",
+        "me_relief_rebate",
+        "me_sales_tax_fairness_credit"
+      ],
+      "subtracts": []
+    },
+    "me_relief_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_sales_tax_fairness_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "me_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "medicaid": {
+      "entity": "person",
+      "adds": [
+        "medicaid_cost"
+      ],
+      "subtracts": []
+    },
+    "medicaid_cost": {
+      "entity": "person",
+      "adds": [
+        "medicaid_cost_if_enrolled"
+      ],
+      "subtracts": []
+    },
+    "medicaid_cost_if_enrolled": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "meets_ccdf_activity_test": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "mi_ccap"
+      ],
+      "subtracts": []
+    },
+    "mi_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_fip": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_home_heating_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_homestead_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mi_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "mi_eitc",
+        "mi_home_heating_credit",
+        "mi_homestead_property_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "miscellaneous_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_child_and_working_families_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "mn_ccap"
+      ],
+      "subtracts": []
+    },
+    "mn_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_k12_education_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_mfip": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "mn_cdcc",
+        "mn_child_and_working_families_credits",
+        "mn_k12_education_credit",
+        "mn_renters_credit",
+        "mn_wfc"
+      ],
+      "subtracts": []
+    },
+    "mn_renters_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mn_wfc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mo_ccs": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mo_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "mo_ccs"
+      ],
+      "subtracts": []
+    },
+    "mo_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mo_kansas_city_earnings_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mo_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mo_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "mo_property_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "mo_st_louis_earnings_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mo_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ms_ccpp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ms_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ms_ccpp"
+      ],
+      "subtracts": []
+    },
+    "ms_income_tax_before_credits_unit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ms_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ms_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mt_eitc": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "mt_elderly_homeowner_or_renter_credit": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "mt_income_tax_before_refundable_credits_unit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mt_refundable_credits": {
+      "entity": "person",
+      "adds": [
+        "mt_elderly_homeowner_or_renter_credit",
+        "mt_refundable_credits_before_renter_credit"
+      ],
+      "subtracts": []
+    },
+    "mt_refundable_credits_before_renter_credit": {
+      "entity": "person",
+      "adds": [
+        "mt_eitc"
+      ],
+      "subtracts": []
+    },
+    "mt_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nc_income_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nc_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nc_use_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nd_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nd_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nd_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_adc": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_cdcc_refundable": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ne_child_care_subsidy"
+      ],
+      "subtracts": []
+    },
+    "ne_child_care_subsidy": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ne_cdcc_refundable",
+        "ne_eitc",
+        "ne_refundable_ctc",
+        "ne_school_readiness_credit",
+        "ne_stillborn_credit"
+      ],
+      "subtracts": []
+    },
+    "ne_refundable_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_school_readiness_credit": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ne_stillborn_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nh_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nh_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "nh_ccap"
+      ],
+      "subtracts": []
+    },
+    "nh_fanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nh_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nh_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "nj_ccap"
+      ],
+      "subtracts": []
+    },
+    "nj_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nj_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "nj_cdcc",
+        "nj_ctc",
+        "nj_eitc",
+        "nj_property_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "nj_wfnj": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_2021_income_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_additional_2021_income_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_low_income_comprehensive_tax_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_medical_expense_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_property_tax_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "nm_2021_income_rebate",
+        "nm_additional_2021_income_rebate",
+        "nm_cdcc",
+        "nm_ctc",
+        "nm_eitc",
+        "nm_low_income_comprehensive_tax_rebate",
+        "nm_medical_expense_credit",
+        "nm_property_tax_rebate",
+        "nm_supplemental_2021_income_rebate"
+      ],
+      "subtracts": []
+    },
+    "nm_supplemental_2021_income_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nm_works": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "non_qualified_dividend_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "nv_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_additional_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_college_tuition_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_ctc": {
+      "entity": "tax_unit",
+      "adds": [
+        "ny_ctc_post_2024",
+        "ny_ctc_pre_2024"
+      ],
+      "subtracts": []
+    },
+    "ny_ctc_post_2024": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_ctc_pre_2024": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_inflation_refund_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_real_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ny_additional_ctc",
+        "ny_cdcc",
+        "ny_college_tuition_credit",
+        "ny_ctc",
+        "ny_eitc",
+        "ny_inflation_refund_credit",
+        "ny_real_property_tax_credit",
+        "ny_supplemental_eitc"
+      ],
+      "subtracts": []
+    },
+    "ny_supplemental_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ny_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nyc_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nyc_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nyc_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nyc_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "nyc_cdcc",
+        "nyc_eitc",
+        "nyc_school_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "nyc_school_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [
+        "nyc_school_tax_credit_fixed_amount",
+        "nyc_school_tax_credit_rate_reduction_amount"
+      ],
+      "subtracts": []
+    },
+    "nyc_school_tax_credit_fixed_amount": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nyc_school_tax_credit_rate_reduction_amount": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "offered_aca_disqualifying_esi": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "oh_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "oh_owf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "oh_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_ptc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ok_eitc",
+        "ok_ptc",
+        "ok_stc"
+      ],
+      "subtracts": []
+    },
+    "ok_stc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_use_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_529_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_kicker": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "or_529_credit",
+        "or_ctc",
+        "or_eitc",
+        "or_kicker",
+        "or_working_family_household_and_dependent_care_credit"
+      ],
+      "subtracts": []
+    },
+    "or_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_working_family_household_and_dependent_care_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ordinary_dividend_income": {
+      "entity": "person",
+      "adds": [
+        "non_qualified_dividend_income",
+        "qualified_dividend_income"
+      ],
+      "subtracts": []
+    },
+    "pa_ccw": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "pa_ccw"
+      ],
+      "subtracts": []
+    },
+    "pa_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_income_tax_after_forgiveness": {
+      "entity": "tax_unit",
+      "adds": [
+        "pa_income_tax_before_forgiveness"
+      ],
+      "subtracts": [
+        "pa_tax_forgiveness_amount"
+      ]
+    },
+    "pa_income_tax_before_forgiveness": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "pa_income_tax_after_forgiveness"
+      ],
+      "subtracts": []
+    },
+    "pa_philadelphia_wage_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_refundable_tax_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "pa_cdcc",
+        "pa_eitc"
+      ],
+      "subtracts": []
+    },
+    "pa_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_tax_forgiveness_amount": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "pa_use_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "partnership_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "partnership_s_corp_income": {
+      "entity": "person",
+      "adds": [
+        "partnership_income",
+        "s_corp_income"
+      ],
+      "subtracts": []
+    },
+    "pension_income": {
+      "entity": "person",
+      "adds": [
+        "tax_exempt_pension_income",
+        "taxable_pension_income"
+      ],
+      "subtracts": []
+    },
+    "per_capita_chip": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "pre_subsidy_rent": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "premium_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [
+        "assigned_aca_ptc"
+      ],
+      "subtracts": []
+    },
+    "qualified_dividend_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "receives_housing_assistance": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "receives_wic": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "recovery_rebate_credit": {
+      "entity": "tax_unit",
+      "adds": [
+        "rrc_arpa",
+        "rrc_caa",
+        "rrc_cares"
+      ],
+      "subtracts": []
+    },
+    "refundable_american_opportunity_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "refundable_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "refundable_payroll_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "rental_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "retirement_distributions": {
+      "entity": "person",
+      "adds": [
+        "tax_exempt_retirement_distributions",
+        "taxable_retirement_distributions"
+      ],
+      "subtracts": []
+    },
+    "ri_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ri_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ri_ccap"
+      ],
+      "subtracts": []
+    },
+    "ri_child_tax_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ri_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ri_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ri_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ri_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ri_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "ri_child_tax_rebate",
+        "ri_ctc",
+        "ri_eitc",
+        "ri_property_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "ri_works": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "rrc_arpa": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "rrc_caa": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "rrc_cares": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "s_corp_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "sc_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "sc_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "sc_ccap"
+      ],
+      "subtracts": []
+    },
+    "sc_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "sc_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "sc_tuition_credit"
+      ],
+      "subtracts": []
+    },
+    "sc_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "sc_tuition_credit": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "sd_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "self_employment_income": {
+      "entity": "person",
+      "adds": [
+        "self_employment_income_before_lsr",
+        "self_employment_income_behavioral_response"
+      ],
+      "subtracts": []
+    },
+    "self_employment_income_before_lsr": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "self_employment_income_behavioral_response": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "self_employment_tax": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "short_term_capital_gains": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "snap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "social_security_disability": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "social_security_retirement": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "spm_unit_pre_subsidy_childcare_expenses": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ssi": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "sstb_self_employment_income": {
+      "entity": "person",
+      "adds": [
+        "sstb_self_employment_income_before_lsr",
+        "sstb_self_employment_income_behavioral_response"
+      ],
+      "subtracts": []
+    },
+    "sstb_self_employment_income_before_lsr": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "sstb_self_employment_income_behavioral_response": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "state_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "state_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "state_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "state_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "al_income_tax_before_refundable_credits",
+        "ar_income_tax_before_refundable_credits",
+        "az_income_tax_before_refundable_credits",
+        "ca_income_tax_before_refundable_credits",
+        "co_income_tax_before_refundable_credits",
+        "ct_income_tax_before_refundable_credits",
+        "dc_income_tax_before_refundable_credits",
+        "de_income_tax_before_refundable_credits",
+        "ga_income_tax_before_refundable_credits",
+        "hi_income_tax_before_refundable_credits",
+        "ia_income_tax_before_refundable_credits",
+        "id_income_tax_before_refundable_credits",
+        "il_income_tax_before_refundable_credits",
+        "in_income_tax_before_refundable_credits",
+        "ks_income_tax_before_refundable_credits",
+        "ky_income_tax_before_refundable_credits",
+        "la_income_tax_before_refundable_credits",
+        "ma_income_tax_before_refundable_credits",
+        "md_income_tax_before_refundable_credits",
+        "me_income_tax_before_refundable_credits",
+        "mi_income_tax_before_refundable_credits",
+        "mn_income_tax_before_refundable_credits",
+        "mo_income_tax_before_refundable_credits",
+        "ms_income_tax_before_credits_unit",
+        "mt_income_tax_before_refundable_credits_unit",
+        "nc_income_tax",
+        "nd_income_tax_before_refundable_credits",
+        "ne_income_tax_before_refundable_credits",
+        "nh_income_tax_before_refundable_credits",
+        "nj_income_tax_before_refundable_credits",
+        "nm_income_tax_before_refundable_credits",
+        "ny_income_tax_before_refundable_credits",
+        "nyc_income_tax_before_refundable_credits",
+        "oh_income_tax_before_refundable_credits",
+        "ok_income_tax_before_refundable_credits",
+        "or_income_tax_before_refundable_credits",
+        "pa_income_tax_before_refundable_credits",
+        "ri_income_tax_before_refundable_credits",
+        "sc_income_tax_before_refundable_credits",
+        "ut_income_tax_before_refundable_credits",
+        "va_income_tax_before_refundable_credits",
+        "vt_income_tax_before_refundable_credits",
+        "wa_income_tax_before_refundable_credits",
+        "wi_income_tax_before_refundable_credits",
+        "wv_income_tax_before_refundable_credits"
+      ],
+      "subtracts": []
+    },
+    "state_name": {
+      "entity": "household",
+      "adds": [],
+      "subtracts": []
+    },
+    "state_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "state_use_tax": {
+      "entity": "tax_unit",
+      "adds": [
+        "ca_use_tax",
+        "il_use_tax",
+        "in_use_tax",
+        "nc_use_tax",
+        "ok_use_tax",
+        "pa_use_tax"
+      ],
+      "subtracts": []
+    },
+    "strike_benefits": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_aca_if_eligible": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_chip_if_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_early_head_start_if_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_head_start_if_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_medicaid_if_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_snap_if_eligible": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_ssi_if_eligible": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_tanf_if_eligible": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_401k_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_403b_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_interest_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_ira_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_pension_income": {
+      "entity": "person",
+      "adds": [
+        "tax_exempt_private_pension_income",
+        "tax_exempt_public_pension_income"
+      ],
+      "subtracts": []
+    },
+    "tax_exempt_private_pension_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_public_pension_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_exempt_retirement_distributions": {
+      "entity": "person",
+      "adds": [
+        "tax_exempt_401k_distributions",
+        "tax_exempt_403b_distributions",
+        "tax_exempt_ira_distributions",
+        "tax_exempt_sep_distributions"
+      ],
+      "subtracts": []
+    },
+    "tax_exempt_sep_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tax_unit_fpg": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_401k_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_403b_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_interest_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_ira_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_pension_income": {
+      "entity": "person",
+      "adds": [
+        "taxable_private_pension_income",
+        "taxable_public_pension_income"
+      ],
+      "subtracts": []
+    },
+    "taxable_private_pension_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_public_pension_income": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "taxable_retirement_distributions": {
+      "entity": "person",
+      "adds": [
+        "keogh_distributions",
+        "taxable_401k_distributions",
+        "taxable_403b_distributions",
+        "taxable_ira_distributions",
+        "taxable_sep_distributions"
+      ],
+      "subtracts": []
+    },
+    "taxable_sep_distributions": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "tn_ff": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "tx_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "under_60_days_postpartum": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "unemployment_compensation": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "ut_fep": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ut_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ut_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "va_ccsp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "va_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "va_ccsp"
+      ],
+      "subtracts": []
+    },
+    "va_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "va_low_income_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "va_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "va_refundable_eitc"
+      ],
+      "subtracts": []
+    },
+    "va_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [
+        "va_refundable_eitc_if_claimed"
+      ],
+      "subtracts": []
+    },
+    "va_refundable_eitc_if_claimed": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "va_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_ccfap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "vt_ccfap"
+      ],
+      "subtracts": []
+    },
+    "vt_ctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_low_income_cdcc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_reach_up": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "vt_cdcc",
+        "vt_ctc",
+        "vt_eitc",
+        "vt_low_income_cdcc",
+        "vt_veteran_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "vt_renter_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "vt_veteran_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wa_capital_gains_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wa_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "wa_wccc"
+      ],
+      "subtracts": []
+    },
+    "wa_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "wa_capital_gains_tax",
+        "wa_millionaires_tax"
+      ],
+      "subtracts": []
+    },
+    "wa_millionaires_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wa_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "wa_working_families_tax_credit"
+      ],
+      "subtracts": []
+    },
+    "wa_tanf": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wa_wccc": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wa_working_families_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wi_earned_income_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wi_homestead_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wi_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wi_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "wi_earned_income_credit",
+        "wi_homestead_credit"
+      ],
+      "subtracts": []
+    },
+    "wi_works": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wic": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "wv_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wv_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "wv_ccap"
+      ],
+      "subtracts": []
+    },
+    "wv_homestead_excess_property_tax_credit": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wv_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wv_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "wv_homestead_excess_property_tax_credit",
+        "wv_sctc"
+      ],
+      "subtracts": []
+    },
+    "wv_sctc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wv_works": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wy_power": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    }
+  }
+}

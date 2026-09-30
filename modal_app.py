@@ -9,7 +9,9 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
         "fastapi[standard]",
-        "policyengine-us>=1.715.2",
+        "policyengine-us==1.755.5",
+        "policyengine-core==3.28.0",
+        "spm-calculator==0.3.1",
     )
     .add_local_dir("api", "/root/api")
     .add_local_dir("cliff_watch", "/root/cliff_watch")

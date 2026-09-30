@@ -56,14 +56,6 @@ const STATE_TANF_VARIABLES = {
   WY: 'wy_power',
 }
 
-const STATE_TANF_EARNED_INCOME_VARIABLES = {
-  DC: 'dc_tanf_gross_earned_income',
-  IL: 'il_tanf_gross_earned_income',
-  MT: 'mt_tanf_gross_earned_income_person',
-  SC: 'sc_tanf_gross_earned_income',
-  TX: 'tx_tanf_gross_earned_income',
-}
-
 const VALID_FILING_STATUSES = new Set([
   'SINGLE',
   'HEAD_OF_HOUSEHOLD',
@@ -176,6 +168,26 @@ const FIXED_HOUSEHOLD_COST_INPUTS = {
   debt_payments: 'debt_payment_annual',
   education_training: 'education_expense_annual',
   other_expenses: 'other_expense_annual',
+}
+
+// Household-level income fields (entered for the first adult) and the
+// policyengine-us variable each one sets. Every target must be a component,
+// never a total: an input on a variable that `adds` others replaces the sum,
+// so rules reading the components see zero. Mirrors HEAD_INCOME_INPUTS in
+// cliff_watch/calculator.py.
+export const HEAD_INCOME_INPUTS = {
+  self_employment_income_annual: 'self_employment_income',
+  child_support_annual: 'child_support_received',
+  taxable_interest_income_annual: 'taxable_interest_income',
+  dividend_income_annual: 'qualified_dividend_income',
+  rental_income_annual: 'rental_income',
+  unemployment_compensation_annual: 'unemployment_compensation',
+  // Private or unknown-source pensions; government pensions get their own
+  // field because several states exempt them.
+  pension_income_annual: 'taxable_private_pension_income',
+  public_pension_income_annual: 'taxable_public_pension_income',
+  social_security_annual: 'social_security_retirement',
+  miscellaneous_income_annual: 'miscellaneous_income',
 }
 
 const PERSON_LEVEL_DRIVER_PROGRAMS = {
@@ -499,6 +511,8 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
         is_full_time_student: Boolean(member?.is_full_time_student),
         is_incapable_of_self_care: Boolean(member?.is_incapable_of_self_care),
         earned_income: nonnegative(member?.earned_income),
+        ssi_amount: nonnegative(member?.ssi_amount),
+        ssdi_amount: nonnegative(member?.ssdi_amount),
       })
       return
     }
@@ -515,6 +529,8 @@ function resolvePeople(people = [], filingStatus = 'SINGLE') {
       is_full_time_student: Boolean(member?.is_full_time_student),
       is_incapable_of_self_care: Boolean(member?.is_incapable_of_self_care),
       earned_income: nonnegative(member?.earned_income),
+      ssi_amount: nonnegative(member?.ssi_amount),
+      ssdi_amount: nonnegative(member?.ssdi_amount),
     })
   })
 
@@ -583,6 +599,22 @@ function validatePayload(payload) {
   return people
 }
 
+/**
+ * The person whose bank_account_assets carry the household's savings. SNAP and
+ * TANF asset tests sum over the SPM unit, so only the SSI resource test depends
+ * on the holder. Savings go to the head, or to the spouse when only the spouse
+ * could claim SSI (aged 65+, blind or disabled). Mirrors _liquid_asset_holder
+ * in cliff_watch/calculator.py.
+ */
+function liquidAssetHolder(people) {
+  const couldClaimSsi = (person) => person.age >= 65 || person.is_blind || person.is_disabled
+  const head = people.find((person) => person.role === 'head')
+  const spouse = people.find((person) => person.role === 'spouse')
+  if (!head) return null
+  if (spouse && couldClaimSsi(spouse) && !couldClaimSsi(head)) return spouse.id
+  return head.id
+}
+
 function buildPersonData(person, year) {
   const data = {
     age: { [year]: person.age },
@@ -621,7 +653,7 @@ function buildPersonData(person, year) {
   return data
 }
 
-function buildSituation(payload, options = {}) {
+export function buildSituation(payload, options = {}) {
   const {
     includeIncomeOverrides = true,
     withAxes = false,
@@ -661,10 +693,10 @@ function buildSituation(payload, options = {}) {
     spmUnitEntity.spm_unit_pre_subsidy_childcare_expenses = { [year]: childcareExpenses }
   }
   if (utilityExpenseAnnual > 0) {
-    spmUnitEntity.utility_expense = { [year]: utilityExpenseAnnual }
-  }
-  if (nonnegative(payload.liquid_assets) > 0) {
-    spmUnitEntity.snap_assets = { [year]: nonnegative(payload.liquid_assets) }
+    // utility_expense sums the per-utility bills, and SNAP picks its utility
+    // allowance from them; a bill that includes heating or cooling qualifies
+    // for the standard allowance.
+    spmUnitEntity.heating_cooling_expense = { [year]: utilityExpenseAnnual }
   }
   if (programIncluded(payload, 'tanf', options.metadata)) {
     spmUnitEntity.is_tanf_enrolled = Object.fromEntries(
@@ -688,6 +720,7 @@ function buildSituation(payload, options = {}) {
         tax_unit_fpg: { [year]: null },
         income_tax_refundable_credits: { [year]: null },
         premium_tax_credit: { [`${year}-01`]: null },
+        chip_premium: { [year]: null },
         takes_up_aca_if_eligible: { [year]: programIncluded(payload, 'aca_ptc', options.metadata) },
         takes_up_eitc: { [year]: programIncluded(payload, 'federal_refundable_credits', options.metadata) },
       },
@@ -703,7 +736,6 @@ function buildSituation(payload, options = {}) {
         household_tax_before_refundable_credits: { [year]: null },
         household_state_tax_before_refundable_credits: { [year]: null },
         household_refundable_state_tax_credits: { [year]: null },
-        chip_premium: { [year]: null },
         hud_utility_allowance: utilityExpenseAnnual > 0
           ? { [year]: utilityExpenseAnnual }
           : undefined,
@@ -723,28 +755,7 @@ function buildSituation(payload, options = {}) {
     situation.spm_units.spm_unit[tanfVariable] = { [`${year}-01`]: null }
   }
 
-  const setEarnedIncome = (personData, amount) => {
-    const annualAmount = Number(amount) || 0
-    const monthlyAmountValue = annualAmount / 12
-    personData.employment_income = { [year]: annualAmount }
-    personData.tanf_gross_earned_income = Object.fromEntries(
-      Array.from({ length: 12 }, (_, month) => [
-        `${year}-${String(month + 1).padStart(2, '0')}`,
-        monthlyAmountValue,
-      ]),
-    )
-
-    const stateSpecificEarnedIncomeVariable =
-      STATE_TANF_EARNED_INCOME_VARIABLES[payload.state]
-    if (stateSpecificEarnedIncomeVariable) {
-      personData[stateSpecificEarnedIncomeVariable] = Object.fromEntries(
-        Array.from({ length: 12 }, (_, month) => [
-          `${year}-${String(month + 1).padStart(2, '0')}`,
-          monthlyAmountValue,
-        ]),
-      )
-    }
-  }
+  const assetHolderId = liquidAssetHolder(descriptor.people)
 
   descriptor.people.forEach((person, index) => {
     const personData = buildPersonData(person, year)
@@ -783,6 +794,13 @@ function buildSituation(payload, options = {}) {
       ]),
     )
 
+    if (person.ssi_amount > 0 && programIncluded(payload, 'ssi', options.metadata)) {
+      personData.ssi = { [year]: person.ssi_amount }
+    }
+    if (person.ssdi_amount > 0 && programIncluded(payload, 'ssdi', options.metadata)) {
+      personData.social_security_disability = { [year]: person.ssdi_amount }
+    }
+
     if (payload.has_employer_health_insurance) {
       personData.has_esi = { [year]: true }
       personData.offered_aca_disqualifying_esi = { [year]: true }
@@ -796,55 +814,33 @@ function buildSituation(payload, options = {}) {
       personData.health_insurance_premiums = { [year]: healthInsurancePremiumAnnual }
     }
 
+    // Only wages are set: TANF, SNAP and the rest derive their earned income
+    // from them. Setting a derived variable such as tanf_gross_earned_income
+    // on some people fixes it at zero for everyone else, which froze TANF
+    // across the earnings axis whenever a second adult had wages.
     if (includeIncomeOverrides && index === 0) {
-      setEarnedIncome(personData, earnedIncome)
+      personData.employment_income = { [year]: earnedIncome }
     } else if (!includeIncomeOverrides && index === 0) {
       personData.employment_income = { [year]: null }
     } else if (person.earned_income > 0) {
-      setEarnedIncome(personData, person.earned_income)
+      personData.employment_income = { [year]: person.earned_income }
     }
 
     if (index === 0) {
-      const extraIncomeInputs = {
-        self_employment_income: payload.self_employment_income_annual,
-        child_support_received: payload.child_support_annual,
-        taxable_interest_income: payload.taxable_interest_income_annual,
-        dividend_income: payload.dividend_income_annual,
-        rental_income: payload.rental_income_annual,
-        unemployment_compensation: payload.unemployment_compensation_annual,
-        pension_income: payload.pension_income_annual,
-        social_security: payload.social_security_annual,
-        miscellaneous_income: payload.miscellaneous_income_annual,
-      }
-      Object.entries(extraIncomeInputs).forEach(([variable, amount]) => {
-        const annualAmount = nonnegative(amount)
+      Object.entries(HEAD_INCOME_INPUTS).forEach(([field, variable]) => {
+        const annualAmount = nonnegative(payload[field])
         if (annualAmount > 0) {
           personData[variable] = { [year]: annualAmount }
         }
       })
     }
 
+    if (person.id === assetHolderId && nonnegative(payload.liquid_assets) > 0) {
+      personData.bank_account_assets = { [year]: nonnegative(payload.liquid_assets) }
+    }
+
     situation.people[person.id] = personData
   })
-
-  if (includeIncomeOverrides) {
-    const estimatedMagi = earnedIncome
-      + descriptor.people.slice(1).reduce((sum, person) => sum + nonnegative(person.earned_income), 0)
-      + nonnegative(payload.self_employment_income_annual)
-      + nonnegative(payload.taxable_interest_income_annual)
-      + nonnegative(payload.dividend_income_annual)
-      + nonnegative(payload.rental_income_annual)
-      + nonnegative(payload.unemployment_compensation_annual)
-      + nonnegative(payload.pension_income_annual)
-      + nonnegative(payload.miscellaneous_income_annual)
-    situation.tax_units.tax_unit.aca_magi = { [year]: estimatedMagi }
-    situation.tax_units.tax_unit.medicaid_magi = { [year]: estimatedMagi }
-    if (payload.state === 'CO' && earnedIncome > 0) {
-      situation.spm_units.spm_unit.co_tanf_countable_gross_earned_income = {
-        [year]: earnedIncome,
-      }
-    }
-  }
 
   const headAndSpouse = descriptor.people
     .filter((person) => person.role === 'head' || person.role === 'spouse')
@@ -1049,7 +1045,7 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
   const stateRefundableCredits = roundCurrency(
     getYearValue(households, 'household_refundable_state_tax_credits', year),
   )
-  const chipPremium = roundCurrency(getYearValue(households, 'chip_premium', year))
+  const chipPremium = roundCurrency(getYearValue(taxUnit, 'chip_premium', year))
   const tanf = roundCurrency(
     tanfVariable
       ? (Number(getMonthValue(spmUnit, tanfVariable, year)) || 0) * 12
@@ -1169,6 +1165,8 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
         is_full_time_student: person.is_full_time_student,
         is_incapable_of_self_care: person.is_incapable_of_self_care,
         earned_income: person.earned_income,
+        ssi_amount: person.ssi_amount,
+        ssdi_amount: person.ssdi_amount,
       })),
       programs_mode: payload.programs_mode || 'all',
       selected_programs: payload.selected_programs || [],
@@ -1190,6 +1188,7 @@ export function buildHouseholdResultFromResponse(payload, metadata, apiResponse,
       rental_income_annual: nonnegative(payload.rental_income_annual),
       unemployment_compensation_annual: nonnegative(payload.unemployment_compensation_annual),
       pension_income_annual: nonnegative(payload.pension_income_annual),
+      public_pension_income_annual: nonnegative(payload.public_pension_income_annual),
       social_security_annual: nonnegative(payload.social_security_annual),
       miscellaneous_income_annual: nonnegative(payload.miscellaneous_income_annual),
       liquid_assets: nonnegative(payload.liquid_assets),
@@ -1432,7 +1431,7 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
     pointCount,
   )
   const chipPremiumValues = asArray(
-    getYearValue(households, 'chip_premium', year),
+    getYearValue(taxUnit, 'chip_premium', year),
     pointCount,
   )
   const fixedHouseholdCosts = fixedHouseholdCostsFromPayload(payload)

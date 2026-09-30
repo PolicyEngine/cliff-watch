@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 
 import {
   buildHouseholdPayload,
@@ -90,12 +90,12 @@ function householdResponse() {
           household_tax_before_refundable_credits: { 2026: 1000 },
           household_state_tax_before_refundable_credits: { 2026: 300 },
           household_refundable_state_tax_credits: { 2026: 200 },
-          chip_premium: { 2026: 600 },
         },
       },
       tax_units: {
         tax_unit: {
           tax_unit_fpg: { 2026: 20000 },
+          chip_premium: { 2026: 600 },
           income_tax_refundable_credits: { 2026: 400 },
           premium_tax_credit: { '2026-01': 50 },
         },
@@ -137,12 +137,12 @@ function seriesResponse() {
           household_tax_before_refundable_credits: { 2026: [0, 0] },
           household_state_tax_before_refundable_credits: { 2026: [0, 0] },
           household_refundable_state_tax_credits: { 2026: [0, 0] },
-          chip_premium: { 2026: [0, 1800] },
         },
       },
       tax_units: {
         tax_unit: {
           income_tax_refundable_credits: { 2026: [0, 0] },
+          chip_premium: { 2026: [0, 1800] },
           premium_tax_credit: { '2026-01': [0, 0] },
         },
       },
