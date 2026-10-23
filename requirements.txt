@@ -1,1 +1,4 @@
-policyengine-us>=1.715.2
+# Keep in sync with pyproject.toml, which explains each pin.
+policyengine-us @ https://github.com/PolicyEngine/policyengine-us/archive/fc64cef64ab55c3c48309c7fb304c35e5f3c9184.tar.gz
+policyengine-core>=3.32.0,<3.32.2
+spm-calculator==0.3.1

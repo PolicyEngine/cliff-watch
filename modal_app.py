@@ -9,7 +9,10 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
         "fastapi[standard]",
-        "policyengine-us>=1.715.2",
+        # Same engine pins as pyproject.toml, which explains them.
+        "policyengine-us @ https://github.com/PolicyEngine/policyengine-us/archive/fc64cef64ab55c3c48309c7fb304c35e5f3c9184.tar.gz",
+        "policyengine-core>=3.32.0,<3.32.2",
+        "spm-calculator==0.3.1",
     )
     .add_local_dir("api", "/root/api")
     .add_local_dir("cliff_watch", "/root/cliff_watch")

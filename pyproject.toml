@@ -7,8 +7,23 @@ name = "cliff-watch"
 version = "0.2.0"
 description = "Dynamic benefit cliff calculator built on PolicyEngine-US."
 requires-python = ">=3.11"
+# Vercel installs from this file (through uv.lock) on every deploy, so the
+# engine is pinned exactly.
+#
+# - policyengine-us 1.755.5 is the engine production has served since
+#   2026-07-03. PyPI no longer hosts it, so it is built from its release
+#   commit, whose wheel matches PyPI's 1.755.5 file for file. The nearest
+#   releases PyPI still hosts change displayed numbers (1.755.0, 1.768.1), and
+#   1.824.6 no longer has ccdf_age_group, which this app sets.
+# - policyengine-core 3.32.0 replaced the runtime randomness guard with a
+#   static check. The old guard patched numpy.random process-wide while any
+#   formula ran, so concurrent requests on one instance failed with "rules-
+#   engine formulas must be deterministic" (#38). 3.32.2 and later reject
+#   1.755.5's parameter files (uprating rounding validation).
 dependencies = [
-    "policyengine-us>=1.715.2",
+    "policyengine-us @ https://github.com/PolicyEngine/policyengine-us/archive/fc64cef64ab55c3c48309c7fb304c35e5f3c9184.tar.gz",
+    "policyengine-core>=3.32.0,<3.32.2",
+    "spm-calculator==0.3.1",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +38,9 @@ cliff-watch-dev-server = "cliff_watch.dev_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["cliff_watch"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
