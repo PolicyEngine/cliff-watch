@@ -34,6 +34,7 @@ const postJson = async (path, payload, { retryDelaysMs = DEFAULT_RETRY_DELAYS_MS
   for (let attempt = 0; ; attempt += 1) {
     const canRetry = attempt < retryDelaysMs.length
     let response
+    let body
     try {
       response = await fetch(apiPath(path), {
         method: 'POST',
@@ -42,6 +43,12 @@ const postJson = async (path, payload, { retryDelaysMs = DEFAULT_RETRY_DELAYS_MS
         },
         body: JSON.stringify(payload),
       })
+      // fetch resolves once headers arrive, so read the body here too: a
+      // connection that drops mid-body is as transient as one that drops
+      // before the headers.
+      if (response.ok) {
+        body = await response.text()
+      }
     } catch (err) {
       if (!canRetry) throw err
       await sleep(retryDelaysMs[attempt])
@@ -49,7 +56,8 @@ const postJson = async (path, payload, { retryDelaysMs = DEFAULT_RETRY_DELAYS_MS
     }
 
     if (response.ok) {
-      return response.json()
+      // Malformed JSON is not a transport failure, so it is not retried.
+      return JSON.parse(body)
     }
 
     if (!canRetry || !RETRYABLE_STATUSES.has(response.status)) {

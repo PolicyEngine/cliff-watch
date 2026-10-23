@@ -1,18 +1,18 @@
-"""Concurrent calculations in one process must not fail (#38).
+"""Concurrent calculations in one process must not fail or differ (#38).
 
 Vercel's Fluid compute runs several /api/series invocations in one Python
-process at the same time. policyengine-core 3.27 through 3.31 forbade
+process at the same time. policyengine-core 3.27.0 through 3.29.2 forbade
 randomness in formulas by patching ``numpy.random`` process-wide while any
 formula ran. A concurrent request that was building its Simulation, which
 calls ``np.random.seed(0)``, then raised NonDeterministicFormulaError naming
-the other request's formula. policyengine-core 3.32.0 replaced that guard with
-a static check when variables are built.
+the other request's formula. policyengine-core 3.30.0 replaced that guard with
+a static check when variables are built (policyengine-core#519).
 """
 
 from __future__ import annotations
 
+import importlib.util
 import threading
-from importlib.metadata import version
 
 import pytest
 
@@ -78,44 +78,49 @@ HOUSEHOLDS = [
     },
 ]
 ROUNDS = 3
+MAX_EARNED_INCOME = 25_000
+STEP = 2_500
 
 
-def _version_tuple(text: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in text.split(".")[:3])
+def _series(raw: dict) -> list[dict]:
+    payload = household_input_from_dict({"year": 2026, "programs_mode": "all", **raw})
+    return calculate_income_series(
+        payload, max_earned_income=MAX_EARNED_INCOME, step=STEP
+    )["data"]
 
 
 def test_engine_has_no_runtime_randomness_guard() -> None:
-    assert _version_tuple(version("policyengine-core")) >= (3, 32, 0)
+    assert (
+        importlib.util.find_spec("policyengine_core.simulations.randomness_guard")
+        is None
+    )
 
 
-def test_concurrent_series_calculations_succeed() -> None:
+def test_concurrent_series_calculations_succeed_and_match_serial() -> None:
+    serial = [_series(raw) for raw in HOUSEHOLDS]
     errors: list[str] = []
-    errors_lock = threading.Lock()
+    mismatches: list[str] = []
+    lock = threading.Lock()
 
-    def run(raw: dict, barrier: threading.Barrier, max_earned_income: int) -> None:
-        payload = household_input_from_dict(
-            {"year": 2026, "programs_mode": "all", **raw}
-        )
+    def run(index: int, barrier: threading.Barrier) -> None:
+        raw = HOUSEHOLDS[index]
         # Start together so formulas and Simulation setup overlap.
         barrier.wait()
         try:
-            calculate_income_series(
-                payload,
-                max_earned_income=max_earned_income,
-                step=2_500,
-            )
+            data = _series(raw)
         except Exception as exc:  # noqa: BLE001 - every failure is the finding
-            with errors_lock:
+            with lock:
                 errors.append(f"{raw['state']}: {type(exc).__name__}: {exc}")
+            return
+        if data != serial[index]:
+            with lock:
+                mismatches.append(raw["state"])
 
-    for round_index in range(ROUNDS):
+    for _ in range(ROUNDS):
         barrier = threading.Barrier(len(HOUSEHOLDS))
         threads = [
-            threading.Thread(
-                target=run,
-                args=(raw, barrier, 20_000 + 2_500 * round_index),
-            )
-            for raw in HOUSEHOLDS
+            threading.Thread(target=run, args=(index, barrier))
+            for index in range(len(HOUSEHOLDS))
         ]
         for thread in threads:
             thread.start()
@@ -123,3 +128,4 @@ def test_concurrent_series_calculations_succeed() -> None:
             thread.join()
 
     assert not errors, "\n".join(errors)
+    assert not mismatches, f"concurrent output differs from serial: {mismatches}"

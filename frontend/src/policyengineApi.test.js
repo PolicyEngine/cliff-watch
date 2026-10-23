@@ -758,6 +758,52 @@ test('calculateSeries retries a dropped connection', async () => {
   assert.equal(calls, 2)
 })
 
+const droppedBodyResponse = () => new Response(
+  new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"data": ['))
+      controller.error(new TypeError('terminated'))
+    },
+  }),
+  { status: 200, headers: { 'Content-Type': 'application/json' } },
+)
+
+test('calculateSeries retries a connection that drops while reading the body', async () => {
+  const calls = await withFetchSequence(
+    [
+      droppedBodyResponse(),
+      jsonResponse({ data: [{ earned_income: 500 }], step_annual: 500 }),
+    ],
+    async () => {
+      const result = await calculateSeries(seriesInputs, metadata, {
+        step: 500,
+        retryDelaysMs: [0, 0],
+      })
+      assert.deepEqual(result.data, [{ earned_income: 500 }])
+    },
+  )
+  assert.equal(calls, 2)
+})
+
+test('calculateSeries does not retry a response that is not JSON', async () => {
+  const calls = await withFetchSequence(
+    [
+      new Response('<html>not json</html>', { status: 200 }),
+      jsonResponse({ data: [] }),
+    ],
+    async () => {
+      await assert.rejects(
+        calculateSeries(seriesInputs, metadata, {
+          step: 500,
+          retryDelaysMs: [0, 0],
+        }),
+        SyntaxError,
+      )
+    },
+  )
+  assert.equal(calls, 1)
+})
+
 test('calculateSeries does not retry a timeout or a bad request', async () => {
   for (const status of [504, 400]) {
     const calls = await withFetchSequence(
