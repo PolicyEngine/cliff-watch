@@ -17,20 +17,46 @@ const apiPath = (path) => {
   return `${prefix.replace(/\/$/, '')}${path}`
 }
 
-const postJson = async (path, payload) => {
-  const response = await fetch(apiPath(path), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
+// A calculation that fails with a server error (500/502/503) or a dropped
+// connection is retried: these can be transient, and one failed refinement
+// request would otherwise leave part of the chart at the coarse step. 504
+// (function timeout) is not retried, since a request that ran out of time will
+// run out again; runSeries falls back to a coarser step instead. 4xx responses
+// are the request's own fault and fail at once.
+const RETRYABLE_STATUSES = new Set([500, 502, 503])
+export const DEFAULT_RETRY_DELAYS_MS = [500, 1500]
 
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response))
+const sleep = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms)
+})
+
+const postJson = async (path, payload, { retryDelaysMs = DEFAULT_RETRY_DELAYS_MS } = {}) => {
+  for (let attempt = 0; ; attempt += 1) {
+    const canRetry = attempt < retryDelaysMs.length
+    let response
+    try {
+      response = await fetch(apiPath(path), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+    } catch (err) {
+      if (!canRetry) throw err
+      await sleep(retryDelaysMs[attempt])
+      continue
+    }
+
+    if (response.ok) {
+      return response.json()
+    }
+
+    if (!canRetry || !RETRYABLE_STATUSES.has(response.status)) {
+      throw new Error(await parseErrorMessage(response))
+    }
+    await sleep(retryDelaysMs[attempt])
   }
-
-  return response.json()
 }
 
 export const formatCurrency = (value, digits = 0) => new Intl.NumberFormat(
@@ -409,7 +435,9 @@ export async function calculateSeries(inputs, metadata, options = {}) {
   if (options.minEarnedIncome) {
     payload.min_earned_income = Math.max(0, Math.round(options.minEarnedIncome))
   }
-  return postJson('/api/series', payload)
+  return postJson('/api/series', payload, {
+    retryDelaysMs: options.retryDelaysMs,
+  })
 }
 
 export async function calculateHouseholdTypes(inputs, metadata) {

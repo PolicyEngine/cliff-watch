@@ -11,7 +11,12 @@ import {
   loadMetadata,
 } from './dataLookup'
 import { decodeInputs, syncUrlToInputs } from './utils/urlState'
-import { refineCliffZones } from './utils/seriesRefine'
+import {
+  COARSE_SAMPLING_REFINING_NOTE,
+  refineCliffZones,
+  refinementFailureNote,
+  refinementNote,
+} from './utils/seriesRefine'
 import {
   combineDraftAndScenarioToInputs,
   createInitialScenario,
@@ -148,6 +153,7 @@ function App() {
 
     let primary = null
     let primaryError = null
+    let usedFallbackStep = false
     try {
       primary = await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
@@ -162,7 +168,8 @@ function App() {
       try {
         primary = await calculateSeries(nextInputs, metadata, { step: fallbackStep })
         if (isCancelled()) return
-        setSeriesError('Sampled coarsely for speed; refining around detected cliffs.')
+        usedFallbackStep = true
+        setSeriesError(COARSE_SAMPLING_REFINING_NOTE)
       } catch (err) {
         fallbackError = err
         console.error(err)
@@ -177,8 +184,9 @@ function App() {
     setSeriesLoading(false)
 
     const refineStep = Math.max(100, Math.floor((primary?.step_annual || defaultStep) / 5))
+    let refined
     try {
-      const refined = await refineCliffZones({
+      refined = await refineCliffZones({
         coarseSeries: primary,
         inputs: nextInputs,
         metadata,
@@ -186,13 +194,17 @@ function App() {
         calculateSeriesFn: calculateSeries,
         isCancelled,
       })
-      if (isCancelled()) return
-      if (refined !== primary) {
-        setSeriesData(refined)
-      }
     } catch (err) {
       console.error('Refinement error', err)
+      if (isCancelled()) return
+      setSeriesError(refinementFailureNote(primary?.step_annual))
+      return
     }
+    if (isCancelled()) return
+    if (refined !== primary) {
+      setSeriesData(refined)
+    }
+    setSeriesError(refinementNote(refined, { usedFallbackStep }))
   }
 
   const handleCalculate = async (
