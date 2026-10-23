@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler
+from importlib.metadata import version
 from typing import Any, Callable
 
 from cliff_watch.calculator import (
@@ -42,9 +43,18 @@ def parse_household_payload(raw_payload: dict[str, Any]) -> HouseholdInput:
     return household_input_from_dict(raw_payload)
 
 
+def engine_versions() -> dict[str, str]:
+    """Installed engine packages, so a deployment can be checked from outside."""
+    return {
+        package: version(package)
+        for package in ("policyengine-us", "policyengine-core", "spm-calculator")
+    }
+
+
 def metadata_response() -> dict[str, Any]:
     return {
         "year": DEFAULT_YEAR,
+        "engine": engine_versions(),
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,

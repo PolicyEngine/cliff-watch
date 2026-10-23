@@ -1,6 +1,32 @@
+import { formatCurrency } from '../dataLookup.js'
 import { buildCliffDrivers } from '../policyengineApi.js'
-import { buildCliffReport } from './cliffReport'
+import { buildCliffReport } from './cliffReport.js'
 import { applyStateProgramLabels } from './programLabels.js'
+
+export const COARSE_SAMPLING_NOTE = 'Sampled coarsely for speed.'
+export const COARSE_SAMPLING_REFINING_NOTE = 'Sampled coarsely for speed; refining around detected cliffs.'
+
+// Shown when refinement requests still fail after retrying: those zones keep
+// the coarse step, so a cliff there can sit anywhere within one step.
+export function refinementFailureNote(stepAnnual, failedZoneCount = 0, zoneCount = 0) {
+  const scope = failedZoneCount && zoneCount
+    ? `${failedZoneCount} of ${zoneCount} cliff ${zoneCount === 1 ? 'zone' : 'zones'}`
+    : 'the chart around its cliffs'
+  return `Couldn't refine ${scope}, so cliff edges there may be off by up to ${formatCurrency(Number(stepAnnual) || 0)}. Reload the page to try again.`
+}
+
+// The chart note once refinement has finished, or null for none.
+export function refinementNote(series, { usedFallbackStep = false } = {}) {
+  const failedZoneCount = Number(series?.refinement_failed_zone_count) || 0
+  if (failedZoneCount) {
+    return refinementFailureNote(
+      series.step_annual,
+      failedZoneCount,
+      Number(series.refinement_zone_count) || failedZoneCount,
+    )
+  }
+  return usedFallbackStep ? COARSE_SAMPLING_NOTE : null
+}
 
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100
 
@@ -98,18 +124,26 @@ export async function refineCliffZones({
         maxEarnedIncome: end,
         step: refineStep,
       })
-      return refined?.data || []
+      return { failed: false, points: refined?.data || [] }
     } catch (err) {
       console.error('Cliff refinement failed', err)
-      return []
+      return { failed: true, points: [] }
     }
   })
 
   const refinedBatches = await Promise.all(refinementJobs)
   if (isCancelled()) return coarseSeries
 
+  // Failed zones stay at the coarse step. Report them so the page can say so
+  // instead of silently showing cliff edges that may be off by a whole step.
+  const failedZoneCount = refinedBatches.filter((batch) => batch.failed).length
+  const refinementStatus = {
+    refinement_zone_count: refinedBatches.length,
+    refinement_failed_zone_count: failedZoneCount,
+  }
+
   const ranges = refinedBatches
-    .map((batch) => {
+    .map(({ points: batch }) => {
       if (!batch.length) return null
       const first = batch[0].earned_income
       const last = batch[batch.length - 1].earned_income
@@ -117,7 +151,9 @@ export async function refineCliffZones({
     })
     .filter(Boolean)
 
-  if (!ranges.length) return coarseSeries
+  if (!ranges.length) {
+    return failedZoneCount ? { ...coarseSeries, ...refinementStatus } : coarseSeries
+  }
 
   const keptCoarse = coarseSeries.data.filter((point) => {
     const income = point.earned_income
@@ -145,5 +181,6 @@ export async function refineCliffZones({
     ),
     refined_zone_count: ranges.length,
     refined_step_annual: refineStep,
+    ...refinementStatus,
   }
 }

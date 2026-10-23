@@ -681,12 +681,167 @@ test('calculateSeries surfaces backend failures instead of using the public API 
           chart_max_earned_income: 1000,
         },
         metadata,
-        { step: 500 },
+        { step: 500, retryDelaysMs: [0, 0] },
       ),
       /backend unavailable/,
     )
-    assert.deepEqual(requests, ['/api/series'])
+    // Retried twice, and every attempt stays on the Cliff Watch API.
+    assert.deepEqual(requests, ['/api/series', '/api/series', '/api/series'])
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+const seriesInputs = {
+  state: 'GA',
+  people: [{ kind: 'adult', age: 33 }],
+  filing_status: 'SINGLE',
+  chart_max_earned_income: 1000,
+}
+
+const jsonResponse = (body, status = 200) => new Response(
+  JSON.stringify(body),
+  { status, headers: { 'Content-Type': 'application/json' } },
+)
+
+const withFetchSequence = async (responses, run) => {
+  const originalFetch = globalThis.fetch
+  const remaining = [...responses]
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls += 1
+    const next = remaining.shift()
+    if (next instanceof Error) throw next
+    return next
+  }
+  try {
+    await run()
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+  return calls
+}
+
+test('calculateSeries retries a server error and returns the retried result', async () => {
+  const calls = await withFetchSequence(
+    [
+      jsonResponse({
+        error: "Calculation failed: The formula for 'loss_ald' called numpy.random.seed()",
+      }, 500),
+      jsonResponse({ data: [{ earned_income: 0 }], step_annual: 500 }),
+    ],
+    async () => {
+      const result = await calculateSeries(seriesInputs, metadata, {
+        step: 500,
+        retryDelaysMs: [0, 0],
+      })
+      assert.deepEqual(result.data, [{ earned_income: 0 }])
+    },
+  )
+  assert.equal(calls, 2)
+})
+
+test('calculateSeries retries a dropped connection', async () => {
+  const calls = await withFetchSequence(
+    [
+      new TypeError('fetch failed'),
+      jsonResponse({ data: [], step_annual: 500 }),
+    ],
+    async () => {
+      const result = await calculateSeries(seriesInputs, metadata, {
+        step: 500,
+        retryDelaysMs: [0, 0],
+      })
+      assert.deepEqual(result.data, [])
+    },
+  )
+  assert.equal(calls, 2)
+})
+
+const droppedBodyResponse = () => new Response(
+  new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"data": ['))
+      controller.error(new TypeError('terminated'))
+    },
+  }),
+  { status: 200, headers: { 'Content-Type': 'application/json' } },
+)
+
+test('calculateSeries retries a connection that drops while reading the body', async () => {
+  const calls = await withFetchSequence(
+    [
+      droppedBodyResponse(),
+      jsonResponse({ data: [{ earned_income: 500 }], step_annual: 500 }),
+    ],
+    async () => {
+      const result = await calculateSeries(seriesInputs, metadata, {
+        step: 500,
+        retryDelaysMs: [0, 0],
+      })
+      assert.deepEqual(result.data, [{ earned_income: 500 }])
+    },
+  )
+  assert.equal(calls, 2)
+})
+
+test('calculateSeries does not retry a response that is not JSON', async () => {
+  const calls = await withFetchSequence(
+    [
+      new Response('<html>not json</html>', { status: 200 }),
+      jsonResponse({ data: [] }),
+    ],
+    async () => {
+      await assert.rejects(
+        calculateSeries(seriesInputs, metadata, {
+          step: 500,
+          retryDelaysMs: [0, 0],
+        }),
+        SyntaxError,
+      )
+    },
+  )
+  assert.equal(calls, 1)
+})
+
+test('calculateSeries does not retry a timeout or a bad request', async () => {
+  for (const status of [504, 400]) {
+    const calls = await withFetchSequence(
+      [
+        jsonResponse({ error: `status ${status}` }, status),
+        jsonResponse({ data: [] }),
+      ],
+      async () => {
+        await assert.rejects(
+          calculateSeries(seriesInputs, metadata, {
+            step: 500,
+            retryDelaysMs: [0, 0],
+          }),
+          new RegExp(`status ${status}`),
+        )
+      },
+    )
+    assert.equal(calls, 1, `status ${status} should fail without a retry`)
+  }
+})
+
+test('calculateSeries gives up after its retries and surfaces the last error', async () => {
+  const calls = await withFetchSequence(
+    [
+      jsonResponse({ error: 'first failure' }, 500),
+      jsonResponse({ error: 'second failure' }, 502),
+      jsonResponse({ error: 'Calculation failed: third failure' }, 500),
+      jsonResponse({ data: [] }),
+    ],
+    async () => {
+      await assert.rejects(
+        calculateSeries(seriesInputs, metadata, {
+          step: 500,
+          retryDelaysMs: [0, 0],
+        }),
+        /Calculation failed: third failure/,
+      )
+    },
+  )
+  assert.equal(calls, 3)
 })

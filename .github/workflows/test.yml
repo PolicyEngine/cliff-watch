@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    env:
+      BUN_VERSION: 1.3.10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        run: |
+          npm install --prefix "$RUNNER_TEMP/bun" --fetch-retries=5 "bun@$BUN_VERSION"
+          echo "$RUNNER_TEMP/bun/node_modules/.bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bun/node_modules/.bin/bun" --version
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          bun install --frozen-lockfile
+
+      - name: Run tests
+        run: |
+          cd frontend
+          bun run test
+
+  python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        # The same locked environment Vercel deploys from uv.lock.
+        run: uv sync --locked --extra dev
+
+      - name: Run tests
+        run: uv run --no-sync pytest
