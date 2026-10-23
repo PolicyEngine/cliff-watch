@@ -12,7 +12,7 @@ export function refinementFailureNote(stepAnnual, failedZoneCount = 0, zoneCount
   const scope = failedZoneCount && zoneCount
     ? `${failedZoneCount} of ${zoneCount} cliff ${zoneCount === 1 ? 'zone' : 'zones'}`
     : 'the chart around its cliffs'
-  return `Couldn't refine ${scope}, so cliff edges there may be off by up to ${formatCurrency(Number(stepAnnual) || 0)}. Click Find cliffs to try again.`
+  return `Couldn't refine ${scope}, so cliff edges there may be off by up to ${formatCurrency(Number(stepAnnual) || 0)}. Reload the page to try again.`
 }
 
 // The chart note once refinement has finished, or null for none.

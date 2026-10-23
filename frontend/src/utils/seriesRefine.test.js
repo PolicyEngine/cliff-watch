@@ -98,7 +98,7 @@ test('refineCliffZones reports a zone whose refinement request fails', async () 
   assert.equal(after.earned_income - refined.data[index - 1].earned_income, COARSE_STEP)
   assert.equal(
     refinementNote(refined),
-    "Couldn't refine 1 of 2 cliff zones, so cliff edges there may be off by up to $2,500. Click Find cliffs to try again.",
+    "Couldn't refine 1 of 2 cliff zones, so cliff edges there may be off by up to $2,500. Reload the page to try again.",
   )
 })
 
@@ -143,10 +143,10 @@ test('refineCliffZones returns the coarse series untouched when there is nothing
 test('refinementFailureNote names the step a cliff edge can be off by', () => {
   assert.equal(
     refinementFailureNote(500, 1, 1),
-    "Couldn't refine 1 of 1 cliff zone, so cliff edges there may be off by up to $500. Click Find cliffs to try again.",
+    "Couldn't refine 1 of 1 cliff zone, so cliff edges there may be off by up to $500. Reload the page to try again.",
   )
   assert.equal(
     refinementFailureNote(2500),
-    "Couldn't refine the chart around its cliffs, so cliff edges there may be off by up to $2,500. Click Find cliffs to try again.",
+    "Couldn't refine the chart around its cliffs, so cliff edges there may be off by up to $2,500. Reload the page to try again.",
   )
 })
