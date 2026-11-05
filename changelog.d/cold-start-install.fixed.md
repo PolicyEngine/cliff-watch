@@ -1,0 +1,1 @@
+The cold-start install now fits in `/tmp` beside the files a stopped install leaves behind, so a slow start no longer leaves an instance failing every request with "No space left on device". The calculation routes also get 120 seconds rather than 60, since loading the engine now takes about 40 seconds on a cold instance.
