@@ -184,6 +184,8 @@ python3 -m cliff_watch.calculator examples/sample_household.json --mode series
 - County-specific refinements are not exposed in the UI yet.
 - The modeled bundle is intentionally narrower than every possible administrative program.
 - Every adult counts as working 40 hours a week at every earnings level, including zero, because the form doesn't ask about hours. Work tests therefore pass: SNAP's time limit, child care activity tests and, from 2027, Medicaid's community engagement test.
+- A household that selects TANF counts as enrolled at every earnings level, even where the calculated grant is zero, so rules that favor enrolled families apply throughout, such as Nebraska's waived child care fee. Florida's extra earnings disregard ignores enrollment and follows the engine's new-applicant rule, so TANF for a Florida family of three stops as earnings pass about $4,700.
+- State and local taxes include Maryland's county income tax at Allegany County's rate, because the form doesn't ask for a county.
 
 ## License
 

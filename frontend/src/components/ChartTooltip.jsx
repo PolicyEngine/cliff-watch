@@ -88,7 +88,7 @@ function IncomeTotalBody({ point, components, cliff }) {
           <span>{fmtUsd(summary.federalTaxes)}/yr</span>
         </div>
         <div className="chart-tooltip-row">
-          <span>State taxes</span>
+          <span>State and local taxes</span>
           <span>{fmtUsd(summary.stateTaxes)}/yr</span>
         </div>
         <CliffOrChangeRow point={point} cliff={cliff} />
