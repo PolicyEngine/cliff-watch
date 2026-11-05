@@ -136,14 +136,14 @@ With that variable set, browser requests go to the Modal backend's
 
 ## Cold-start install
 
-Vercel's Python runtime ships a function's dependencies in its zip while the function totals 225 MiB or less. Past that, it installs the public packages into `/tmp` when an instance starts, before any of this app's code runs, and only packages with a URL source stay in the zip. `pyproject.toml` removes packages a household calculation never imports, so this function totals about 189 MiB and no install runs. The builder then fills the zip with bytecode up to 220 MiB.
+Vercel's Python runtime ships a function's dependencies in its zip while the function totals 225 MiB or less. Past that, it installs the public packages into `/tmp` when an instance starts, before any of this app's code runs, and those packages leave the zip. `pyproject.toml` removes packages a household calculation never imports, so this function totals about 189 MiB and no install runs. The builder then fills the zip with bytecode up to 220 MiB. That fill shrinks as the function grows, and a preview with none of it took 38 to 42 seconds on first requests, about 5 seconds longer than one with the fill and inside the routes' 60-second limit.
 
 If a version bump takes the function past 225 MiB, the install comes back, and two platform limits shape it:
 
 - Lambda gives an instance's init 10 seconds. An init that runs longer stops and starts again on the same instance, and `/tmp` keeps what it wrote.
 - `/tmp` holds about 513 MiB, and each file takes whole 4 KiB blocks, so many small files take far more room than their sizes add up to.
 
-An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. `tests/test_deploy_footprint.py` fails when the function passes 225 MiB, and when a complete install stops fitting on top of a stopped one. If the first fails after a version bump, trim another package, or accept the install and update this section. If the second fails, trim another package or give one a URL source.
+An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. `tests/test_deploy_footprint.py` fails when the function passes 225 MiB, and when a complete install stops fitting on top of a stopped one. If the first fails after a version bump, trim another package, or accept the install and update this section. If the second fails, trim another package or give one a URL source. `main` requires no checks, so a failing run warns the author of a bump and doesn't block its merge.
 
 ## Quick CLI Smoke Test
 

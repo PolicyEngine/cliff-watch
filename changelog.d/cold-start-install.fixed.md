@@ -1,1 +1,0 @@
-Cold starts no longer install dependencies into `/tmp`. The function now leaves out packages a household calculation never imports and fits inside Vercel's bundle, so a slow start can't leave an instance failing every request with "No space left on device".
