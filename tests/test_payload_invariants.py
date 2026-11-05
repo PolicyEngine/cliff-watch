@@ -293,9 +293,18 @@ def test_entered_income_reaches_the_engine_components(raw, ssdi):
         + sum(entered[field] for field in FULLY_TAXABLE_FIELDS)
         + head("ak_permanent_fund_dividend")
     )
-    taxable_social_security = head("irs_gross_income") - fully_taxable
-    assert taxable_social_security >= -0.01
-    assert taxable_social_security <= 0.85 * (retirement + ssdi) + 0.01
+    gross_income = head("irs_gross_income")
+    taxable_social_security = gross_income - fully_taxable
+    # policyengine-us adds the gross income sources one at a time in float32,
+    # and each addition can round by half a float32 step of the running total,
+    # at most 2**-24 of it. From $524,288 a step is $0.0625, so taxable benefits
+    # of $0.85 can come back as $0.875.
+    sources = simulation.tax_benefit_system.parameters(
+        f"{YEAR}-01-01"
+    ).gov.irs.gross_income.sources
+    tolerance = 0.01 + len(sources) * 2**-24 * gross_income
+    assert taxable_social_security >= -tolerance
+    assert taxable_social_security <= 0.85 * (retirement + ssdi) + tolerance
 
 
 # ---------------------------------------------------------------------------
