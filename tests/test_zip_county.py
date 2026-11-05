@@ -20,6 +20,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from cliff_watch.calculator import (
+    _normalize_county,
     build_household_situation,
     household_input_from_dict,
     household_location,
@@ -180,6 +181,12 @@ def test_every_county_code_is_an_engine_county() -> None:
 
     members = set(County._member_names_)
     assert [code for code in _table().codes if code not in members] == []
+
+
+def test_every_county_code_survives_the_explicit_county_path() -> None:
+    """A picked county must reach the engine as the code the table gave it."""
+    for code in _table().codes:
+        assert _normalize_county(code, _state_of(code)) == code
 
 
 def test_each_zip_lists_counties_in_resolution_order() -> None:
