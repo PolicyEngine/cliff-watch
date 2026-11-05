@@ -793,6 +793,11 @@
       "adds": [],
       "subtracts": []
     },
+    "hours_worked_last_week": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
     "household_market_income": {
       "entity": "household",
       "adds": [
@@ -3271,6 +3276,11 @@
     },
     "wa_working_families_tax_credit": {
       "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "weekly_hours_worked_before_lsr": {
+      "entity": "person",
       "adds": [],
       "subtracts": []
     },

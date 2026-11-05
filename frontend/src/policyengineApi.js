@@ -56,6 +56,11 @@ const STATE_TANF_VARIABLES = {
   WY: 'wy_power',
 }
 
+// cliff_watch/config.py explains these.
+const MIN_ADULT_AGE = 18
+const ASSUMED_ADULT_WEEKLY_HOURS = 40
+const WORK_HOURS_INPUTS = ['weekly_hours_worked_before_lsr', 'hours_worked_last_week']
+
 const VALID_FILING_STATUSES = new Set([
   'SINGLE',
   'HEAD_OF_HOUSEHOLD',
@@ -647,6 +652,11 @@ function buildPersonData(person, year) {
     head_start: { [year]: null },
     early_head_start: { [year]: null },
     ssi: { [year]: null },
+  }
+  if (person.age >= MIN_ADULT_AGE) {
+    WORK_HOURS_INPUTS.forEach((variable) => {
+      data[variable] = { [year]: ASSUMED_ADULT_WEEKLY_HOURS }
+    })
   }
   return data
 }

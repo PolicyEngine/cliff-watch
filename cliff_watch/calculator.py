@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from cliff_watch.config import (
+    ASSUMED_ADULT_WEEKLY_HOURS,
     CCDF_MODELED_STATES,
     DEFAULT_CLIFF_DELTA,
     DEFAULT_FILING_STATUS,
@@ -31,6 +32,7 @@ from cliff_watch.config import (
     STATE_NAME_BY_CODE,
     STATE_PROGRAM_OVERRIDES,
     STATE_TANF_VARIABLES,
+    WORK_HOURS_INPUTS,
 )
 from cliff_watch.engine import CalculatorDependencyError, run_household
 
@@ -414,7 +416,7 @@ def _base_person_data(
     *,
     year: int,
 ) -> dict[str, Any]:
-    return {
+    data = {
         "age": {year: person["age"]},
         "has_itin": {year: True},
         "has_esi": {year: False},
@@ -432,6 +434,10 @@ def _base_person_data(
         "immigration_status_str": {year: "CITIZEN"},
         "is_ccdf_reason_for_care_eligible": {year: True},
     }
+    if person["age"] >= MIN_ADULT_AGE:
+        for variable in WORK_HOURS_INPUTS:
+            data[variable] = {year: ASSUMED_ADULT_WEEKLY_HOURS}
+    return data
 
 
 # policyengine-us's gov.ssa.ssi.eligibility.aged_threshold;
