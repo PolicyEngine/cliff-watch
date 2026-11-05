@@ -1,19 +1,21 @@
-"""The cold-start install has to fit in /tmp twice.
+"""Keep the function inside Vercel's bundle, and keep any cold-start install safe.
 
-Vercel's Python runtime installs a large function's public packages into /tmp when
-an instance starts, before any of this app's code runs. An install that stops
-partway leaves its files behind, so the retry needs room for a whole install on
-top of them. When it lacks that room, every request on the instance fails with "No
-space left on device" until the platform replaces the instance. The README's
-"Cold-start install" section explains the limits, and the PR that added this file
-holds the measurements.
+Vercel's Python runtime ships a function's dependencies in its zip while the function
+totals 225 MiB or less, and no install runs. Past that, it installs the public
+packages into /tmp when an instance starts, before any of this app's code runs. An
+install that stops partway leaves its files behind, so the retry needs room for a
+whole install on top of them. When it lacks that room, every request on the instance
+fails with "No space left on device" until the platform replaces the instance. The
+README's "Cold-start install" section explains the limits, and the PR that added this
+file holds the measurements.
 
 Invariants, for the locked dependency set:
 
-- The trimmed packages stay out of the runtime install.
-- Packages with a URL source stay in the function's zip rather than the install.
-- A complete install fits on top of the leftovers of a stopped one.
-- This walk over uv.lock agrees with uv on what the install contains.
+- The function fits the bundle, so no install runs at cold start.
+- The trimmed packages stay out of the function.
+- Packages with a URL source would stay in the zip if an install came back.
+- A complete install, if one came back, fits on top of the leftovers of a stopped one.
+- This walk over uv.lock agrees with uv on what the function contains.
 """
 
 from __future__ import annotations
@@ -33,6 +35,12 @@ from packaging.utils import canonicalize_name
 
 REPO = Path(__file__).resolve().parents[1]
 MIB = 1024 * 1024
+
+# LAMBDA_SIZE_THRESHOLD_BYTES in the Python builder: past this, cold starts install.
+BUNDLE_LIMIT_MIB = 225.0
+# What the builder counts besides these packages' files: 188.74 MiB in its debug log on
+# 5 November 2026, for packages this module sizes at 186.2 MiB.
+BUILDER_EXTRA_MIB = 2.6
 
 # Measured on preview deployments on 5 November 2026 with statvfs, whose figures
 # count 4 KiB blocks on an ext4 /tmp. The builder budgets apparent bytes, which
@@ -110,7 +118,7 @@ def _public_names(rows: dict[str, dict]) -> set[str]:
     return {name for name, row in rows.items() if "registry" in row["source"]}
 
 
-def test_trimmed_packages_stay_out_of_the_runtime_install():
+def test_trimmed_packages_stay_out_of_the_function():
     assert not TRIMMED & set(_runtime_rows())
 
 
@@ -152,10 +160,8 @@ def _blocks(size: int) -> int:
     return (size + TMP_BLOCK_BYTES - 1) // TMP_BLOCK_BYTES * TMP_BLOCK_BYTES
 
 
-def install_bytes(names: set[str], path: list[str] | None = None) -> int:
-    """What these packages occupy once installed: file blocks plus directory blocks."""
-    total = 0
-    directories: set[str] = set()
+def _installed_files(names: set[str], path: list[str] | None = None):
+    """Each file these packages install, bytecode aside: (package root, path, size)."""
     for name in names:
         distribution = next(
             iter(metadata.distributions(name=name, path=path or sys.path))
@@ -166,18 +172,42 @@ def install_bytes(names: set[str], path: list[str] | None = None) -> int:
                 continue
             full = os.path.normpath(str(distribution.locate_file(file)))
             try:
-                total += _blocks(os.lstat(full).st_size)
+                yield root, full, os.lstat(full).st_size
             except FileNotFoundError:
                 continue
-            parent = os.path.dirname(full)
-            while parent.startswith(root) and parent != root.rstrip(os.sep):
-                directories.add(parent)
-                parent = os.path.dirname(parent)
+
+
+def install_bytes(names: set[str], path: list[str] | None = None) -> int:
+    """What these packages occupy once installed: file blocks plus directory blocks."""
+    total = 0
+    directories: set[str] = set()
+    for root, full, size in _installed_files(names, path):
+        total += _blocks(size)
+        parent = os.path.dirname(full)
+        while parent.startswith(root) and parent != root.rstrip(os.sep):
+            directories.add(parent)
+            parent = os.path.dirname(parent)
     return total + len(directories) * TMP_BLOCK_BYTES
 
 
-# Mac wheels differ from the Linux wheels Vercel installs, so the number only means
-# anything on Linux; CI runs this on the same manylinux wheels.
+def bundle_bytes(names: set[str], path: list[str] | None = None) -> int:
+    """What the builder counts for these packages: their files' apparent sizes."""
+    return sum(size for _, _, size in _installed_files(names, path))
+
+
+# Mac wheels differ from the Linux wheels Vercel installs, so these numbers only mean
+# anything on Linux; CI runs them on the same manylinux wheels.
+@pytest.mark.skipif(sys.platform != "linux", reason="needs the Linux wheels")
+def test_the_function_fits_the_bundle_so_no_install_runs():
+    names = set(_runtime_rows()) - {"cliff-watch"}
+    total_mib = bundle_bytes(names) / MIB + BUILDER_EXTRA_MIB
+    assert total_mib <= BUNDLE_LIMIT_MIB, (
+        f"the function totals about {total_mib:.1f} MiB, past the {BUNDLE_LIMIT_MIB} MiB "
+        "Vercel bundles, so cold starts would install dependencies into /tmp again; trim "
+        'a package, or accept the install and update "Cold-start install" in the README'
+    )
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="needs the Linux wheels")
 def test_a_complete_install_fits_on_top_of_a_stopped_one():
     final_mib = install_bytes(_public_names(_runtime_rows())) / MIB

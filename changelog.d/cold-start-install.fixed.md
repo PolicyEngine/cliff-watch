@@ -1,1 +1,1 @@
-The cold-start install now fits in `/tmp` beside the files a stopped install leaves behind, so a slow start no longer leaves an instance failing every request with "No space left on device".
+Cold starts no longer install dependencies into `/tmp`. The function now leaves out packages a household calculation never imports and fits inside Vercel's bundle, so a slow start can't leave an instance failing every request with "No space left on device".

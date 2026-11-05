@@ -136,12 +136,14 @@ With that variable set, browser requests go to the Modal backend's
 
 ## Cold-start install
 
-The function's dependencies exceed the 225 MiB that Vercel's Python runtime bundles, so the runtime installs the public ones into `/tmp` when an instance starts, before any of this app's code runs. Packages with a URL source stay in the zip. Two platform limits shape that install:
+Vercel's Python runtime ships a function's dependencies in its zip while the function totals 225 MiB or less. Past that, it installs the public packages into `/tmp` when an instance starts, before any of this app's code runs, and only packages with a URL source stay in the zip. `pyproject.toml` removes packages a household calculation never imports, so this function totals about 189 MiB and no install runs. The builder then fills the zip with bytecode up to 220 MiB.
+
+If a version bump takes the function past 225 MiB, the install comes back, and two platform limits shape it:
 
 - Lambda gives an instance's init 10 seconds. An init that runs longer stops and starts again on the same instance, and `/tmp` keeps what it wrote.
-- `/tmp` holds about 513 MiB counted in 4 KiB blocks, so many small files take far more room than their sizes add up to.
+- `/tmp` holds about 513 MiB, and each file takes whole 4 KiB blocks, so many small files take far more room than their sizes add up to.
 
-An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. So `pyproject.toml` removes packages a household calculation never imports, and `tests/test_deploy_footprint.py` fails if a complete install stops fitting on top of a stopped one. If that test fails after a version bump, trim another package or give one a URL source.
+An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. `tests/test_deploy_footprint.py` fails when the function passes 225 MiB, and when a complete install stops fitting on top of a stopped one. If the first fails after a version bump, trim another package, or accept the install and update this section. If the second fails, trim another package or give one a URL source.
 
 ## Quick CLI Smoke Test
 
