@@ -15,11 +15,13 @@ function optionLabel(county) {
   return share ? `${county.name} (${share} of residents)` : county.name
 }
 
-function usedCountyClause(county) {
+function usedCountyClause(county, isFirst) {
   const share = formatShare(county.resident_share)
-  return share
-    ? `This chart uses ${county.name}, home to ${share} of its residents.`
-    : `This chart uses ${county.name}, which holds most of its land.`
+  if (share) return `This chart uses ${county.name}, home to ${share} of its residents.`
+  // A ZIP with no residents ranks its counties by land area.
+  return isFirst
+    ? `This chart uses ${county.name}, which has the largest share of its land.`
+    : `This chart uses ${county.name}.`
 }
 
 const EMPTY_CONTEXT = Object.freeze({
@@ -75,7 +77,7 @@ export function countyContext(location, stateName = '') {
 
   return {
     countyName,
-    note: `ZIP ${zip} covers more than one county. ${usedCountyClause(used)}`,
+    note: `ZIP ${zip} covers more than one county. ${usedCountyClause(used, used === counties[0])}`,
     options: counties.map((option) => ({
       code: option.code,
       label: optionLabel(option),

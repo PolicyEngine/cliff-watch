@@ -147,12 +147,29 @@ test('a ZIP with no residents falls back to land in its wording', () => {
 
   assert.equal(
     context.note,
-    'ZIP 02467 covers more than one county. This chart uses Middlesex County, which holds most of its land.',
+    'ZIP 02467 covers more than one county. This chart uses Middlesex County, which has the largest share of its land.',
   )
   assert.deepEqual(context.options.map((option) => option.label), [
     'Middlesex County',
     'Norfolk County',
   ])
+})
+
+test('a picked county in a ZIP with no residents claims nothing about land', () => {
+  const context = countyContext(location({
+    county: 'NORFOLK_COUNTY_MA',
+    county_name: 'Norfolk County',
+    source: 'explicit',
+    counties: [
+      { ...MIDDLESEX, residents: null, resident_share: null },
+      { ...NORFOLK, residents: null, resident_share: null },
+    ],
+  }))
+
+  assert.equal(
+    context.note,
+    'ZIP 02467 covers more than one county. This chart uses Norfolk County.',
+  )
 })
 
 test('shares never round to a misleading 0% or 100%', () => {
