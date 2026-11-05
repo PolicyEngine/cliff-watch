@@ -500,23 +500,38 @@ def _base_person_data(
     return data
 
 
+# policyengine-us's gov.ssa.ssi.eligibility.aged_threshold;
+# test_could_claim_ssi_matches_the_engine compares the two.
+SSI_AGED_THRESHOLD = 65
+
+
+def _could_claim_ssi(person: dict[str, Any]) -> bool:
+    """Whether policyengine-us treats the person as aged, blind or disabled for SSI.
+
+    Its SSI disability test reads ``meets_ssi_disability_criteria``, which
+    CliffWatch never sets, so the Disabled checkbox alone doesn't make anyone
+    eligible: only age and blindness do.
+    """
+    return person["age"] >= SSI_AGED_THRESHOLD or person["is_blind"]
+
+
 def _liquid_asset_holder(members: list[dict[str, Any]]) -> str | None:
     """The person whose ``bank_account_assets`` carry the household's savings.
 
     SNAP and TANF asset tests sum over the SPM unit, so only the SSI resource
     test depends on the holder. Savings go to the head, or to the spouse when
-    only the spouse could claim SSI (aged 65+, blind or disabled), whose
-    resources would include the couple's savings.
+    only the spouse could claim SSI (aged 65 or over, or blind), so that the
+    spouse's resource test sees the couple's savings.
     """
-
-    def could_claim_ssi(person: dict[str, Any]) -> bool:
-        return person["age"] >= 65 or person["is_blind"] or person["is_disabled"]
-
     head = next((person for person in members if person["role"] == "head"), None)
     spouse = next((person for person in members if person["role"] == "spouse"), None)
     if head is None:
         return None
-    if spouse is not None and could_claim_ssi(spouse) and not could_claim_ssi(head):
+    if (
+        spouse is not None
+        and _could_claim_ssi(spouse)
+        and not _could_claim_ssi(head)
+    ):
         return spouse["id"]
     return head["id"]
 

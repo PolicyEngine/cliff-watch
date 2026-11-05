@@ -21,11 +21,14 @@ from cliff_watch.config import STATE_TANF_VARIABLES
 YEAR = 2026
 
 
-def _simulate(raw):
+def _simulate_payload(payload):
     from policyengine_us import Simulation
 
-    payload = household_input_from_dict({"year": YEAR, **raw})
     return Simulation(situation=build_household_situation(payload))
+
+
+def _simulate(raw):
+    return _simulate_payload(household_input_from_dict({"year": YEAR, **raw}))
 
 
 def _series(raw, **kwargs):
@@ -160,6 +163,62 @@ def test_savings_go_to_the_spouse_who_could_claim_ssi():
     )
     assert "bank_account_assets" not in situation["people"]["adult_1"]
     assert situation["people"]["adult_2"]["bank_account_assets"] == {YEAR: 5_000}
+
+
+def test_savings_reach_an_aged_spouse_when_the_head_is_marked_disabled():
+    # policyengine-us's SSI disability test reads meets_ssi_disability_criteria,
+    # which CliffWatch never sets, so a head marked Disabled can't claim SSI and
+    # the aged spouse's resource test has to see the savings.
+    raw = {
+        "state": "TX",
+        "filing_status": "JOINT",
+        "people": [
+            {"kind": "adult", "age": 40, "is_disabled": True},
+            {"kind": "adult", "age": 70},
+        ],
+        "liquid_assets": 5_000,
+    }
+    simulation = _simulate(raw)
+    assert simulation.calculate("is_ssi_aged_blind_disabled", YEAR).tolist() == [
+        False,
+        True,
+    ]
+    assert simulation.calculate("bank_account_assets", YEAR).tolist() == [0, 5_000]
+    # $5,000 exceeds SSI's $2,000 individual resource limit; without savings
+    # the spouse would receive SSI.
+    assert simulation.calculate("ssi", YEAR)[1] == 0
+    assert _simulate({**raw, "liquid_assets": 0}).calculate("ssi", YEAR)[1] > 0
+
+
+@pytest.mark.parametrize("is_blind", [False, True])
+@pytest.mark.parametrize("is_disabled", [False, True])
+def test_could_claim_ssi_matches_the_engine(is_blind, is_disabled):
+    from cliff_watch.calculator import (
+        SSI_AGED_THRESHOLD,
+        _could_claim_ssi,
+        _resolved_people,
+    )
+
+    flags = {"is_blind": is_blind, "is_disabled": is_disabled}
+    payload = household_input_from_dict(
+        {
+            "state": "CA",
+            "year": YEAR,
+            "filing_status": "SINGLE",
+            "people": [
+                *(
+                    {"kind": "adult", "age": age, **flags}
+                    for age in (18, 40, 64, 65, 66, 90)
+                ),
+                *({"kind": "child", "age": age, **flags} for age in (0, 5, 12, 17)),
+            ],
+        }
+    )
+    simulation = _simulate_payload(payload)
+    parameters = simulation.tax_benefit_system.parameters(f"{YEAR}-01-01")
+    assert parameters.gov.ssa.ssi.eligibility.aged_threshold == SSI_AGED_THRESHOLD
+    engine = simulation.calculate("is_ssi_aged_blind_disabled", YEAR).tolist()
+    assert engine == [_could_claim_ssi(person) for person in _resolved_people(payload)]
 
 
 # The single-household endpoint and the earnings series share one builder, so at

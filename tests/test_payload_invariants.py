@@ -21,7 +21,7 @@ from functools import cache
 from pathlib import Path
 
 import pytest
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import HealthCheck, assume, example, given, settings
 from hypothesis import strategies as st
 
 from cliff_watch.calculator import (
@@ -34,6 +34,7 @@ from cliff_watch.calculator import (
 from cliff_watch.config import PUBLIC_ASSISTANCE_PROGRAM_OPTIONS, STATE_NAME_BY_CODE
 from cliff_watch.variable_graph import (
     GROUP_ENTITIES,
+    KNOWN_COMPUTED_INPUTS,
     REVIEWED_TOTAL_INPUTS,
     build_variable_graph,
     components_of,
@@ -152,6 +153,28 @@ def test_emits_only_policyengine_variables_on_their_entities(system, raw):
 
 @PROPERTY_SETTINGS
 @given(raw=raw_payloads())
+def test_never_sets_a_computed_variable_unless_listed(system, raw):
+    payload = household_input_from_dict(raw)
+    for path, situation in _situations(payload):
+        for group, instance, variable in situation_inputs(situation):
+            if system.variables[variable].formulas:
+                assert variable in KNOWN_COMPUTED_INPUTS, (
+                    f"{path}: {group}.{instance}.{variable} has a formula"
+                )
+
+
+def test_known_computed_inputs_still_have_formulas(system):
+    # A listed variable that lost its formula no longer needs a reason here.
+    stale = [
+        name
+        for name in KNOWN_COMPUTED_INPUTS
+        if name not in system.variables or not system.variables[name].formulas
+    ]
+    assert stale == []
+
+
+@PROPERTY_SETTINGS
+@given(raw=raw_payloads())
 def test_never_sets_a_total_except_reviewed_ones(system, raw):
     payload = household_input_from_dict(raw)
     for path, situation in _situations(payload):
@@ -248,8 +271,39 @@ FULLY_TAXABLE_FIELDS = tuple(
     if field not in {"child_support_annual", "social_security_annual"}
 )
 
+# The household that failed the gross-income check before it allowed for
+# float32 rounding: $523,288 of other income and $1 of SSDI in Alaska.
+SEPTEMBER_FLOAT32_HOUSEHOLD = {
+    "state": "AK",
+    "year": YEAR,
+    "earned_income": 0,
+    "filing_status": "SINGLE",
+    "people": [
+        {
+            "kind": "adult",
+            "age": 18,
+            "is_pregnant": False,
+            "is_disabled": False,
+            "is_blind": False,
+            "is_full_time_student": False,
+            "is_incapable_of_self_care": False,
+            "earned_income": 0,
+            "ssi_amount": 0,
+            "ssdi_amount": 0,
+        }
+    ],
+    "programs_mode": "all",
+    "selected_programs": [],
+    "has_employer_health_insurance": False,
+    "liquid_assets": 0,
+    **{field: 0 for field in COST_FIELDS},
+    **{field: 0 for field in HEAD_INCOME_INPUTS},
+    "miscellaneous_income_annual": 523_288,
+}
+
 
 @settings(max_examples=12, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@example(raw=SEPTEMBER_FLOAT32_HOUSEHOLD, ssdi=1)
 @given(
     raw=raw_payloads(),
     ssdi=st.one_of(st.just(0), st.integers(1, 30_000)),
@@ -285,8 +339,8 @@ def test_entered_income_reaches_the_engine_components(raw, ssdi):
     assert head("social_security_disability") == pytest.approx(ssdi)
     assert head("social_security") == pytest.approx(retirement + ssdi)
 
-    # Every entered taxable dollar reaches federal gross income exactly once;
-    # at most 85% of Social Security benefits are taxable. Alaska adds its
+    # Every entered taxable dollar reaches federal gross income exactly once,
+    # next to the engine's taxable share of Social Security. Alaska adds its
     # Permanent Fund Dividend, which the household doesn't enter.
     fully_taxable = (
         payload.earned_income
@@ -294,7 +348,7 @@ def test_entered_income_reaches_the_engine_components(raw, ssdi):
         + head("ak_permanent_fund_dividend")
     )
     gross_income = head("irs_gross_income")
-    taxable_social_security = gross_income - fully_taxable
+    taxable_social_security = head("taxable_social_security")
     # policyengine-us adds the gross income sources one at a time in float32,
     # and each addition can round by half a float32 step of the running total,
     # at most 2**-24 of it. From $524,288 a step is $0.0625, so taxable benefits
@@ -302,13 +356,21 @@ def test_entered_income_reaches_the_engine_components(raw, ssdi):
     sources = simulation.tax_benefit_system.parameters(
         f"{YEAR}-01-01"
     ).gov.irs.gross_income.sources
+    assert "taxable_social_security" in sources
     tolerance = 0.01 + len(sources) * 2**-24 * gross_income
-    assert taxable_social_security >= -tolerance
-    assert taxable_social_security <= 0.85 * (retirement + ssdi) + tolerance
+    assert abs(gross_income - fully_taxable - taxable_social_security) <= tolerance
+    # At most 85% of Social Security benefits are taxable.
+    assert 0 <= taxable_social_security <= 0.85 * (retirement + ssdi) + tolerance
 
 
 # ---------------------------------------------------------------------------
 # Differential: the JS builder must send the same inputs as the Python one.
+#
+# The drawn payloads carry filing_status, a lowercase programs_mode and the
+# metadata program list. The builders still differ outside that: Python
+# ignores marital_status, which the UI sends instead of filing_status; JS
+# doesn't lowercase programs_mode; and JS's fallback program list, used when
+# metadata is missing, leaves out ssdi.
 
 NODE = shutil.which("node")
 JS_BUILDER = REPO / "frontend" / "src" / "policyengineApi.js"

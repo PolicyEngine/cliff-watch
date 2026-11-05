@@ -603,11 +603,12 @@ function validatePayload(payload) {
  * The person whose bank_account_assets carry the household's savings. SNAP and
  * TANF asset tests sum over the SPM unit, so only the SSI resource test depends
  * on the holder. Savings go to the head, or to the spouse when only the spouse
- * could claim SSI (aged 65+, blind or disabled). Mirrors _liquid_asset_holder
- * in cliff_watch/calculator.py.
+ * could claim SSI (aged 65 or over, or blind: policyengine-us's SSI disability
+ * test reads meets_ssi_disability_criteria, which Cliff Watch never sets).
+ * Mirrors _liquid_asset_holder and _could_claim_ssi in cliff_watch/calculator.py.
  */
 function liquidAssetHolder(people) {
-  const couldClaimSsi = (person) => person.age >= 65 || person.is_blind || person.is_disabled
+  const couldClaimSsi = (person) => person.age >= 65 || person.is_blind
   const head = people.find((person) => person.role === 'head')
   const spouse = people.find((person) => person.role === 'spouse')
   if (!head) return null

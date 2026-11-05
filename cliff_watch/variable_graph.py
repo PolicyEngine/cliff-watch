@@ -40,6 +40,47 @@ REVIEWED_TOTAL_INPUTS = {
     ),
 }
 
+# Variables with formulas that the builders set anyway, and what each input
+# replaces. An input on a formula variable fixes its value, so rules that read
+# it stop seeing what the formula would compute (an input on medicaid_magi, for
+# example, would leave out income the household entered elsewhere). Adding any
+# other formula variable fails test_never_sets_a_computed_variable_unless_listed
+# until it is listed here. The JS builder sends the same inputs as the Python
+# one (test_js_builder_sends_the_same_inputs), so this list covers both.
+KNOWN_COMPUTED_INPUTS = {
+    "ccdf_age_group": (
+        "Set to SCHOOL_AGE for adults only: the formula's age bands stop at 13 "
+        "(see _base_person_data)."
+    ),
+    "childcare_expenses": (
+        "Set to the entered child care cost. The formula would subtract child "
+        "care subsidies from spm_unit_pre_subsidy_childcare_expenses, which "
+        "the builders also set, so with this input SNAP's dependent care "
+        "deduction and the other rules that read it see the full cost even "
+        "when a subsidy pays part of it. Kept as before; a follow-up weighs "
+        "dropping it."
+    ),
+    "county": "The household's county as entered.",
+    "filing_status": (
+        "The household's filing status as entered, or as derived from the "
+        "household when none is entered."
+    ),
+    "has_itin": "Set to True, the value the formula gives by default.",
+    "hud_utility_allowance": (
+        "Set to the household's utility bills. The formula applies Los Angeles "
+        "County's schedule by bedroom count and gives 0 elsewhere."
+    ),
+    "is_ccdf_reason_for_care_eligible": (
+        "Set to True, the value the formula gives when meets_ccdf_activity_test "
+        "holds, which the builders also set to True."
+    ),
+    "is_full_time_student": (
+        "Entered for each person; the formula infers it from school enrollment."
+    ),
+    "ssi": "An SSI amount the household reports receiving replaces the computed one.",
+    "state_name": "The household's state as entered.",
+}
+
 
 def _component_names(tax_benefit_system: Any, components: Any) -> list[str]:
     if not components:
