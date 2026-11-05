@@ -121,7 +121,19 @@ test('a ZIP with no county in the state says the default applies', () => {
   assert.equal(context.countyName, null)
   assert.equal(
     context.note,
-    "CliffWatch can't place ZIP 20147 in a District of Columbia county, so rules that vary by county use PolicyEngine's default county for the state.",
+    "CliffWatch can't place ZIP 20147 in a District of Columbia county, so rules that vary by county use the first county alphabetically in District of Columbia.",
+  )
+})
+
+test('a household with no ZIP says the same without naming one', () => {
+  const context = countyContext(
+    location({ zip: null, county: null, county_name: null, source: 'none', counties: [] }),
+    'Massachusetts',
+  )
+
+  assert.equal(
+    context.note,
+    'This household has no ZIP code, so rules that vary by county use the first county alphabetically in Massachusetts.',
   )
 })
 

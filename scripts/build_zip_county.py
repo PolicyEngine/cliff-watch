@@ -253,16 +253,12 @@ def build_table(
     }
 
     for zcta, land in sorted(land_by_zcta.items()):
-        known = {
-            fips: area for fips, area in land.items() if fips in engine_counties
-        }
+        known = {fips: area for fips, area in land.items() if fips in engine_counties}
         if not known:
             # Territories' ZCTAs: the form accepts no ZIP in these places.
             counts["zcta_outside_engine_counties"] += 1
             continue
-        residents = {
-            fips: population.get(zcta, {}).get(fips, 0) for fips in known
-        }
+        residents = {fips: population.get(zcta, {}).get(fips, 0) for fips in known}
         if sum(residents.values()) > 0:
             ranked = sorted(
                 (
@@ -293,9 +289,7 @@ def build_table(
         if zip_code in zips or zip_code in land_by_zcta:
             continue
         in_state = [
-            code
-            for code, _ in zcta_rows.get(zcta, [])
-            if code.endswith(f"_{state}")
+            code for code, _ in zcta_rows.get(zcta, []) if code.endswith(f"_{state}")
         ]
         if in_state:
             zips[zip_code] = [(in_state[0], None)]

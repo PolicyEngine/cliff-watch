@@ -37,9 +37,12 @@ export function countyContext(location, stateName = '') {
   const counties = location.counties || []
 
   if (source === 'none' || !county) {
+    const reason = zip
+      ? `CliffWatch can't place ZIP ${zip} in a ${stateName} county`
+      : 'This household has no ZIP code'
     return {
       ...EMPTY_CONTEXT,
-      note: `CliffWatch can't place ZIP ${zip} in a ${stateName} county, so rules that vary by county use PolicyEngine's default county for the state.`,
+      note: `${reason}, so rules that vary by county use the first county alphabetically in ${stateName}.`,
     }
   }
 

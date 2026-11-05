@@ -1218,6 +1218,16 @@ body {
   color: #b45309;
 }
 
+.county-note .chart-note {
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.county-picker {
+  max-width: 24rem;
+  margin-bottom: 1rem;
+}
+
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

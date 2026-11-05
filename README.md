@@ -134,6 +134,26 @@ vercel --prod --force --yes --scope policy-engine
 With that variable set, browser requests go to the Modal backend's
 `/api/metadata`, `/api/calculate`, `/api/series`, and `/api/households` routes.
 
+## County from ZIP
+
+The form asks for a ZIP and no county. The API resolves the county, so the form, share links, direct API calls and the Modal fallback all follow one rule:
+
+1. An explicit `county`, such as a share link's `county=MIDDLESEX_COUNTY_MA`, always wins.
+2. Otherwise the household gets the ZIP's first county in its state. A ZIP that spans counties lists the county with the most 2020 Census residents first, and a tie goes to the lower county code.
+3. A ZIP code tabulation area (ZCTA) with no residents ranks its counties by land area.
+4. A ZIP with no ZCTA of its own, such as a post-office-box ZIP, uses GeoNames' county, or else the first county in its state of the ZCTA the crosswalk gives it.
+5. A ZIP with no county in the household's state resolves to nothing. policyengine-us then uses the state's first county alphabetically, and the results page says so.
+
+A series response carries a `location` block saying which county the calculation used and why (`source` is `explicit`, `zip` or `none`). When a ZIP spans counties, the results page shows each county's share of the ZIP's residents and lets the user pick another. The choice goes in the share link, and editing the ZIP clears it. The API also sends the ZIP to policyengine-us, because Los Angeles County's rating area and the small-area rent variables read it.
+
+`scripts/build_zip_county.py` builds `cliff_watch/data/zip_county.json.gz`. It reads the [Census 2020 ZCTA-county relationship file](https://www.census.gov/geographies/reference-files/time-series/geo/relationship-files.html), [2020 DHC table P1](https://api.census.gov/data/2020/dec/dhc) at summary level 881, [GeoNames US postal codes](https://www.geonames.org/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the table keeps each ZIP's county and drops the rest) and the UDS Mapper ZIP-to-ZCTA crosswalk as `policyengine-us-data` stored it. The script's docstring lists the exact files, and the table's `meta` block records their hashes.
+
+Rebuild the table when `policyengine-us` renames a county; `tests/test_zip_county.py` fails if a code stops being an engine county.
+
+```bash
+CENSUS_API_KEY=... uv run python scripts/build_zip_county.py --cache-dir /tmp/zip-county
+```
+
 ## Quick CLI Smoke Test
 
 You can also run the calculator without the frontend:
@@ -149,7 +169,7 @@ python3 -m cliff_watch.calculator examples/sample_household.json --mode series
 - Household inputs are person-based in v1, with each family member entered individually by type and age.
 - Earnings are assigned to the first adult and held constant over the year.
 - A second adult is treated as a spouse, and later adults are modeled as additional household members in the same household unit.
-- County-specific refinements are not exposed in the UI yet.
+- The form has no county field. The API resolves the county from the ZIP, as [County from ZIP](#county-from-zip) describes.
 - The modeled bundle is intentionally narrower than every possible administrative program.
 
 ## License
