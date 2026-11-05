@@ -39,6 +39,8 @@ const REVIEWED_TOTAL_INPUTS = {
     "policyengine-us's Simulation moves this input onto employment_income_before_lsr, which rules read.",
   self_employment_income:
     "policyengine-us's Simulation moves this input onto self_employment_income_before_lsr, which rules read.",
+  ssi:
+    'An SSI amount the household reports receiving. policyengine-us reads ssi directly and documents this input as the way to report it.',
 }
 
 const STATES = [

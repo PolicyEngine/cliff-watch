@@ -60,19 +60,13 @@ More detail is in [COMPUTE_STRATEGY.md](COMPUTE_STRATEGY.md).
 
 ### 1. Python setup
 
-Install the locked environment Vercel deploys (pulls PolicyEngine-US automatically):
+Install the locked environment Vercel deploys:
 
 ```bash
 uv sync --extra dev
 ```
 
-`pyproject.toml` pins the engine (`policyengine-us`, `policyengine-core`, `spm-calculator`) exactly, with the reason for each pin, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump a pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after.
-
-If you already have a local `policyengine-us` checkout, you can point this repo at it:
-
-```bash
-export POLICYENGINE_US_REPO=../policyengine-us
-```
+The calculator runs on `pe.us.calculate_household` from [policyengine.py](https://github.com/PolicyEngine/policyengine.py). `pyproject.toml` pins `policyengine`, whose `us` extra pins `policyengine-us`, `policyengine-core` and `spm-calculator` exactly, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump the pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after.
 
 ### 2. Frontend setup
 

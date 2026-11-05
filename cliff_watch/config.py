@@ -9,6 +9,9 @@ DEFAULT_SERIES_MIN_EARNINGS_WINDOW = 40_000
 DEFAULT_SERIES_TARGET_POINTS = 201
 DEFAULT_SERIES_STEP_INCREMENT = 250
 DEFAULT_FILING_STATUS = "HEAD_OF_HOUSEHOLD"
+# policyengine-us's SPM measures need someone it classifies as an adult. The
+# frontend holds adults to the same age.
+MIN_ADULT_AGE = 18
 MAX_ADULTS = 6
 MAX_DEPENDENTS = 6
 FILING_STATUS_OPTIONS = [

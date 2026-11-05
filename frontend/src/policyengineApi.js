@@ -648,9 +648,6 @@ function buildPersonData(person, year) {
     early_head_start: { [year]: null },
     ssi: { [year]: null },
   }
-  if (person.kind === 'adult') {
-    data.ccdf_age_group = { [year]: 'SCHOOL_AGE' }
-  }
   return data
 }
 

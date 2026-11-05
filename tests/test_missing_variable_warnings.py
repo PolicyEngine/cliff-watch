@@ -8,7 +8,7 @@ from cliff_watch import calculator
 
 def _simulation_without_variables():
     return SimpleNamespace(
-        tax_benefit_system=SimpleNamespace(variables={}),
+        variables={},
         calculate=lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("missing variables should not be calculated")
         ),

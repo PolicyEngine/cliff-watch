@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
-import sys
 import warnings
 from dataclasses import dataclass, replace
-from pathlib import Path
 from typing import Any
 
 from cliff_watch.config import (
@@ -27,6 +24,7 @@ from cliff_watch.config import (
     HOUSEHOLD_TYPE_BY_ID,
     MAX_ADULTS,
     MAX_DEPENDENTS,
+    MIN_ADULT_AGE,
     PROGRAM_DEFINITIONS,
     PUBLIC_ASSISTANCE_PROGRAM_OPTIONS,
     STATE_INFO,
@@ -34,10 +32,9 @@ from cliff_watch.config import (
     STATE_PROGRAM_OVERRIDES,
     STATE_TANF_VARIABLES,
 )
+from cliff_watch.engine import CalculatorDependencyError, run_household
 
-
-class CalculatorDependencyError(RuntimeError):
-    pass
+__all__ = ["CalculatorDependencyError"]
 
 
 @dataclass(frozen=True)
@@ -138,93 +135,32 @@ def _program_label_for_state(key: str, state_code: str | None = None) -> str:
     return _program_definition_for_state(key, state_code)["label"]
 
 
-REFUNDABLE_CREDIT_COMPONENTS = (
-    {"key": "eitc", "variable": "eitc", "map_to": "tax_unit"},
-    {
-        "key": "ctc",
-        "variable": "refundable_ctc",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "refundable_american_opportunity_credit",
-        "variable": "refundable_american_opportunity_credit",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "recovery_rebate_credit",
-        "variable": "recovery_rebate_credit",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "refundable_payroll_tax_credit",
-        "variable": "refundable_payroll_tax_credit",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "state_eitc",
-        "variable": "state_eitc",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "state_ctc",
-        "variable": "state_ctc",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "state_cdcc",
-        "variable": "state_cdcc",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "state_property_tax_credit",
-        "variable": "state_property_tax_credit",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "vt_renter_credit",
-        "variable": "vt_renter_credit",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "va_refundable_eitc_if_claimed",
-        "variable": "va_refundable_eitc_if_claimed",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "va_low_income_tax_credit",
-        "variable": "va_low_income_tax_credit",
-        "map_to": "tax_unit",
-    },
-    {
-        "key": "nm_low_income_comprehensive_tax_rebate",
-        "variable": "nm_low_income_comprehensive_tax_rebate",
-        "map_to": "tax_unit",
-    },
+# Everything the calculator reads from the engine in both of its paths, apart
+# from the variables that depend on the state (_engine_variables).
+ENGINE_VARIABLES = (
+    "household_market_income",
+    "household_tax_before_refundable_credits",
+    "household_state_tax_before_refundable_credits",
+    "household_refundable_state_tax_credits",
+    "snap",
+    "wic",
+    "free_school_meals",
+    "head_start",
+    "early_head_start",
+    "housing_assistance",
+    "ssi",
+    "social_security_disability",
+    "medicaid",
+    "chip",
+    "chip_premium",
+    "premium_tax_credit",
+    "income_tax_refundable_credits",
+    "tax_unit_fpg",
+    "is_aca_ptc_eligible",
+    "is_medicaid_eligible",
+    "is_chip_eligible",
+    "employment_income",
 )
-
-
-def _candidate_policyengine_repo() -> Path | None:
-    repo = os.getenv("POLICYENGINE_US_REPO")
-    if repo:
-        return Path(repo).expanduser()
-    return None
-
-
-def _load_simulation():
-    repo = _candidate_policyengine_repo()
-    if repo and str(repo) not in sys.path:
-        sys.path.insert(0, str(repo))
-
-    try:
-        from policyengine_us import Simulation
-    except ModuleNotFoundError as exc:
-        raise CalculatorDependencyError(
-            "PolicyEngine dependencies are not installed. "
-            "Run `uv pip install -r requirements.txt` or set "
-            "`POLICYENGINE_US_REPO` to a local checkout."
-        ) from exc
-
-    return Simulation
 
 
 def _as_scalar(value: Any) -> float:
@@ -446,6 +382,10 @@ def _validate_input(payload: HouseholdInput) -> None:
         raise ValueError("At least one household member is required")
     if not any(person.kind == "adult" for person in people):
         raise ValueError("At least one adult household member is required")
+    if not any(person.age >= MIN_ADULT_AGE for person in people):
+        raise ValueError(
+            f"At least one household member must be {MIN_ADULT_AGE} or older"
+        )
     if sum(1 for person in people if person.kind == "adult") > MAX_ADULTS:
         raise ValueError(f"At most {MAX_ADULTS} adult household members are supported")
     if sum(1 for person in people if person.kind == "child") > MAX_DEPENDENTS:
@@ -474,7 +414,7 @@ def _base_person_data(
     *,
     year: int,
 ) -> dict[str, Any]:
-    data = {
+    return {
         "age": {year: person["age"]},
         "has_itin": {year: True},
         "has_esi": {year: False},
@@ -492,12 +432,6 @@ def _base_person_data(
         "immigration_status_str": {year: "CITIZEN"},
         "is_ccdf_reason_for_care_eligible": {year: True},
     }
-    # Adults fail the CCDF age-group formula (defined only for children <13),
-    # which crashes any simulation that touches CCDF. Pin them to a valid
-    # enum value so the subsidy computes to 0 instead of erroring.
-    if person["kind"] == "adult":
-        data["ccdf_age_group"] = {year: "SCHOOL_AGE"}
-    return data
 
 
 # policyengine-us's gov.ssa.ssi.eligibility.aged_threshold;
@@ -747,8 +681,19 @@ def build_household_variation_situation(
     return situation
 
 
+def _engine_variables(payload: HouseholdInput) -> list[str]:
+    """What the calculator will read from the engine for this household."""
+    variables = list(ENGINE_VARIABLES)
+    tanf_variable = STATE_TANF_VARIABLES.get(payload.state)
+    if tanf_variable:
+        variables.append(tanf_variable)
+    if payload.state in CCDF_MODELED_STATES:
+        variables.append("child_care_subsidies")
+    return variables
+
+
 def _variable_exists(simulation: Any, variable: str) -> bool:
-    return variable in getattr(simulation.tax_benefit_system, "variables", {})
+    return variable in simulation.variables
 
 
 def _warn_missing_variable(variable: str) -> None:
@@ -767,21 +712,12 @@ def _calculate_variable(
     year: int,
     *,
     map_to: str | None = None,
-    monthly: bool = False,
-    annualize: bool = False,
     default: float = 0.0,
 ) -> float:
     if not _variable_exists(simulation, variable):
         _warn_missing_variable(variable)
         return default
-    period = f"{year}-01" if monthly else year
-    kwargs: dict[str, Any] = {"period": period}
-    if map_to is not None:
-        kwargs["map_to"] = map_to
-    value = _as_scalar(simulation.calculate(variable, **kwargs))
-    if monthly and annualize:
-        return value * 12
-    return value
+    return _as_scalar(simulation.calculate(variable, period=year, map_to=map_to))
 
 
 def _calculate_variable_array(
@@ -790,20 +726,11 @@ def _calculate_variable_array(
     year: int,
     *,
     map_to: str | None = None,
-    monthly: bool = False,
-    annualize: bool = False,
 ) -> list[float]:
     if not _variable_exists(simulation, variable):
         _warn_missing_variable(variable)
         return []
-    period = f"{year}-01" if monthly else year
-    kwargs: dict[str, Any] = {"period": period}
-    if map_to is not None:
-        kwargs["map_to"] = map_to
-    values = _as_float_list(simulation.calculate(variable, **kwargs))
-    if monthly and annualize:
-        return [value * 12 for value in values]
-    return values
+    return _as_float_list(simulation.calculate(variable, period=year, map_to=map_to))
 
 
 def _normalize_series_values(
@@ -926,10 +853,7 @@ def _calculate_tanf_amount(simulation: Any, payload: HouseholdInput) -> float:
     variable = STATE_TANF_VARIABLES.get(payload.state)
     if not variable:
         return 0.0
-    try:
-        return _calculate_variable(simulation, variable, payload.year)
-    except Exception:
-        return 0.0
+    return _calculate_variable(simulation, variable, payload.year)
 
 
 def _calculate_tanf_amount_array(
@@ -939,10 +863,7 @@ def _calculate_tanf_amount_array(
     variable = STATE_TANF_VARIABLES.get(payload.state)
     if not variable:
         return []
-    try:
-        return _calculate_variable_array(simulation, variable, payload.year)
-    except Exception:
-        return []
+    return _calculate_variable_array(simulation, variable, payload.year)
 
 
 def _template_counts(payload: HouseholdInput) -> dict[str, int]:
@@ -971,50 +892,13 @@ def _best_access_program(
     return "none"
 
 
-def _calculate_refundable_credit_programs(
-    simulation: Any,
-    year: int,
-) -> dict[str, float]:
-    values = {}
-    for component in REFUNDABLE_CREDIT_COMPONENTS:
-        try:
-            value = _calculate_variable(
-                simulation,
-                component["variable"],
-                year,
-                map_to=component["map_to"],
-            )
-        except Exception:
-            value = 0.0
-        values[component["key"]] = round(value, 2)
-    return values
-
-
-def _calculate_refundable_credit_program_arrays(
-    simulation: Any,
-    year: int,
-    point_count: int,
-) -> dict[str, list[float]]:
-    values: dict[str, list[float]] = {}
-    for component in REFUNDABLE_CREDIT_COMPONENTS:
-        try:
-            series = _calculate_variable_array(
-                simulation,
-                component["variable"],
-                year,
-                map_to=component["map_to"],
-            )
-        except Exception:
-            series = []
-        values[component["key"]] = _normalize_series_values(series, point_count)
-    return values
-
-
 def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
-    Simulation = _load_simulation()
-    situation = build_household_situation(payload)
-    simulation = Simulation(situation=situation)
     year = payload.year
+    simulation = run_household(
+        build_household_situation(payload),
+        year=year,
+        variables=_engine_variables(payload),
+    )
     descriptor = _household_descriptor(payload)
     members = descriptor["people"]
 
@@ -1045,16 +929,12 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
         "snap",
         year,
         map_to="household",
-        monthly=True,
-        annualize=True,
     )
     wic = _calculate_variable(
         simulation,
         "wic",
         year,
         map_to="household",
-        monthly=True,
-        annualize=True,
     )
     free_school_meals = _calculate_variable(
         simulation,
@@ -1130,15 +1010,12 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
     )
     tanf = _calculate_tanf_amount(simulation, payload)
     if payload.state in CCDF_MODELED_STATES:
-        try:
-            child_care_subsidies = _calculate_variable(
-                simulation,
-                "child_care_subsidies",
-                year,
-                map_to="spm_unit",
-            )
-        except Exception:
-            child_care_subsidies = 0.0
+        child_care_subsidies = _calculate_variable(
+            simulation,
+            "child_care_subsidies",
+            year,
+            map_to="spm_unit",
+        )
     else:
         child_care_subsidies = 0.0
     tax_unit_fpg = _calculate_variable(
@@ -1587,14 +1464,15 @@ def calculate_income_series(
     point_count = max(2, (effective_window // effective_step) + 1)
     descriptor = _household_descriptor(payload)
     members = descriptor["people"]
-    Simulation = _load_simulation()
-    simulation = Simulation(
-        situation=build_household_variation_situation(
+    simulation = run_household(
+        build_household_variation_situation(
             payload,
             max_earned_income=aligned_max_earned_income,
             count=point_count,
             min_earned_income=aligned_min_earned_income,
-        )
+        ),
+        year=payload.year,
+        variables=_engine_variables(payload),
     )
 
     earned_incomes = _normalize_series_values(
@@ -1657,8 +1535,6 @@ def calculate_income_series(
             "snap",
             payload.year,
             map_to="household",
-            monthly=True,
-            annualize=True,
         ),
         point_count,
     )
@@ -1668,8 +1544,6 @@ def calculate_income_series(
             "wic",
             payload.year,
             map_to="household",
-            monthly=True,
-            annualize=True,
         ),
         point_count,
     )
@@ -1768,15 +1642,12 @@ def calculate_income_series(
         point_count,
     )
     if payload.state in CCDF_MODELED_STATES:
-        try:
-            child_care_subsidy_series = _calculate_variable_array(
-                simulation,
-                "child_care_subsidies",
-                payload.year,
-                map_to="spm_unit",
-            )
-        except Exception:
-            child_care_subsidy_series = []
+        child_care_subsidy_series = _calculate_variable_array(
+            simulation,
+            "child_care_subsidies",
+            payload.year,
+            map_to="spm_unit",
+        )
     else:
         child_care_subsidy_series = []
     child_care_subsidy_values = _normalize_series_values(

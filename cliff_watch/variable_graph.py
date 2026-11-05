@@ -38,6 +38,10 @@ REVIEWED_TOTAL_INPUTS = {
         "policyengine-us's Simulation moves this input onto "
         "self_employment_income_before_lsr, which rules read."
     ),
+    "ssi": (
+        "An SSI amount the household reports receiving. policyengine-us reads "
+        "ssi directly and documents this input as the way to report it."
+    ),
 }
 
 # Variables with formulas that the builders set anyway, and what each input
@@ -48,10 +52,6 @@ REVIEWED_TOTAL_INPUTS = {
 # until it is listed here. The JS builder sends the same inputs as the Python
 # one (test_js_builder_sends_the_same_inputs), so this list covers both.
 KNOWN_COMPUTED_INPUTS = {
-    "ccdf_age_group": (
-        "Set to SCHOOL_AGE for adults only: the formula's age bands stop at 13 "
-        "(see _base_person_data)."
-    ),
     "childcare_expenses": (
         "Set to the entered child care cost. The formula would subtract child "
         "care subsidies from spm_unit_pre_subsidy_childcare_expenses, which "
@@ -77,7 +77,12 @@ KNOWN_COMPUTED_INPUTS = {
     "is_full_time_student": (
         "Entered for each person; the formula infers it from school enrollment."
     ),
-    "ssi": "An SSI amount the household reports receiving replaces the computed one.",
+    "is_tanf_enrolled": (
+        "Set to True when TANF is in scope, so that enrollment rules treat the "
+        "family as enrolled. The formula would read receives_tanf, which also "
+        "makes SNAP and WIC categorically eligible, so the builders leave that "
+        "one unset."
+    ),
     "state_name": "The household's state as entered.",
 }
 
