@@ -34,7 +34,7 @@ Because differencing is linear, the marginal tax rate decomposes exactly: each p
 | Layer | Technology |
 | --- | --- |
 | Frontend | React 18, Vite 5, Recharts, react-simple-maps |
-| Runtime calculations | Python, [PolicyEngine US](https://github.com/PolicyEngine/policyengine-us) |
+| Runtime calculations | Python, `calculate_household` from [policyengine.py](https://github.com/PolicyEngine/policyengine.py), which runs [PolicyEngine US](https://github.com/PolicyEngine/policyengine-us) |
 | Local API | built-in `http.server` wrapper around shared compute helpers |
 | Deploy target | static frontend + serverless-style `api/` handlers |
 
@@ -66,7 +66,7 @@ Install the locked environment Vercel deploys:
 uv sync --extra dev
 ```
 
-The calculator runs on `pe.us.calculate_household` from [policyengine.py](https://github.com/PolicyEngine/policyengine.py). `pyproject.toml` pins `policyengine`, whose `us` extra pins `policyengine-us`, `policyengine-core` and `spm-calculator` exactly, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump the pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after.
+The calculator runs on `pe.us.calculate_household` from [policyengine.py](https://github.com/PolicyEngine/policyengine.py). `pyproject.toml` pins `policyengine`, whose `us` extra pins `policyengine-us`, `policyengine-core` and `spm-calculator` exactly, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump the pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after. A bump that moves `policyengine-us` also moves its wheel URL in `pyproject.toml`, and `uv lock` fails until the two agree.
 
 ### 2. Frontend setup
 

@@ -5,7 +5,8 @@ an instance starts, before any of this app's code runs. An install that stops
 partway leaves its files behind, so the retry needs room for a whole install on
 top of them. When it lacks that room, every request on the instance fails with "No
 space left on device" until the platform replaces the instance. The README's
-"Cold-start install" section has the evidence.
+"Cold-start install" section explains the limits, and cliff-watch#45 holds the
+measurements.
 
 Invariants, for the locked dependency set:
 
@@ -38,7 +39,8 @@ MIB = 1024 * 1024
 # understate this: many small files each round up to a whole block.
 TMP_USABLE_MIB = 513.4
 TMP_BLOCK_BYTES = 4096
-# How far an install's peak exceeds its final size, from the same measurements.
+# How far an install's peak exceeds its final size: 4.6 MiB measured on this package
+# set and 9.0 on a larger trimmed set, so this errs on the safe side.
 INSTALL_PEAK_OVERHEAD_MIB = 9.0
 
 TRIMMED = {"blosc2", "hf-xet", "jedi", "msgpack", "ndindex", "parso", "plotly", "tables"}
@@ -155,7 +157,9 @@ def install_bytes(names: set[str], path: list[str] | None = None) -> int:
     total = 0
     directories: set[str] = set()
     for name in names:
-        distribution = next(iter(metadata.distributions(name=name, path=path)))
+        distribution = next(
+            iter(metadata.distributions(name=name, path=path or sys.path))
+        )
         root = str(distribution.locate_file(""))
         for file in distribution.files or []:
             if file.suffix == ".pyc":
