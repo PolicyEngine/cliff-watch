@@ -47,12 +47,12 @@ function countyChoices(location, stateName) {
   const counties = location.counties || []
 
   if (source === 'none' || !county) {
-    const reason = zip
-      ? `CliffWatch can't place ZIP ${zip} in a ${stateName} county`
-      : 'This household has no ZIP code'
+    const place = stateName === 'District of Columbia' ? `the ${stateName}` : stateName
     return {
       ...EMPTY_CONTEXT,
-      note: `${reason}, so rules that vary by county use the first county alphabetically in ${stateName}.`,
+      note: zip
+        ? `CliffWatch can't place ZIP ${zip} in a county in ${place}, so rules that vary by county use the first county alphabetically there.`
+        : `This household has no ZIP code, so rules that vary by county use the first county alphabetically in ${place}.`,
     }
   }
 

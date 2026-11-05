@@ -121,7 +121,15 @@ test('a ZIP with no county in the state says the default applies', () => {
   assert.equal(context.countyName, null)
   assert.equal(
     context.note,
-    "CliffWatch can't place ZIP 20147 in a District of Columbia county, so rules that vary by county use the first county alphabetically in District of Columbia.",
+    "CliffWatch can't place ZIP 20147 in a county in the District of Columbia, so rules that vary by county use the first county alphabetically there.",
+  )
+
+  assert.equal(
+    countyContext(
+      location({ zip: '02139', county: null, county_name: null, source: 'none', counties: [] }),
+      'California',
+    ).note,
+    "CliffWatch can't place ZIP 02139 in a county in California, so rules that vary by county use the first county alphabetically there.",
   )
 })
 
