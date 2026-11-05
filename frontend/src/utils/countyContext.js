@@ -34,6 +34,14 @@ const EMPTY_CONTEXT = Object.freeze({
 export function countyContext(location, stateName = '') {
   if (!location) return EMPTY_CONTEXT
 
+  const context = countyChoices(location, stateName)
+  if (location.has_benchmark_premium !== false) return context
+
+  const gap = `CliffWatch has no benchmark premium for ${context.countyName}, so this chart shows no premium tax credit.`
+  return { ...context, note: context.note ? `${context.note} ${gap}` : gap }
+}
+
+function countyChoices(location, stateName) {
   const { county, source, zip } = location
   const countyName = location.county_name || county || null
   const counties = location.counties || []

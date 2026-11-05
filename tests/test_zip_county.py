@@ -27,6 +27,7 @@ from cliff_watch.calculator import (
     resolved_county,
 )
 from cliff_watch.zip_county import (
+    COUNTIES_WITHOUT_BENCHMARK,
     DATA_PATH,
     _table,
     counties_for_zip,
@@ -311,8 +312,40 @@ def test_puerto_rico_zip_is_outside_the_table() -> None:
         "county": None,
         "county_name": None,
         "source": "none",
+        "has_benchmark_premium": True,
         "counties": [],
     }
+
+
+@pytest.mark.parametrize(
+    ("zip_code", "state", "county"),
+    [
+        ("29135", "SC", "CALHOUN_COUNTY_SC"),
+        ("29824", "SC", "EDGEFIELD_COUNTY_SC"),
+        ("32456", "FL", "GULF_COUNTY_FL"),
+    ],
+)
+def test_location_flags_a_county_with_no_benchmark_premium(
+    zip_code, state, county
+) -> None:
+    location = describe_location(zip_code, state)
+    assert location["county"] == county
+    assert location["has_benchmark_premium"] is False
+
+
+def test_the_benchmark_flag_follows_the_county_a_link_names() -> None:
+    edgefield = describe_location("29201", "SC", "EDGEFIELD_COUNTY_SC")
+    richland = describe_location("29824", "SC", "RICHLAND_COUNTY_SC")
+    assert edgefield["has_benchmark_premium"] is False
+    assert richland["has_benchmark_premium"] is True
+
+
+def test_no_state_default_county_lacks_a_benchmark_premium() -> None:
+    """A location with no county reads true, because the engine then uses the default."""
+    assert COUNTIES_WITHOUT_BENCHMARK <= set(_table().codes)
+    for state in {_state_of(code) for code in COUNTIES_WITHOUT_BENCHMARK}:
+        counties = [code for code in _table().codes if _state_of(code) == state]
+        assert min(counties) not in COUNTIES_WITHOUT_BENCHMARK
 
 
 # The rule, through the calculator's input type.
@@ -381,6 +414,7 @@ def test_no_zip_and_no_county_stay_as_they_were() -> None:
         "county": None,
         "county_name": None,
         "source": "none",
+        "has_benchmark_premium": True,
         "counties": [],
     }
 
@@ -416,6 +450,9 @@ def test_lookup_never_raises_and_stays_in_the_state(value, state) -> None:
     location = describe_location(value, state)
     assert location["county"] == county
     assert location["source"] == ("zip" if county else "none")
+    assert location["has_benchmark_premium"] == (
+        county not in COUNTIES_WITHOUT_BENCHMARK
+    )
     assert all(_state_of(option["code"]) == state for option in location["counties"])
     # The page reads this block as JSON.
     assert json.loads(json.dumps(location)) == location

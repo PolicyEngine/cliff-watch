@@ -186,6 +186,44 @@ test('shares never round to a misleading 0% or 100%', () => {
   ])
 })
 
+test('a county with no benchmark premium says the chart shows no credit', () => {
+  const context = countyContext(location({
+    zip: '29824',
+    county: 'EDGEFIELD_COUNTY_SC',
+    county_name: 'Edgefield County',
+    has_benchmark_premium: false,
+    counties: [{
+      code: 'EDGEFIELD_COUNTY_SC',
+      name: 'Edgefield County',
+      residents: 11000,
+      resident_share: 1,
+    }],
+  }))
+
+  assert.equal(context.countyName, 'Edgefield County')
+  assert.equal(
+    context.note,
+    'CliffWatch has no benchmark premium for Edgefield County, so this chart shows no premium tax credit.',
+  )
+  assert.deepEqual(context.options, [])
+})
+
+test('a ZIP across counties keeps its note when its county has no benchmark premium', () => {
+  const context = countyContext(location({ has_benchmark_premium: false }))
+
+  assert.equal(
+    context.note,
+    'ZIP 02467 covers more than one county. This chart uses Middlesex County, home to 40% of its residents. CliffWatch has no benchmark premium for Middlesex County, so this chart shows no premium tax credit.',
+  )
+  assert.equal(context.options.length, 3)
+})
+
+test('a county with a benchmark premium adds nothing', () => {
+  const context = countyContext(location({ has_benchmark_premium: true }))
+
+  assert.doesNotMatch(context.note, /benchmark premium/)
+})
+
 test('choosing the ZIP’s own county clears the override', () => {
   assert.equal(countyDraftValue('MIDDLESEX_COUNTY_MA', location()), null)
   assert.equal(countyDraftValue('NORFOLK_COUNTY_MA', location()), 'NORFOLK_COUNTY_MA')

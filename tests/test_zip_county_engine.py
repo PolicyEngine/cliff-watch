@@ -18,6 +18,7 @@ from cliff_watch.calculator import (
     calculate_income_series,
     household_input_from_dict,
 )
+from cliff_watch.zip_county import COUNTIES_WITHOUT_BENCHMARK, _table
 
 YEAR = 2026
 MAX_EARNINGS = 60_000
@@ -148,3 +149,54 @@ def test_api_series_cache_keeps_zips_apart() -> None:
 
     assert cambridge["location"]["county"] == "MIDDLESEX_COUNTY_MA"
     assert boston["location"]["county"] == "SUFFOLK_COUNTY_MA"
+
+
+def test_the_counties_without_a_benchmark_match_the_engine() -> None:
+    """Fails when an engine update adds their rating areas, so the page note goes too.
+
+    A single adult at $60,000 reads a benchmark in every other county, so a zero here
+    means the engine holds no premium for the county.
+    """
+    codes = _table().codes
+    groups = ("tax_units", "families", "spm_units", "marital_units")
+    situation = {"people": {}, "households": {}, **{group: {} for group in groups}}
+    for index, code in enumerate(codes):
+        person = f"person_{index}"
+        situation["people"][person] = {
+            "age": {YEAR: 40},
+            "employment_income": {YEAR: 60_000},
+        }
+        situation["households"][f"household_{index}"] = {
+            "members": [person],
+            "state_name": {YEAR: code.rsplit("_", 1)[1]},
+            "county": {YEAR: code},
+        }
+        for group in groups:
+            situation[group][f"{group}_{index}"] = {"members": [person]}
+
+    simulation = _load_simulation()(situation=situation)
+    benchmark = simulation.calculate("slcsp", YEAR, map_to="household")
+
+    assert len(benchmark) == len(codes)
+    assert {
+        code for code, premium in zip(codes, benchmark, strict=True) if premium == 0
+    } == COUNTIES_WITHOUT_BENCHMARK
+
+
+@pytest.mark.parametrize(
+    ("zip_code", "state"), [("29135", "SC"), ("29824", "SC"), ("32456", "FL")]
+)
+def test_a_county_without_a_benchmark_shows_no_premium_tax_credit(
+    zip_code, state
+) -> None:
+    """What the page's note says, with the state default county as the control."""
+    response = compute_series(
+        _payload(state=state, zip=zip_code), max_earned_income=60_000, step=10_000
+    )
+    state_default = compute_series(
+        _payload(state=state), max_earned_income=60_000, step=10_000
+    )
+
+    assert response["location"]["has_benchmark_premium"] is False
+    assert all(point["aca_ptc"] == 0 for point in response["data"])
+    assert any(point["aca_ptc"] > 0 for point in state_default["data"])

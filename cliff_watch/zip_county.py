@@ -28,6 +28,15 @@ from typing import Any
 
 DATA_PATH = Path(__file__).resolve().parent / "data" / "zip_county.json.gz"
 
+# policyengine-us's `gov.aca.state_rating_area_cost` has no row for these counties'
+# rating areas (South Carolina 9 and 19, Florida 22), so a household there reads a
+# $0 benchmark premium and no premium tax credit. The page says so. A test compares
+# this set with the engine, so an engine update that adds the rows fails until the
+# set shrinks.
+COUNTIES_WITHOUT_BENCHMARK = frozenset(
+    {"CALHOUN_COUNTY_SC", "EDGEFIELD_COUNTY_SC", "GULF_COUNTY_FL"}
+)
+
 _NON_DIGITS = re.compile(r"[^0-9]")
 
 
@@ -122,6 +131,7 @@ def describe_location(
         "county": county,
         "county_name": _table().names_by_code.get(county) if county else None,
         "source": source,
+        "has_benchmark_premium": county not in COUNTIES_WITHOUT_BENCHMARK,
         "counties": [
             {
                 "code": option.code,
