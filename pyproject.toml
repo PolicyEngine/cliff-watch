@@ -43,6 +43,20 @@ packages = ["cliff_watch"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.uv]
+# A household calculation never imports these, and leaving them out keeps the
+# cold-start install small enough to survive a stopped attempt: see "Cold-start
+# install" in the README. Each one comes in through a dependency's own
+# requirements: plotly and tables (with blosc2, msgpack and ndindex) through
+# policyengine-core, hf-xet through huggingface-hub, and jedi (with parso) through
+# IPython, which runs without it.
+override-dependencies = [
+    "hf-xet; sys_platform == 'never'",
+    "jedi; sys_platform == 'never'",
+    "plotly; sys_platform == 'never'",
+    "tables; sys_platform == 'never'",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
