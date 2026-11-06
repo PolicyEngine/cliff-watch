@@ -1,6 +1,6 @@
 {
   "source": "scripts/generate_variable_graph.py",
-  "policyengine_us_version": "1.755.5",
+  "policyengine_us_version": "2.2.1",
   "variables": {
     "age": {
       "entity": "person",
@@ -249,11 +249,6 @@
       "adds": [],
       "subtracts": []
     },
-    "ccdf_age_group": {
-      "entity": "person",
-      "adds": [],
-      "subtracts": []
-    },
     "cdcc": {
       "entity": "tax_unit",
       "adds": [],
@@ -269,12 +264,14 @@
         "ca_child_care_subsidies",
         "co_child_care_subsidies",
         "ct_child_care_subsidies",
+        "dc_child_care_subsidies",
         "de_child_care_subsidies",
         "fl_child_care_subsidies",
         "ga_child_care_subsidies",
         "hi_child_care_subsidies",
         "ia_child_care_subsidies",
         "id_child_care_subsidies",
+        "il_child_care_subsidies",
         "in_child_care_subsidies",
         "ks_child_care_subsidies",
         "ky_child_care_subsidies",
@@ -286,16 +283,31 @@
         "mn_child_care_subsidies",
         "mo_child_care_subsidies",
         "ms_child_care_subsidies",
+        "mt_child_care_subsidies",
+        "nc_child_care_subsidies",
+        "nd_child_care_subsidies",
         "ne_child_care_subsidies",
         "nh_child_care_subsidies",
         "nj_child_care_subsidies",
+        "nm_child_care_subsidies",
+        "nv_child_care_subsidies",
+        "ny_child_care_subsidies",
+        "oh_child_care_subsidies",
+        "ok_child_care_subsidies",
+        "or_child_care_subsidies",
         "pa_child_care_subsidies",
         "ri_child_care_subsidies",
         "sc_child_care_subsidies",
+        "sd_child_care_subsidies",
+        "tn_child_care_subsidies",
+        "tx_child_care_subsidies",
+        "ut_child_care_subsidies",
         "va_child_care_subsidies",
         "vt_child_care_subsidies",
         "wa_child_care_subsidies",
-        "wv_child_care_subsidies"
+        "wi_child_care_subsidies",
+        "wv_child_care_subsidies",
+        "wy_child_care_subsidies"
       ],
       "subtracts": []
     },
@@ -440,6 +452,11 @@
       ],
       "subtracts": []
     },
+    "ct_child_tax_rebate": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "ct_eitc": {
       "entity": "tax_unit",
       "adds": [],
@@ -453,6 +470,7 @@
     "ct_refundable_credits": {
       "entity": "tax_unit",
       "adds": [
+        "ct_child_tax_rebate",
         "ct_eitc"
       ],
       "subtracts": []
@@ -460,6 +478,18 @@
     "ct_tfa": {
       "entity": "spm_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "dc_ccsp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "dc_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "dc_ccsp"
+      ],
       "subtracts": []
     },
     "dc_ctc": {
@@ -546,6 +576,11 @@
     },
     "de_tanf": {
       "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "de_wilmington_earned_income_tax": {
+      "entity": "tax_unit",
       "adds": [],
       "subtracts": []
     },
@@ -655,6 +690,13 @@
     },
     "ga_refundable_credits": {
       "entity": "tax_unit",
+      "adds": [
+        "ga_surplus_tax_rebate"
+      ],
+      "subtracts": []
+    },
+    "ga_surplus_tax_rebate": {
+      "entity": "tax_unit",
       "adds": [],
       "subtracts": []
     },
@@ -748,6 +790,11 @@
     },
     "hi_tax_credit_for_low_income_household_renters": {
       "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "hours_worked_last_week": {
+      "entity": "person",
       "adds": [],
       "subtracts": []
     },
@@ -947,6 +994,18 @@
     "id_tafi": {
       "entity": "spm_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "il_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "il_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "il_ccap"
+      ],
       "subtracts": []
     },
     "il_ctc": {
@@ -1191,7 +1250,17 @@
       ],
       "subtracts": []
     },
+    "ky_fayette_occupational_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "ky_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ky_jefferson_occupational_tax": {
       "entity": "tax_unit",
       "adds": [],
       "subtracts": []
@@ -1249,8 +1318,10 @@
     "local_income_tax_before_refundable_credits": {
       "entity": "tax_unit",
       "adds": [
+        "de_wilmington_earned_income_tax",
         "mo_kansas_city_earnings_tax",
         "mo_st_louis_earnings_tax",
+        "ny_yonkers_income_tax",
         "pa_philadelphia_wage_tax"
       ],
       "subtracts": []
@@ -1261,7 +1332,9 @@
         "co_denver_employee_occupational_privilege_tax",
         "co_glendale_employee_occupational_privilege_tax",
         "co_greenwood_village_employee_occupational_privilege_tax",
-        "co_sheridan_employee_occupational_privilege_tax"
+        "co_sheridan_employee_occupational_privilege_tax",
+        "ky_fayette_occupational_tax",
+        "ky_jefferson_occupational_tax"
       ],
       "subtracts": []
     },
@@ -1362,6 +1435,11 @@
       "adds": [],
       "subtracts": []
     },
+    "md_anne_arundel_county_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "md_ccs": {
       "entity": "spm_unit",
       "adds": [],
@@ -1379,7 +1457,46 @@
       "adds": [],
       "subtracts": []
     },
+    "md_flat_rate_county_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_frederick_county_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "md_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_local_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "md_local_income_tax_before_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "md_anne_arundel_county_tax",
+        "md_flat_rate_county_tax",
+        "md_frederick_county_tax"
+      ],
+      "subtracts": []
+    },
+    "md_local_income_tax_before_refundable_credits": {
+      "entity": "tax_unit",
+      "adds": [
+        "md_local_income_tax_before_credits"
+      ],
+      "subtracts": [
+        "md_local_eitc",
+        "md_local_poverty_line_credit"
+      ]
+    },
+    "md_local_poverty_line_credit": {
       "entity": "tax_unit",
       "adds": [],
       "subtracts": []
@@ -1701,6 +1818,18 @@
       "adds": [],
       "subtracts": []
     },
+    "mt_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "mt_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "mt_ccap"
+      ],
+      "subtracts": []
+    },
     "mt_eitc": {
       "entity": "person",
       "adds": [],
@@ -1736,8 +1865,20 @@
       "adds": [],
       "subtracts": []
     },
+    "nc_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "nc_scca"
+      ],
+      "subtracts": []
+    },
     "nc_income_tax": {
       "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nc_scca": {
+      "entity": "spm_unit",
       "adds": [],
       "subtracts": []
     },
@@ -1749,6 +1890,18 @@
     "nc_use_tax": {
       "entity": "tax_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "nd_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nd_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "nd_ccap"
+      ],
       "subtracts": []
     },
     "nd_income_tax_before_refundable_credits": {
@@ -1913,9 +2066,21 @@
       "adds": [],
       "subtracts": []
     },
+    "nm_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "nm_cdcc": {
       "entity": "tax_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "nm_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "nm_ccap"
+      ],
       "subtracts": []
     },
     "nm_ctc": {
@@ -1978,6 +2143,18 @@
       "adds": [],
       "subtracts": []
     },
+    "nv_ccdp": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "nv_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "nv_ccdp"
+      ],
+      "subtracts": []
+    },
     "nv_tanf": {
       "entity": "spm_unit",
       "adds": [],
@@ -1988,9 +2165,21 @@
       "adds": [],
       "subtracts": []
     },
+    "ny_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "ny_cdcc": {
       "entity": "tax_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "ny_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ny_ccap"
+      ],
       "subtracts": []
     },
     "ny_college_tuition_credit": {
@@ -2060,6 +2249,11 @@
       "adds": [],
       "subtracts": []
     },
+    "ny_yonkers_income_tax": {
+      "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
     "nyc_cdcc": {
       "entity": "tax_unit",
       "adds": [],
@@ -2086,25 +2280,24 @@
     },
     "nyc_school_tax_credit": {
       "entity": "tax_unit",
-      "adds": [
-        "nyc_school_tax_credit_fixed_amount",
-        "nyc_school_tax_credit_rate_reduction_amount"
-      ],
-      "subtracts": []
-    },
-    "nyc_school_tax_credit_fixed_amount": {
-      "entity": "tax_unit",
-      "adds": [],
-      "subtracts": []
-    },
-    "nyc_school_tax_credit_rate_reduction_amount": {
-      "entity": "tax_unit",
       "adds": [],
       "subtracts": []
     },
     "offered_aca_disqualifying_esi": {
       "entity": "person",
       "adds": [],
+      "subtracts": []
+    },
+    "oh_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "oh_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "oh_ccap"
+      ],
       "subtracts": []
     },
     "oh_income_tax_before_refundable_credits": {
@@ -2120,6 +2313,18 @@
     "oh_refundable_credits": {
       "entity": "tax_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "ok_ccs": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ok_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ok_ccs"
+      ],
       "subtracts": []
     },
     "ok_eitc": {
@@ -2166,6 +2371,13 @@
       "adds": [],
       "subtracts": []
     },
+    "or_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "or_erdc"
+      ],
+      "subtracts": []
+    },
     "or_ctc": {
       "entity": "tax_unit",
       "adds": [],
@@ -2173,6 +2385,11 @@
     },
     "or_eitc": {
       "entity": "tax_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "or_erdc": {
+      "entity": "spm_unit",
       "adds": [],
       "subtracts": []
     },
@@ -2398,11 +2615,6 @@
       "adds": [],
       "subtracts": []
     },
-    "ri_eitc": {
-      "entity": "tax_unit",
-      "adds": [],
-      "subtracts": []
-    },
     "ri_income_tax_before_refundable_credits": {
       "entity": "tax_unit",
       "adds": [],
@@ -2418,9 +2630,14 @@
       "adds": [
         "ri_child_tax_rebate",
         "ri_ctc",
-        "ri_eitc",
-        "ri_property_tax_credit"
+        "ri_property_tax_credit",
+        "ri_refundable_eitc"
       ],
+      "subtracts": []
+    },
+    "ri_refundable_eitc": {
+      "entity": "tax_unit",
+      "adds": [],
       "subtracts": []
     },
     "ri_works": {
@@ -2482,6 +2699,18 @@
       "adds": [],
       "subtracts": []
     },
+    "sd_cca": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "sd_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "sd_cca"
+      ],
+      "subtracts": []
+    },
     "sd_tanf": {
       "entity": "spm_unit",
       "adds": [],
@@ -2517,6 +2746,13 @@
     },
     "snap": {
       "entity": "spm_unit",
+      "adds": [
+        "snap_if_takes_up"
+      ],
+      "subtracts": []
+    },
+    "snap_if_takes_up": {
+      "entity": "spm_unit",
       "adds": [],
       "subtracts": []
     },
@@ -2536,6 +2772,13 @@
       "subtracts": []
     },
     "ssi": {
+      "entity": "person",
+      "adds": [
+        "ssi_if_takes_up"
+      ],
+      "subtracts": []
+    },
+    "ssi_if_takes_up": {
       "entity": "person",
       "adds": [],
       "subtracts": []
@@ -2595,6 +2838,7 @@
         "la_income_tax_before_refundable_credits",
         "ma_income_tax_before_refundable_credits",
         "md_income_tax_before_refundable_credits",
+        "md_local_income_tax_before_refundable_credits",
         "me_income_tax_before_refundable_credits",
         "mi_income_tax_before_refundable_credits",
         "mn_income_tax_before_refundable_credits",
@@ -2808,9 +3052,33 @@
       "adds": [],
       "subtracts": []
     },
+    "tn_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "tn_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "tn_ccap"
+      ],
+      "subtracts": []
+    },
     "tn_ff": {
       "entity": "spm_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "tx_ccs": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "tx_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "tx_ccs"
+      ],
       "subtracts": []
     },
     "tx_tanf": {
@@ -2826,6 +3094,18 @@
     "unemployment_compensation": {
       "entity": "person",
       "adds": [],
+      "subtracts": []
+    },
+    "ut_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "ut_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "ut_ccap"
+      ],
       "subtracts": []
     },
     "ut_fep": {
@@ -2999,6 +3279,18 @@
       "adds": [],
       "subtracts": []
     },
+    "weekly_hours_worked_before_lsr": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "wi_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "wi_shares"
+      ],
+      "subtracts": []
+    },
     "wi_earned_income_credit": {
       "entity": "tax_unit",
       "adds": [],
@@ -3022,12 +3314,31 @@
       ],
       "subtracts": []
     },
+    "wi_shares": {
+      "entity": "spm_unit",
+      "adds": [
+        "wi_shares_child_subsidy"
+      ],
+      "subtracts": []
+    },
+    "wi_shares_child_subsidy": {
+      "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
     "wi_works": {
       "entity": "spm_unit",
       "adds": [],
       "subtracts": []
     },
     "wic": {
+      "entity": "person",
+      "adds": [
+        "wic_if_takes_up"
+      ],
+      "subtracts": []
+    },
+    "wic_if_takes_up": {
       "entity": "person",
       "adds": [],
       "subtracts": []
@@ -3070,6 +3381,18 @@
     "wv_works": {
       "entity": "spm_unit",
       "adds": [],
+      "subtracts": []
+    },
+    "wy_ccap": {
+      "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "wy_child_care_subsidies": {
+      "entity": "spm_unit",
+      "adds": [
+        "wy_ccap"
+      ],
       "subtracts": []
     },
     "wy_power": {

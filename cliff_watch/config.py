@@ -9,6 +9,16 @@ DEFAULT_SERIES_MIN_EARNINGS_WINDOW = 40_000
 DEFAULT_SERIES_TARGET_POINTS = 201
 DEFAULT_SERIES_STEP_INCREMENT = 250
 DEFAULT_FILING_STATUS = "HEAD_OF_HOUSEHOLD"
+# policyengine-us's SPM measures need someone it classifies as an adult. The
+# frontend holds adults to the same age.
+MIN_ADULT_AGE = 18
+# policyengine-us reads missing hours as zero, and zero hours fail its work tests
+# at every earnings level. The form doesn't ask about hours, and both situation
+# builders already mark the household as meeting the CCDF activity test, so every
+# adult counts as working full time. SNAP and child care read the first variable
+# here, and Medicaid's community engagement test (from 2027) reads the second.
+ASSUMED_ADULT_WEEKLY_HOURS = 40
+WORK_HOURS_INPUTS = ("weekly_hours_worked_before_lsr", "hours_worked_last_week")
 MAX_ADULTS = 6
 MAX_DEPENDENTS = 6
 FILING_STATUS_OPTIONS = [

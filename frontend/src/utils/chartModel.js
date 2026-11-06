@@ -89,7 +89,7 @@ export const SUPPORT_COMPONENTS = [
 
 export const TAX_COMPONENTS = [
   taxComponent('federal_taxes', 'federal_taxes_before_refundable_credits', 'Federal taxes', '#DC2626', '#FECACA'),
-  taxComponent('state_taxes', 'state_taxes_before_refundable_credits', 'State taxes', '#B91C1C', '#FCA5A5'),
+  taxComponent('state_taxes', 'state_taxes_before_refundable_credits', 'State and local taxes', '#B91C1C', '#FCA5A5'),
 ]
 
 const HOUSEHOLD_COST_COLORS = [
