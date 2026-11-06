@@ -159,12 +159,12 @@ With that variable set, browser requests go to the Modal backend's
 
 ## Cold-start install
 
-The function's dependencies exceed the 225 MiB that Vercel's Python runtime bundles, so the runtime installs the public ones into `/tmp` when an instance starts, before any of this app's code runs. Packages with a URL source stay in the zip. Two platform limits shape that install:
+The function's dependencies exceed the 225 MiB that Vercel's Python runtime bundles, so the runtime installs the public ones into `/tmp` when an instance starts, before any of this app's code runs. Packages with a URL source stay in the zip. That install runs under two platform limits:
 
 - Lambda gives an instance's init 10 seconds. An init that runs longer stops and starts again on the same instance, and `/tmp` keeps what it wrote.
-- `/tmp` holds about 513 MiB counted in 4 KiB blocks, so many small files take far more room than their sizes add up to.
+- `/tmp` holds about 513 MiB, and each file takes whole 4 KiB blocks, so many small files take more room than their sizes add up to.
 
-An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. So `pyproject.toml` removes packages a household calculation never imports and gives `policyengine-us` a URL source, and `tests/test_deploy_footprint.py` fails if a complete install stops fitting on top of a stopped one. If that test fails after a version bump, trim another package or give one a URL source. `spm-calculator`, at 57 MiB, comes next.
+An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. So `pyproject.toml` removes packages a household calculation never imports and gives `policyengine-us` a URL source, and `tests/test_deploy_footprint.py` fails if a complete install stops fitting on top of a stopped one. If that test fails after a version bump, trim another package or give one a URL source. `spm-calculator`, at 57 MiB, comes next. `main` requires no checks, so a failing run warns the author of a bump and doesn't block its merge.
 
 ## Quick CLI Smoke Test
 

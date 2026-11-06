@@ -5,8 +5,8 @@ an instance starts, before any of this app's code runs. An install that stops
 partway leaves its files behind, so the retry needs room for a whole install on
 top of them. When it lacks that room, every request on the instance fails with "No
 space left on device" until the platform replaces the instance. The README's
-"Cold-start install" section explains the limits, and cliff-watch#45 holds the
-measurements.
+"Cold-start install" section explains the limits, and cliff-watch#45 and #46 hold
+the measurements.
 
 Invariants, for the locked dependency set:
 
@@ -34,6 +34,10 @@ from packaging.utils import canonicalize_name
 REPO = Path(__file__).resolve().parents[1]
 MIB = 1024 * 1024
 
+# Below this, the size walk has lost files: RECORD files missing, or paths that no
+# longer resolve. If a real trim gets there, lower it.
+SMALLEST_BELIEVABLE_INSTALL_MIB = 130.0
+
 # Measured on preview deployments on 5 November 2026 with statvfs, whose figures
 # count 4 KiB blocks on an ext4 /tmp. The builder budgets apparent bytes, which
 # understate this: many small files each round up to a whole block.
@@ -43,7 +47,16 @@ TMP_BLOCK_BYTES = 4096
 # set and 9.0 on a larger trimmed set, so this errs on the safe side.
 INSTALL_PEAK_OVERHEAD_MIB = 9.0
 
-TRIMMED = {"blosc2", "hf-xet", "jedi", "msgpack", "ndindex", "parso", "plotly", "tables"}
+TRIMMED = {
+    "blosc2",
+    "hf-xet",
+    "jedi",
+    "msgpack",
+    "ndindex",
+    "parso",
+    "plotly",
+    "tables",
+}
 IN_THE_ZIP = {"policyengine", "policyengine-us"}
 
 LINUX = {
@@ -145,7 +158,9 @@ def test_the_lock_walk_agrees_with_uv():
         requirement = Requirement(line.strip())
         if requirement.marker is None or requirement.marker.evaluate(LINUX):
             from_uv.add(canonicalize_name(requirement.name))
-    assert {canonicalize_name(name) for name in _runtime_rows()} - {"cliff-watch"} == from_uv
+    assert {canonicalize_name(name) for name in _runtime_rows()} - {
+        "cliff-watch"
+    } == from_uv
 
 
 def _blocks(size: int) -> int:
@@ -176,12 +191,27 @@ def install_bytes(names: set[str], path: list[str] | None = None) -> int:
     return total + len(directories) * TMP_BLOCK_BYTES
 
 
+def _report(line: str) -> None:
+    """Show a measured figure in the CI job's summary, since passing tests print nothing."""
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a") as handle:
+            handle.write(f"{line}\n\n")
+
+
 # Mac wheels differ from the Linux wheels Vercel installs, so the number only means
 # anything on Linux; CI runs this on the same manylinux wheels.
 @pytest.mark.skipif(sys.platform != "linux", reason="needs the Linux wheels")
 def test_a_complete_install_fits_on_top_of_a_stopped_one():
     final_mib = install_bytes(_public_names(_runtime_rows())) / MIB
     peak_mib = final_mib + INSTALL_PEAK_OVERHEAD_MIB
+    _report(
+        f"Cold-start install: about {final_mib:.1f} MiB in blocks, peak "
+        f"{peak_mib:.1f} MiB, with {TMP_USABLE_MIB} MiB usable in /tmp."
+    )
+    assert final_mib > SMALLEST_BELIEVABLE_INSTALL_MIB, (
+        f"the size walk found only {final_mib:.1f} MiB, so it has probably lost files"
+    )
     assert 2 * peak_mib <= TMP_USABLE_MIB, (
         f"the install occupies {final_mib:.1f} MiB and peaks at {peak_mib:.1f} MiB, "
         f"so a retry on a stopped install's leftovers needs {2 * peak_mib:.1f} MiB of "
