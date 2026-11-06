@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
-    "test": "node --test 'src/**/*.test.js'",
+    "test": "vitest run",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:live": "POLICYENGINE_LIVE_API=1 vitest run src/policyengineApi.live.test.js"
   },
   "dependencies": {
     "policyengine-household-wizard": "^0.1.0",
@@ -19,7 +20,9 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
+    "fast-check": "^4.10.2",
     "postcss": "^8.5.0",
-    "tailwindcss": "^4.2.0"
+    "tailwindcss": "^4.2.0",
+    "vitest": "^5.0.2"
   }
 }
