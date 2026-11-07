@@ -34,7 +34,12 @@ from cliff_watch.config import (
     STATE_PROGRAM_OVERRIDES,
     STATE_TANF_VARIABLES,
 )
-from cliff_watch.zip_county import county_for_zip, describe_location, normalize_zip
+from cliff_watch.zip_county import (
+    county_for_zip,
+    describe_location,
+    normalize_zip,
+    rating_area_override,
+)
 
 
 class CalculatorDependencyError(RuntimeError):
@@ -654,6 +659,11 @@ def _base_household_groups(
     county = resolved_county(payload)
     if county:
         household["county"] = {year: county}
+        # The engine's rating-area file names these counties differently from
+        # its county codes, so its join misses them (see RATING_AREA_OVERRIDES).
+        rating_area = rating_area_override(county)
+        if rating_area is not None:
+            household["slcsp_rating_area"] = {year: rating_area}
     zip_code = normalize_zip(payload.zip)
     if zip_code:
         household["zip_code"] = {year: zip_code}
@@ -682,6 +692,13 @@ def _base_household_groups(
         "receives_housing_assistance": {
             year: _program_included(payload, "housing_assistance")
         },
+        # CliffWatch has no input for whether a household holds a housing
+        # voucher (#30), and its rent field also takes mortgage payments. With
+        # housing assistance among its programs, receives_housing_assistance
+        # makes a household eligible, so wherever the ZIP or county carries a
+        # payment standard the engine would pay a voucher's subsidy to renters
+        # and homeowners alike. No household takes it up until that input exists.
+        "takes_up_housing_assistance_if_eligible": {year: False},
     }
     if childcare_expenses > 0:
         spm_unit["childcare_expenses"] = {year: childcare_expenses}

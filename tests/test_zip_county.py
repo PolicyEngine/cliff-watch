@@ -28,12 +28,15 @@ from cliff_watch.calculator import (
 )
 from cliff_watch.zip_county import (
     COUNTIES_WITHOUT_BENCHMARK,
+    COUNTIES_WITHOUT_RATING_AREA_ROW,
     DATA_PATH,
+    RATING_AREA_OVERRIDES,
     _table,
     counties_for_zip,
     county_for_zip,
     describe_location,
     normalize_zip,
+    rating_area_override,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -148,6 +151,32 @@ _ZIPS_AND_STATES = st.sampled_from(_ZIP_SAMPLE).flatmap(
     )
 )
 _COUNTY_CODES = st.sampled_from(_table().codes)
+
+
+def _deterministic_zips():
+    """Per state, its first ZIP and its first ZIP across counties; per override
+    county, the first ZIP that resolves to it. Every state and every override
+    county appears, whatever the random sample above happens to draw."""
+    table = _table()
+    first: dict[str, str] = {}
+    spanning: dict[str, str] = {}
+    override: dict[str, str] = {}
+    for zip_code in sorted(table.zips):
+        for state in sorted({_state_of(table.codes[i]) for i, _ in table.zips[zip_code]}):
+            first.setdefault(state, zip_code)
+            if len(counties_for_zip(zip_code, state)) > 1:
+                spanning.setdefault(state, zip_code)
+            county = county_for_zip(zip_code, state)
+            if county in RATING_AREA_OVERRIDES:
+                override.setdefault(county, zip_code)
+    by_state = {
+        state: sorted({first[state], *([spanning[state]] if state in spanning else [])})
+        for state in first
+    }
+    return by_state, override
+
+
+_ZIPS_BY_STATE, _OVERRIDE_COUNTY_ZIPS = _deterministic_zips()
 _ZIP_LIKE_TEXT = st.one_of(
     st.none(),
     st.text(max_size=12),
@@ -348,6 +377,43 @@ def test_no_state_default_county_lacks_a_benchmark_premium() -> None:
         assert min(counties) not in COUNTIES_WITHOUT_BENCHMARK
 
 
+# The rating areas the engine's name join misses. `tests/test_zip_county_engine.py`
+# checks each entry against the engine's own file.
+
+
+def test_rating_area_overrides_name_table_counties_and_their_own_state() -> None:
+    codes = set(_table().codes)
+    assert set(RATING_AREA_OVERRIDES) <= codes
+    assert COUNTIES_WITHOUT_RATING_AREA_ROW <= codes
+    assert not set(RATING_AREA_OVERRIDES) & COUNTIES_WITHOUT_RATING_AREA_ROW
+    for code, (row, area) in RATING_AREA_OVERRIDES.items():
+        # The file's spelling differs from the code but names the same state.
+        assert row != code
+        assert _state_of(row) == _state_of(code), code
+        assert isinstance(area, int) and area >= 1, code
+        assert rating_area_override(code) == area
+
+
+@pytest.mark.parametrize(
+    "county", [None, "", "MIDDLESEX_COUNTY_MA", "OGLALA_LAKOTA_COUNTY_SD", "X_MA"]
+)
+def test_other_counties_get_no_rating_area_override(county) -> None:
+    assert rating_area_override(county) is None
+
+
+@pytest.mark.parametrize("county", sorted(RATING_AREA_OVERRIDES))
+def test_an_override_county_sends_its_rating_area_by_name_or_by_zip(county) -> None:
+    state = _state_of(county)
+    zip_code = _OVERRIDE_COUNTY_ZIPS[county]
+    area = RATING_AREA_OVERRIDES[county][1]
+    named = build_household_situation(_payload(state=state, county=county))
+    from_zip = build_household_situation(_payload(state=state, zip=zip_code))
+
+    assert named["households"]["household"]["slcsp_rating_area"] == {2026: area}
+    assert from_zip["households"]["household"]["county"] == {2026: county}
+    assert from_zip["households"]["household"]["slcsp_rating_area"] == {2026: area}
+
+
 # The rule, through the calculator's input type.
 
 
@@ -481,6 +547,43 @@ def test_zip_alone_builds_the_same_situation_as_its_county_named(place) -> None:
     explicit = _payload(state=state, zip=zip_code, county=county)
 
     assert build_household_situation(zip_only) == build_household_situation(explicit)
+
+
+@pytest.mark.parametrize("state", sorted(STATES))
+def test_zip_alone_builds_the_same_situation_as_its_county_named_in_every_state(
+    state,
+) -> None:
+    """The property above on a random sample, here on fixed ZIPs in every state."""
+    for zip_code in _ZIPS_BY_STATE[state]:
+        county = county_for_zip(zip_code, state)
+        assert county is not None and _state_of(county) == state
+        zip_only = build_household_situation(_payload(state=state, zip=zip_code))
+        explicit = build_household_situation(
+            _payload(state=state, zip=zip_code, county=county)
+        )
+        assert zip_only == explicit, zip_code
+        assert zip_only["households"]["household"]["county"] == {2026: county}
+
+
+@PROPERTY
+@given(_ZIP_LIKE_TEXT, _COUNTY_CODES)
+def test_only_an_override_county_gets_a_rating_area_input(value, county) -> None:
+    household = build_household_situation(
+        _payload(state=_state_of(county), zip=value, county=county)
+    )["households"]["household"]
+    if county in RATING_AREA_OVERRIDES:
+        assert household["slcsp_rating_area"] == {2026: RATING_AREA_OVERRIDES[county][1]}
+    else:
+        assert "slcsp_rating_area" not in household
+
+
+@PROPERTY
+@given(_ZIP_LIKE_TEXT, st.sampled_from(sorted(STATES)))
+def test_no_household_takes_up_housing_assistance(value, state) -> None:
+    """CliffWatch has no voucher input (#30), so no ZIP or county turns one on."""
+    situation = build_household_situation(_payload(state=state, zip=value))
+    for record in situation["spm_units"].values():
+        assert record["takes_up_housing_assistance_if_eligible"] == {2026: False}
 
 
 @PROPERTY
@@ -624,6 +727,12 @@ def test_builder_invariants_for_any_inputs(cells) -> None:
     population = {z: {f: p for f, (_, p) in row.items()} for z, row in cells.items()}
 
     zips, counts = _build(land=land, population=population)
+    fips_by_code = {code: fips for fips, (code, _) in ENGINE.items()}
+
+    def in_order(rows, measure):
+        """Most first by `measure`, ties broken by county code."""
+        keys = [(-measure(code), code) for code, _ in rows]
+        return keys == sorted(keys) and len(set(keys)) == len(keys)
 
     assert set(zips) == set(land)
     for zcta, rows in zips.items():
@@ -636,9 +745,13 @@ def test_builder_invariants_for_any_inputs(cells) -> None:
             assert all(count and count > 0 for _, count in rows)
             assert len(rows) == sum(1 for value in residents.values() if value > 0)
             assert sum(count for _, count in rows) == sum(residents.values())
+            assert in_order(rows, lambda code: residents[fips_by_code[code]])
         else:
+            # With no residents, every county with land appears, most land first.
             assert all(count is None for _, count in rows)
             assert len(rows) == len(land[zcta])
+            assert {fips_by_code[code] for code, _ in rows} == set(land[zcta])
+            assert in_order(rows, lambda code: land[zcta][fips_by_code[code]])
     assert (counts["zcta_with_residents"] + counts["zcta_without_residents"]) == len(
         zips
     )

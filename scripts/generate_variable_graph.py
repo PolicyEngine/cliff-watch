@@ -35,6 +35,7 @@ from cliff_watch.variable_graph import (
     build_variable_graph,
     situation_variables,
 )
+from cliff_watch.zip_county import RATING_AREA_OVERRIDES, _table
 
 SNAPSHOT = (
     REPO / "frontend" / "src" / "__fixtures__" / "policyengine-us-variable-graph.json"
@@ -68,15 +69,38 @@ def _person(kind: str, age: int) -> dict:
     }
 
 
+def _locations(state: str) -> list[dict]:
+    """A county by name, the state's first ZIP alone, and a county whose ACA rating
+    area the builder sends (cliff_watch/zip_county.py), where the state has one."""
+    table = _table()
+    first_zip = min(
+        zip_code
+        for zip_code, rows in table.zips.items()
+        if any(table.codes[index].endswith(f"_{state}") for index, _ in rows)
+    )
+    overrides = sorted(
+        code for code in RATING_AREA_OVERRIDES if code.endswith(f"_{state}")
+    )
+    return [
+        {"county": "Some County"},
+        {"zip": first_zip},
+        *([{"county": overrides[0]}] if overrides else []),
+    ]
+
+
 def python_emitted_variables() -> set[tuple[str, str]]:
     """``(group, variable)`` pairs the Python builder emits over a full grid."""
     names: set[tuple[str, str]] = set()
     for state in STATE_NAME_BY_CODE:
-        for filing_status in ("JOINT", "HEAD_OF_HOUSEHOLD"):
+        for filing_status, location in (
+            (status, location)
+            for status in ("JOINT", "HEAD_OF_HOUSEHOLD")
+            for location in _locations(state)
+        ):
             payload = household_input_from_dict(
                 {
                     "state": state,
-                    "county": "Some County",
+                    **location,
                     "earned_income": 20000,
                     "filing_status": filing_status,
                     "people": [

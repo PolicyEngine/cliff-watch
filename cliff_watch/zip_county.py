@@ -13,6 +13,9 @@ and GeoNames data, and resolves a county by this rule:
    uses the state's first county. `describe_location` reports this as "none", so
    the page can say so.
 
+It also lists two engine gaps by county: the counties whose benchmark premium the
+engine lacks, and the counties whose ACA rating area its name join misses.
+
 This module imports no engine code, so a request pays only for reading the table.
 """
 
@@ -36,6 +39,59 @@ DATA_PATH = Path(__file__).resolve().parent / "data" / "zip_county.json.gz"
 COUNTIES_WITHOUT_BENCHMARK = frozenset(
     {"CALHOUN_COUNTY_SC", "EDGEFIELD_COUNTY_SC", "GULF_COUNTY_FL"}
 )
+
+# policyengine-us finds a county's ACA rating area by joining the county's name to
+# `gov/hhs/medicaid/geography/aca_rating_areas.csv`, and gives rating area 1 to any
+# county the join misses. That file names these counties differently from the
+# engine's `County` codes, so the calculator sends each one's rating area as an
+# input. Each entry gives the file's row and the rating area that row holds. Most
+# rows drop a word or a letter (`BAYLOR_TX`, `DONA_ANA_NM`). Chugach and Copper
+# River read the row of Valdez-Cordova, the census area the Census Bureau split
+# into them in 2019, and Kusilvak reads Wade Hampton's, its name until 2015. The
+# file has no row for Oglala Lakota County, South Dakota, under that name or under
+# Shannon County, its name until 2015, so it keeps the engine's rating area 1.
+# Tests compare this map with the engine, so an engine update that renames a row
+# fails until the entry goes.
+RATING_AREA_OVERRIDES = {
+    "ADAMS_COUNTY_MS": ("ADAMS_MS", 6),
+    "BAYLOR_COUNTY_TX": ("BAYLOR_TX", 24),
+    "BEN_HILL_COUNTY_GA": ("BEN_HILL_GA", 15),
+    "BRYAN_COUNTY_GA": ("BRYAN_GA", 14),
+    "CHOCTAW_COUNTY_MS": ("CHOCTAW_MS", 6),
+    "CHUGACH_CENSUS_AREA_AK": ("VALDEZCORDOVA_AK", 1),
+    "CHURCHILL_COUNTY_NV": ("CHURCHILL_NV", 4),
+    "CLARK_COUNTY_KY": ("CLARK_KY", 5),
+    "COPPER_RIVER_CENSUS_AREA_AK": ("VALDEZCORDOVA_AK", 1),
+    "CUMBERLAND_COUNTY_KY": ("CUMBERLAND_KY", 4),
+    "DAWSON_COUNTY_GA": ("DAWSON_GA", 10),
+    "DEUEL_COUNTY_NE": ("DEUEL_NE", 4),
+    "DOÑA_ANA_COUNTY_NM": ("DONA_ANA_NM", 3),
+    "HAINES_BOROUGH_AK": ("HAINES_AK", 3),
+    "HARDEMAN_COUNTY_TX": ("HARDEMAN_TX", 24),
+    "HEMPHILL_COUNTY_TX": ("HEMPHILL_TX", 2),
+    "JIM_HOGG_COUNTY_TX": ("JIM_HOGG_TX", 12),
+    "JOHNSON_COUNTY_GA": ("JOHNSON_GA", 11),
+    "KIMBLE_COUNTY_TX": ("KIMBLE_TX", 17),
+    "KUSILVAK_CENSUS_AREA_AK": ("WADE_HAMPTON_AK", 2),
+    "LASALLE_PARISH_LA": ("LA_SALLE_LA", 6),
+    "LOGAN_COUNTY_NE": ("LOGAN_NE", 4),
+    "LOS_ALAMOS_COUNTY_NM": ("LOS_ALAMOS_NM", 5),
+    "MITCHELL_COUNTY_NC": ("MITCHELL_NC", 1),
+    "NESHOBA_COUNTY_MS": ("NESHOBA_MS", 6),
+    "PASQUOTANK_COUNTY_NC": ("PASQUOTANK_NC", 12),
+    "PETERSBURG_BOROUGH_AK": ("PETERSBURG_AK", 3),
+    "PRINCE_OF_WALES_HYDER_CENSUS_AREA_AK": ("PRINCE_OF_WALESHYDER_AK", 3),
+    "REAGAN_COUNTY_TX": ("REAGAN_TX", 17),
+    "TOOMBS_COUNTY_GA": ("TOOMBS_GA", 11),
+    "WALTHALL_COUNTY_MS": ("WALTHALL_MS", 6),
+}
+COUNTIES_WITHOUT_RATING_AREA_ROW = frozenset({"OGLALA_LAKOTA_COUNTY_SD"})
+
+
+def rating_area_override(county: str | None) -> int | None:
+    """The ACA rating area to send for a county the engine's join misses, if any."""
+    entry = RATING_AREA_OVERRIDES.get(county) if county else None
+    return entry[1] if entry else None
 
 _NON_DIGITS = re.compile(r"[^0-9]")
 

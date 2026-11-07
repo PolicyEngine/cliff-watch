@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import test from 'node:test'
 import { gunzipSync } from 'node:zlib'
+import { test } from 'vitest'
 
 import { buildHouseholdPayload, getZipState, hasValidZip } from '../dataLookup.js'
 import {
