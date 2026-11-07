@@ -24,6 +24,20 @@ function usedCountyClause(county, isFirst) {
     : `This chart uses ${county.name}.`
 }
 
+// What a link naming a county outside the ZIP says about the ZIP's own county.
+// The ZIP's first county can hold well under half its residents, so the line
+// quotes its share rather than calling the ZIP mostly that county's.
+function zipCountyLine(zip, counties) {
+  if (!counties.length) return ''
+  const [first] = counties
+  if (counties.length === 1) return ` ZIP ${zip} lies in ${first.name}.`
+  const share = formatShare(first.resident_share)
+  const reason = share
+    ? `home to ${share} of its residents`
+    : 'which has the largest share of its land'
+  return ` ZIP ${zip} covers more than one county, and the chart would otherwise use ${first.name}, ${reason}.`
+}
+
 const EMPTY_CONTEXT = Object.freeze({
   countyName: null,
   note: null,
@@ -60,12 +74,9 @@ function countyChoices(location, stateName) {
 
   if (!used) {
     // A share link named a county the ZIP doesn't cover.
-    const zipLine = counties.length
-      ? ` ZIP ${zip} lies ${counties.length > 1 ? 'mostly ' : ''}in ${counties[0].name}.`
-      : ''
     return {
       countyName,
-      note: `This link names ${countyName}, so this chart uses it.${zipLine}`,
+      note: `This link names ${countyName}, so this chart uses it.${zipCountyLine(zip, counties)}`,
       options: counties.length
         ? [
             { code: county, label: countyName },

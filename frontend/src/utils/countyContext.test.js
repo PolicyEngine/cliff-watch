@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import fc from 'fast-check'
+import { test } from 'vitest'
 
 import { countyContext, countyDraftValue } from './countyContext.js'
 
@@ -97,6 +98,84 @@ test('a link naming a county outside the ZIP says so and offers the ZIP’s coun
     'BARNSTABLE_COUNTY_MA',
     'MIDDLESEX_COUNTY_MA',
   ])
+})
+
+test('a link naming a county outside a ZIP across counties quotes the ZIP county’s share', () => {
+  // Middlesex holds 40% of ZIP 02467's residents, so "mostly" would overstate it.
+  const context = countyContext(location({
+    county: 'BARNSTABLE_COUNTY_MA',
+    county_name: 'Barnstable County',
+    source: 'explicit',
+  }))
+
+  assert.equal(
+    context.note,
+    'This link names Barnstable County, so this chart uses it. ZIP 02467 covers more than one county, and the chart would otherwise use Middlesex County, home to 40% of its residents.',
+  )
+  assert.deepEqual(context.options.map((option) => option.label), [
+    'Barnstable County',
+    'Middlesex County (40% of residents)',
+    'Norfolk County (40% of residents)',
+    'Suffolk County (20% of residents)',
+  ])
+})
+
+test('a link naming a county outside a ZIP with no residents names the county with most land', () => {
+  const context = countyContext(location({
+    county: 'BARNSTABLE_COUNTY_MA',
+    county_name: 'Barnstable County',
+    source: 'explicit',
+    counties: [
+      { ...MIDDLESEX, residents: null, resident_share: null },
+      { ...NORFOLK, residents: null, resident_share: null },
+    ],
+  }))
+
+  assert.equal(
+    context.note,
+    'This link names Barnstable County, so this chart uses it. ZIP 02467 covers more than one county, and the chart would otherwise use Middlesex County, which has the largest share of its land.',
+  )
+})
+
+// A ZIP's counties as the API sends them: residents descending.
+const zipCountiesArb = fc
+  .array(fc.integer({ min: 1, max: 50_000 }), { minLength: 1, maxLength: 5 })
+  .map((counts) => {
+    const sorted = [...counts].sort((a, b) => b - a)
+    const total = sorted.reduce((sum, count) => sum + count, 0)
+    return sorted.map((residents, index) => ({
+      code: `COUNTY_${index}_MA`,
+      name: `County ${index}`,
+      residents,
+      resident_share: residents / total,
+    }))
+  })
+
+test('every share a note quotes matches that county’s option, and no note says mostly', () => {
+  fc.assert(
+    fc.property(zipCountiesArb, fc.boolean(), fc.nat(), (counties, outside, pick) => {
+      const index = pick % counties.length
+      const chosen = outside
+        ? { code: 'OUTSIDE_COUNTY_MA', name: 'Outside County' }
+        : counties[index]
+      const { note, options } = countyContext({
+        zip: '02467',
+        county: chosen.code,
+        county_name: chosen.name,
+        source: !outside && index === 0 ? 'zip' : 'explicit',
+        counties,
+      })
+      if (note === null) return
+      assert.doesNotMatch(note, /\bmostly\b|\bmost of\b/)
+      const quoted = [...note.matchAll(/(County \d+), home to (under 1%|over 99%|\d+%) of its residents/g)]
+      for (const [, name, share] of quoted) {
+        assert.ok(
+          options.some((option) => option.label === `${name} (${share} of residents)`),
+          `${note} quotes ${name} at ${share}`,
+        )
+      }
+    }),
+  )
 })
 
 test('a link naming a county for an unplaced ZIP offers nothing else', () => {
