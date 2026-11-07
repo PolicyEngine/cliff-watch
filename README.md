@@ -78,7 +78,7 @@ export POLICYENGINE_US_REPO=../policyengine-us
 
 ```bash
 cd frontend
-npm install
+bun install
 ```
 
 ### 3. Run locally
@@ -93,10 +93,39 @@ In a second terminal:
 
 ```bash
 cd frontend
-npm run dev
+bun run dev
 ```
 
 The app will run at `http://localhost:3000/`, with `/api/*` proxied to the local Python server.
+
+## Tests
+
+```bash
+uv run pytest                  # calculator, payload invariants, JS-vs-Python builder differential
+cd frontend && bun run test    # Vitest, including fast-check payload invariants
+```
+
+Both suites check the situation builders (`cliff_watch/calculator.py` and
+`frontend/src/policyengineApi.js`) against the PolicyEngine US variable graph.
+Some PolicyEngine US variables are sums of components (`adds`). An input on
+such a total replaces the sum, so every rule that reads a component sees zero:
+sending `pension_income` once left pension income out of AGI. The builders
+therefore send each income field to a component (`HEAD_INCOME_INPUTS`), and the
+invariant tests fail if either builder sets a total that isn't listed, with a
+reason, in `REVIEWED_TOTAL_INPUTS`. The frontend tests read a snapshot of the
+graph; regenerate it after changing either builder or the pinned
+`policyengine-us`:
+
+```bash
+uv run python scripts/generate_variable_graph.py
+```
+
+Opt-in live checks post built situations to api.policyengine.org:
+
+```bash
+POLICYENGINE_LIVE_API=1 uv run pytest tests/test_live_policyengine_api.py
+cd frontend && bun run test:live
+```
 
 ## Modal Fallback API
 
@@ -133,6 +162,17 @@ vercel --prod --force --yes --scope policy-engine
 
 With that variable set, browser requests go to the Modal backend's
 `/api/metadata`, `/api/calculate`, `/api/series`, and `/api/households` routes.
+
+## Cold-start install
+
+Vercel's Python runtime ships a function's dependencies in its zip while the function totals 225 MiB or less. Past that, it installs the public packages into `/tmp` when an instance starts, before any of this app's code runs, and those packages leave the zip. `pyproject.toml` removes packages a household calculation never imports, so this function totals about 189 MiB and no install runs. The builder then fills the zip with bytecode up to 220 MiB. That fill shrinks as the function grows, and a preview with none of it took 38 to 42 seconds on first requests, a few seconds longer than previews with the fill and inside the routes' 60-second limit.
+
+If a version bump takes the function past 225 MiB, the install comes back, and two platform limits shape it:
+
+- Lambda gives an instance's init 10 seconds. An init that runs longer stops and starts again on the same instance, and `/tmp` keeps what it wrote.
+- `/tmp` holds about 513 MiB, and each file takes whole 4 KiB blocks, so many small files take far more room than their sizes add up to.
+
+An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. `tests/test_deploy_footprint.py` fails when the function passes 225 MiB, and when a complete install stops fitting on top of a stopped one. If the first fails after a version bump, trim another package, or accept the install and update this section. If the second fails, trim another package or give one a URL source. `main` requires no checks, so a failing run warns the author of a bump and doesn't block its merge.
 
 ## County from ZIP
 

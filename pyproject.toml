@@ -44,6 +44,21 @@ packages = ["cliff_watch"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.uv]
+# A household calculation never imports these, and leaving them out brings the
+# function inside Vercel's bundle, so no install runs at cold start: see "Cold-start
+# install" in the README. Each one comes in through a dependency's own
+# requirements: plotly through policyengine-core, tables through policyengine-us,
+# hf-xet through huggingface-hub, and jedi through IPython, which runs without it.
+# Packages that only these require leave with them, including blosc2 and everything
+# it brings (httpx, pydantic and rich among them) with tables.
+override-dependencies = [
+    "hf-xet; sys_platform == 'never'",
+    "jedi; sys_platform == 'never'",
+    "plotly; sys_platform == 'never'",
+    "tables; sys_platform == 'never'",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
