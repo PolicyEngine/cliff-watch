@@ -2515,6 +2515,11 @@
       "adds": [],
       "subtracts": []
     },
+    "slcsp_rating_area": {
+      "entity": "household",
+      "adds": [],
+      "subtracts": []
+    },
     "snap": {
       "entity": "spm_unit",
       "adds": [],
@@ -2673,6 +2678,11 @@
     },
     "takes_up_head_start_if_eligible": {
       "entity": "person",
+      "adds": [],
+      "subtracts": []
+    },
+    "takes_up_housing_assistance_if_eligible": {
+      "entity": "spm_unit",
       "adds": [],
       "subtracts": []
     },
@@ -3074,6 +3084,11 @@
     },
     "wy_power": {
       "entity": "spm_unit",
+      "adds": [],
+      "subtracts": []
+    },
+    "zip_code": {
+      "entity": "household",
       "adds": [],
       "subtracts": []
     }
