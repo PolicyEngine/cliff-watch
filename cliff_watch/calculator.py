@@ -35,6 +35,12 @@ from cliff_watch.config import (
     WORK_HOURS_INPUTS,
 )
 from cliff_watch.engine import CalculatorDependencyError, run_household
+from cliff_watch.zip_county import (
+    county_for_zip,
+    describe_location,
+    normalize_zip,
+    rating_area_override,
+)
 
 __all__ = ["CalculatorDependencyError"]
 
@@ -59,6 +65,7 @@ class HouseholdInput:
     earned_income: float
     year: int = DEFAULT_YEAR
     county: str | None = None
+    zip: str | None = None
     people: tuple[HouseholdMemberInput, ...] = ()
     household_type: str | None = None
     filing_status: str | None = None
@@ -223,7 +230,7 @@ def _filtered_program_value(
 
 
 def _normalize_county(county: str | None, state: str) -> str | None:
-    if county is None:
+    if county is None or not county.strip():
         return None
 
     normalized = (
@@ -237,6 +244,22 @@ def _normalize_county(county: str | None, state: str) -> str | None:
     if normalized.endswith(f"_{state}"):
         return normalized
     return f"{normalized}_{state}"
+
+
+def resolved_county(payload: HouseholdInput) -> str | None:
+    """The county the engine gets: the explicit one, or else the ZIP's."""
+    return _normalize_county(payload.county, payload.state) or county_for_zip(
+        payload.zip, payload.state
+    )
+
+
+def household_location(payload: HouseholdInput) -> dict[str, Any]:
+    """The county a calculation uses and where it came from, for the page to show."""
+    return describe_location(
+        payload.zip,
+        payload.state,
+        _normalize_county(payload.county, payload.state),
+    )
 
 
 def _compat_people_from_template(
@@ -573,9 +596,17 @@ def _base_household_groups(
         "state_name": {year: payload.state},
     }
 
-    county = _normalize_county(payload.county, payload.state)
+    county = resolved_county(payload)
     if county:
         household["county"] = {year: county}
+        # The engine's rating-area file names these counties differently from
+        # its county codes, so its join misses them (see RATING_AREA_OVERRIDES).
+        rating_area = rating_area_override(county)
+        if rating_area is not None:
+            household["slcsp_rating_area"] = {year: rating_area}
+    zip_code = normalize_zip(payload.zip)
+    if zip_code:
+        household["zip_code"] = {year: zip_code}
 
     tax_unit = {
         "members": member_ids,
@@ -601,6 +632,13 @@ def _base_household_groups(
         "receives_housing_assistance": {
             year: _program_included(payload, "housing_assistance")
         },
+        # CliffWatch has no input for whether a household holds a housing
+        # voucher (#30), and its rent field also takes mortgage payments. With
+        # housing assistance among its programs, receives_housing_assistance
+        # makes a household eligible, so wherever the ZIP or county carries a
+        # payment standard the engine would pay a voucher's subsidy to renters
+        # and homeowners alike. No household takes it up until that input exists.
+        "takes_up_housing_assistance_if_eligible": {year: False},
     }
     if childcare_expenses > 0:
         spm_unit["childcare_expenses"] = {year: childcare_expenses}
@@ -1129,7 +1167,8 @@ def _simulate_core(payload: HouseholdInput) -> dict[str, Any]:
             "state": payload.state,
             "earned_income": payload.earned_income,
             "year": payload.year,
-            "county": payload.county,
+            "county": resolved_county(payload),
+            "zip": normalize_zip(payload.zip),
             "household_type": payload.household_type,
             "filing_status": _effective_filing_status(payload),
             "people": [
@@ -1948,6 +1987,7 @@ def household_input_from_dict(data: dict[str, Any]) -> HouseholdInput:
         earned_income=numeric("earned_income"),
         year=int(data.get("year", DEFAULT_YEAR)),
         county=data.get("county"),
+        zip=normalize_zip(data.get("zip")),
         people=people,
         household_type=data.get("household_type"),
         filing_status=data.get("filing_status"),

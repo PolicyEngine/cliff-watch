@@ -2,7 +2,8 @@ import { useState } from 'react'
 import BenefitChart from './BenefitChart'
 import CliffInsights from './CliffInsights'
 import { formatCurrency } from '../dataLookup'
-import { householdSummary } from '../utils/householdSummary'
+import { countyContext, countyDraftValue } from '../utils/countyContext'
+import { householdStateName, householdSummary } from '../utils/householdSummary'
 import { buildShareUrl } from '../utils/urlState'
 
 function copyTextFallback(text) {
@@ -80,6 +81,30 @@ function ShareButton({ inputs }) {
   )
 }
 
+function CountyNote({ context, location, onCountyChange }) {
+  if (!context.note) return null
+
+  return (
+    <div className="county-note">
+      <p className="chart-note">{context.note}</p>
+      {context.options.length > 1 && (
+        <div className="form-group county-picker">
+          <label htmlFor="county-picker">County</label>
+          <select
+            id="county-picker"
+            value={context.selected}
+            onChange={(event) => onCountyChange(countyDraftValue(event.target.value, location))}
+          >
+            {context.options.map((option) => (
+              <option key={option.code} value={option.code}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ResultsPanel({
   metadata,
   inputs,
@@ -89,6 +114,7 @@ function ResultsPanel({
   hasCalculated,
   error,
   seriesError,
+  onCountyChange,
 }) {
   if (error) {
     return (
@@ -110,6 +136,9 @@ function ResultsPanel({
     )
   }
 
+  const location = seriesData?.location
+  const county = countyContext(location, householdStateName(inputs, metadata))
+
   return (
     <section className="results-panel">
       <div className="charts-grid">
@@ -119,10 +148,15 @@ function ResultsPanel({
             <ShareButton inputs={inputs} />
           </div>
           <p className="chart-subtitle">
-            {householdSummary(inputs, metadata)}
+            {householdSummary(inputs, metadata, county.countyName)}
           </p>
           {seriesData ? (
             <>
+              <CountyNote
+                context={county}
+                location={location}
+                onCountyChange={onCountyChange}
+              />
               <p className="chart-subtitle">
                 Calculated through {formatCurrency(seriesData?.max_earned_income || 0)}/year in {formatCurrency(seriesData?.step_annual || 0)}/year wage and salary steps
                 {seriesData?.refined_zone_count

@@ -27,9 +27,11 @@ from hypothesis import strategies as st
 from cliff_watch.calculator import (
     HEAD_INCOME_INPUTS,
     HouseholdInput,
+    _normalize_county,
     build_household_situation,
     build_household_variation_situation,
     household_input_from_dict,
+    resolved_county,
 )
 from cliff_watch.config import PUBLIC_ASSISTANCE_PROGRAM_OPTIONS, STATE_NAME_BY_CODE
 from cliff_watch.variable_graph import (
@@ -42,6 +44,7 @@ from cliff_watch.variable_graph import (
     situation_inputs,
     situation_variables,
 )
+from cliff_watch.zip_county import RATING_AREA_OVERRIDES, _table, rating_area_override
 
 REPO = Path(__file__).resolve().parents[1]
 SNAPSHOT = (
@@ -109,6 +112,54 @@ def _person(kind):
     )
 
 
+def _places():
+    """Each state's ZIPs, its counties, and the names that normalize to them."""
+    table = _table()
+    zips: dict[str, list[str]] = {}
+    for zip_code, rows in sorted(table.zips.items()):
+        for state in sorted({table.codes[index][-2:] for index, _ in rows}):
+            zips.setdefault(state, []).append(zip_code)
+    counties: dict[str, list[str]] = {}
+    for code in table.codes:
+        counties.setdefault(code[-2:], []).append(code)
+    names = {
+        state: [
+            table.names_by_code[code]
+            for code in codes
+            if _normalize_county(table.names_by_code[code], state) == code
+        ]
+        for state, codes in counties.items()
+    }
+    return sorted(table.zips), zips, counties, names
+
+
+ALL_ZIPS, ZIPS_BY_STATE, COUNTIES_BY_STATE, COUNTY_NAMES_BY_STATE = _places()
+
+
+def _location(state):
+    """No place, a ZIP in the state or anywhere, a county by code or by name, or both.
+
+    Counties whose rating area the engine misses come up as often as any other.
+    """
+    counties = [
+        st.sampled_from(COUNTIES_BY_STATE[state]),
+        st.sampled_from(COUNTY_NAMES_BY_STATE[state]),
+    ]
+    overrides = sorted(c for c in RATING_AREA_OVERRIDES if c.endswith(f"_{state}"))
+    if overrides:
+        counties.append(st.sampled_from(overrides))
+    county = st.one_of(*counties)
+    zip_code = st.one_of(
+        st.sampled_from(ZIPS_BY_STATE[state]), st.sampled_from(ALL_ZIPS)
+    )
+    return st.one_of(
+        st.just({}),
+        st.fixed_dictionaries({"zip": zip_code}),
+        st.fixed_dictionaries({"county": county}),
+        st.fixed_dictionaries({"zip": zip_code, "county": county}),
+    )
+
+
 @st.composite
 def raw_payloads(draw, income_fields=tuple(HEAD_INCOME_INPUTS)):
     filing_status = draw(
@@ -117,8 +168,10 @@ def raw_payloads(draw, income_fields=tuple(HEAD_INCOME_INPUTS)):
     married = filing_status in {"JOINT", "SEPARATE"}
     adults = draw(st.lists(_person("adult"), min_size=2 if married else 1, max_size=4))
     children = draw(st.lists(_person("child"), max_size=4))
+    state = draw(st.sampled_from(sorted(STATE_NAME_BY_CODE)))
     return {
-        "state": draw(st.sampled_from(sorted(STATE_NAME_BY_CODE))),
+        "state": state,
+        **draw(_location(state)),
         "year": YEAR,
         "earned_income": draw(st.integers(0, 300_000)),
         "filing_status": filing_status,
@@ -202,6 +255,30 @@ def test_never_sets_a_total_with_one_of_its_components(system, raw):
             ]
             assert clashes == [], (
                 f"{path}: {group}.{instance}.{variable} with {clashes}"
+            )
+
+
+@PROPERTY_SETTINGS
+@given(raw=raw_payloads())
+def test_location_inputs_follow_the_county_rule(raw):
+    """The county is the entered one or else the ZIP's; the ZIP goes as entered; a
+    rating area goes only for a county the engine's join misses; and no household
+    takes up housing assistance, whatever the place."""
+    payload = household_input_from_dict(raw)
+    county = resolved_county(payload)
+    rating_area = rating_area_override(county)
+    for path, situation in _situations(payload):
+        for record in situation["households"].values():
+            assert record.get("county") == ({YEAR: county} if county else None), path
+            assert record.get("zip_code") == (
+                {YEAR: payload.zip} if payload.zip else None
+            ), path
+            assert record.get("slcsp_rating_area") == (
+                None if rating_area is None else {YEAR: rating_area}
+            ), path
+        for record in situation["spm_units"].values():
+            assert record["takes_up_housing_assistance_if_eligible"] == {YEAR: False}, (
+                path
             )
 
 
@@ -371,6 +448,20 @@ def test_entered_income_reaches_the_engine_components(raw, ssdi):
 # ignores marital_status, which the UI sends instead of filing_status; JS
 # doesn't lowercase programs_mode; and JS's fallback program list, used when
 # metadata is missing, leaves out ssdi.
+#
+# Python also resolves a county from the ZIP, sends the ZIP, and sends a rating
+# area for the counties in RATING_AREA_OVERRIDES. The JS builder, which no
+# production page calls, does none of these and carries no ZIP table, so the
+# comparison leaves out the ZIP and those counties and keeps any other county.
+
+
+def _shared_location(raw):
+    shared = {key: value for key, value in raw.items() if key != "zip"}
+    county = resolved_county(household_input_from_dict(shared))
+    if rating_area_override(county) is not None:
+        shared.pop("county")
+    return shared
+
 
 NODE = shutil.which("node")
 JS_BUILDER = REPO / "frontend" / "src" / "policyengineApi.js"
@@ -410,6 +501,7 @@ def _normalized_inputs(situation):
 @settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(raw=raw_payloads())
 def test_js_builder_sends_the_same_inputs(raw):
+    raw = _shared_location(raw)
     payload = household_input_from_dict(raw)
     cases = [{"payload": raw, "series": False}, {"payload": raw, "series": True}]
     output = subprocess.run(

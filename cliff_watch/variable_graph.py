@@ -60,7 +60,11 @@ KNOWN_COMPUTED_INPUTS = {
         "when a subsidy pays part of it. Kept as before; a follow-up weighs "
         "dropping it."
     ),
-    "county": "The household's county as entered.",
+    "county": (
+        "The household's county as entered, or else the county its ZIP resolves "
+        "to (cliff_watch/zip_county.py). The formula would give the state's "
+        "first county alphabetically. The JS builder sends only an entered county."
+    ),
     "filing_status": (
         "The household's filing status as entered, or as derived from the "
         "household when none is entered."
@@ -82,6 +86,13 @@ KNOWN_COMPUTED_INPUTS = {
         "family as enrolled. The formula would read receives_tanf, which also "
         "makes SNAP and WIC categorically eligible, so the builders leave that "
         "one unset."
+    ),
+    "slcsp_rating_area": (
+        "Set only for the 31 counties in RATING_AREA_OVERRIDES, to the rating "
+        "area the engine's aca_rating_areas.csv holds for them under another "
+        "name. The formula joins the county's code to that file, misses these "
+        "names and gives rating area 1. Python only: the JS builder doesn't "
+        "carry this map."
     ),
     "state_name": "The household's state as entered.",
 }

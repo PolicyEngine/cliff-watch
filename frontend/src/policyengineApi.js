@@ -692,6 +692,9 @@ export function buildSituation(payload, options = {}) {
     takes_up_snap_if_eligible: { [year]: programIncluded(payload, 'snap', options.metadata) },
     takes_up_tanf_if_eligible: { [year]: programIncluded(payload, 'tanf', options.metadata) },
     receives_housing_assistance: { [year]: programIncluded(payload, 'housing_assistance', options.metadata) },
+    // No input says whether a household holds a voucher (#30), so none takes
+    // one up, as in cliff_watch/calculator.py.
+    takes_up_housing_assistance_if_eligible: { [year]: false },
   }
   if (ccdfModeled) {
     spmUnitEntity.child_care_subsidies = { [year]: null }

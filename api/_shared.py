@@ -15,6 +15,7 @@ from cliff_watch.calculator import (
     calculate_household_types,
     calculate_income_series,
     household_input_from_dict,
+    household_location,
 )
 from cliff_watch.config import (
     CCDF_MODELED_STATES,
@@ -146,6 +147,7 @@ def compute_series(
             (item["net_resources"] for item in data),
             default=0,
         ),
+        "location": household_location(payload),
     }
 
 

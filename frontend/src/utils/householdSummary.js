@@ -30,14 +30,22 @@ function formatPeopleGroup(people, kind, singular, plural) {
   ].filter(Boolean).join(' ')
 }
 
-export function householdSummary(inputs, metadata) {
-  const people = inputs?.people || []
-  const stateName = metadata?.states?.find((state) => state.code === inputs?.state)?.name
+export function householdStateName(inputs, metadata) {
+  return metadata?.states?.find((state) => state.code === inputs?.state)?.name
     || inputs?.state
     || ''
+}
+
+function placeName(stateName, countyName) {
+  if (!countyName || countyName === stateName) return stateName
+  return stateName ? `${countyName}, ${stateName}` : countyName
+}
+
+export function householdSummary(inputs, metadata, countyName = null) {
+  const people = inputs?.people || []
 
   return [
-    stateName,
+    placeName(householdStateName(inputs, metadata), countyName),
     formatPeopleGroup(people, 'adult', 'adult', 'adults'),
     formatPeopleGroup(people, 'child', 'dependent', 'dependents'),
   ].filter(Boolean).join(' · ')
