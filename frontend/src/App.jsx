@@ -236,6 +236,14 @@ function App() {
     }
   }
 
+  // The county picker in the results reruns the chart at once. Editing the ZIP
+  // clears the choice, since a county belongs to the ZIP it was chosen under.
+  const handleCountyChange = (county) => {
+    const nextDraft = { ...draft, county }
+    setDraft(nextDraft)
+    handleCalculate(combineDraftAndScenarioToInputs(nextDraft, scenario, metadata))
+  }
+
   useEffect(() => {
     handleCalculateRef.current = handleCalculate
   })
@@ -299,6 +307,7 @@ function App() {
             hasCalculated={hasCalculated}
             error={error}
             seriesError={seriesError}
+            onCountyChange={handleCountyChange}
           />
         </Suspense>
       </main>

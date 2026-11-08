@@ -24,6 +24,26 @@ test('householdSummary preserves the compact count summary without modifiers', (
   )
 })
 
+test('householdSummary leads with the county when the API names one', () => {
+  const people = [{ kind: 'adult', age: 33 }, { kind: 'child', age: 6 }, { kind: 'child', age: 10 }]
+
+  assert.equal(
+    householdSummary({ state: 'MN', people }, metadata, 'Hennepin County'),
+    'Hennepin County, Minnesota · 1 adult · 2 dependents',
+  )
+})
+
+test('householdSummary names the District of Columbia once', () => {
+  assert.equal(
+    householdSummary(
+      { state: 'DC', people: [{ kind: 'adult', age: 33 }] },
+      { states: [{ code: 'DC', name: 'District of Columbia' }] },
+      'District of Columbia',
+    ),
+    'District of Columbia · 1 adult · 0 dependents',
+  )
+})
+
 test('householdSummary includes selected household member modifiers', () => {
   assert.equal(
     householdSummary({
