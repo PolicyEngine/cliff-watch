@@ -224,6 +224,26 @@ def test_every_county_has_a_rating_area_row_or_an_override(rating_area_file) -> 
     assert missed == set(RATING_AREA_OVERRIDES) | COUNTIES_WITHOUT_RATING_AREA_ROW
 
 
+# Each county without a row, with the names a row for it could start with.
+# Oglala Lakota County was Shannon County until 2015.
+_NAMES_OF_COUNTIES_WITHOUT_A_ROW = {"OGLALA_LAKOTA_COUNTY_SD": ("OGLALA_", "SHANNON_")}
+
+
+def test_a_county_without_a_row_has_none_under_any_name(rating_area_file) -> None:
+    """The test above sees only the exact code. A row under another spelling, such
+    as `OGLALA_LAKOTA_SD`, would leave the county at rating area 1 where an
+    override should send the row's area."""
+    assert set(_NAMES_OF_COUNTIES_WITHOUT_A_ROW) == COUNTIES_WITHOUT_RATING_AREA_ROW
+    for code, names in _NAMES_OF_COUNTIES_WITHOUT_A_ROW.items():
+        state = code.rsplit("_", 1)[1]
+        rows = sorted(
+            row
+            for row in rating_area_file
+            if row.startswith(names) and row.endswith(f"_{state}")
+        )
+        assert rows == [], (code, rows)
+
+
 def test_each_override_holds_its_rows_rating_area(rating_area_file) -> None:
     for code, (row, area) in RATING_AREA_OVERRIDES.items():
         assert code not in rating_area_file, code

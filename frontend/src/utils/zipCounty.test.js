@@ -64,14 +64,23 @@ test('the two links differ only in the county they send', () => {
 
 // The form takes a household's state from the ZIP. These ZIPs get a state that the
 // table can't place them in, so the API answers `source: "none"` and the page says
-// so. Northern Virginia's 201xx ZIPs form most of the list, because the wizard's
-// ZIP-prefix table sends them to DC, and it sends DC's 569xx government ZIPs to
-// Minnesota. Any other ZIP joining this list is a new disagreement to look at; the
-// wizard fixing some of these fails nothing.
+// so. Two prefixes in the wizard's ZIP table cover most of them: it sends Northern
+// Virginia's 201xx ZIPs to DC and DC's 569xx government ZIPs to Minnesota. A ZIP
+// in those ranges passes only with that exact disagreement. Any other ZIP joining
+// this list is a new disagreement to look at; the wizard fixing some of these
+// fails nothing.
 const KNOWN_FORM_STATE_MISMATCHES = new Set([
   '05501', '05544', '06390', '20588', '20598', '72643', '73301', '73344', '73960', '83414',
 ])
-const isKnownMismatchRange = (zip) => zip.startsWith('201') || zip.startsWith('569')
+const KNOWN_PREFIX_MISMATCHES = [
+  { prefix: '201', formState: 'DC', tableState: 'VA' },
+  { prefix: '569', formState: 'MN', tableState: 'DC' },
+]
+const isKnownPrefixMismatch = (zip, formState, tableStates) => KNOWN_PREFIX_MISMATCHES.some(
+  (known) => zip.startsWith(known.prefix)
+    && formState === known.formState
+    && tableStates.has(known.tableState),
+)
 
 test('the form picks a state the table agrees with, apart from the known ZIPs', () => {
   const tablePath = new URL('../../../cliff_watch/data/zip_county.json.gz', import.meta.url)
@@ -90,7 +99,7 @@ test('the form picks a state the table agrees with, apart from the known ZIPs', 
     if (
       !tableStates.has(formState)
       && !KNOWN_FORM_STATE_MISMATCHES.has(zip)
-      && !isKnownMismatchRange(zip)
+      && !isKnownPrefixMismatch(zip, formState, tableStates)
     ) {
       unexpected.push(`${zip}: form ${formState}, table ${[...tableStates].join('/')}`)
     }

@@ -137,46 +137,33 @@ def _load_builder():
 # A fixed sample keeps Hypothesis's database stable across table rebuilds.
 _ALL_ZIPS = sorted(_table().zips)
 _ZIP_SAMPLE = random.Random(20261105).sample(_ALL_ZIPS, 2_000)
-_ZIPS_AND_STATES = st.sampled_from(_ZIP_SAMPLE).flatmap(
-    lambda zip_code: st.tuples(
-        st.just(zip_code),
-        st.sampled_from(
-            sorted(
-                {
-                    _state_of(_table().codes[index])
-                    for index, _ in _table().zips[zip_code]
-                }
-            )
-        ),
-    )
-)
 _COUNTY_CODES = st.sampled_from(_table().codes)
 
 
-def _deterministic_zips():
-    """Per state, its first ZIP and its first ZIP across counties; per override
-    county, the first ZIP that resolves to it. Every state and every override
-    county appears, whatever the random sample above happens to draw."""
+def _zips_by_state() -> dict[str, list[str]]:
+    """Every (ZIP, state) pair the table holds, grouped by state. A ZIP that
+    crosses a state line appears under each of its states."""
     table = _table()
-    first: dict[str, str] = {}
-    spanning: dict[str, str] = {}
-    override: dict[str, str] = {}
-    for zip_code in sorted(table.zips):
+    by_state: dict[str, list[str]] = {}
+    for zip_code in _ALL_ZIPS:
         for state in sorted({_state_of(table.codes[i]) for i, _ in table.zips[zip_code]}):
-            first.setdefault(state, zip_code)
-            if len(counties_for_zip(zip_code, state)) > 1:
-                spanning.setdefault(state, zip_code)
+            by_state.setdefault(state, []).append(zip_code)
+    return by_state
+
+
+def _override_county_zips(zips_by_state: dict[str, list[str]]) -> dict[str, str]:
+    """Per override county, the first ZIP that resolves to it."""
+    override: dict[str, str] = {}
+    for state, zips in sorted(zips_by_state.items()):
+        for zip_code in zips:
             county = county_for_zip(zip_code, state)
             if county in RATING_AREA_OVERRIDES:
                 override.setdefault(county, zip_code)
-    by_state = {
-        state: sorted({first[state], *([spanning[state]] if state in spanning else [])})
-        for state in first
-    }
-    return by_state, override
+    return override
 
 
-_ZIPS_BY_STATE, _OVERRIDE_COUNTY_ZIPS = _deterministic_zips()
+_ZIPS_BY_STATE = _zips_by_state()
+_OVERRIDE_COUNTY_ZIPS = _override_county_zips(_ZIPS_BY_STATE)
 _ZIP_LIKE_TEXT = st.one_of(
     st.none(),
     st.text(max_size=12),
@@ -536,33 +523,24 @@ def test_explicit_county_always_wins(value, county) -> None:
     assert location["county_name"]
 
 
-@settings(PROPERTY, max_examples=300)
-@given(_ZIPS_AND_STATES)
-def test_zip_alone_builds_the_same_situation_as_its_county_named(place) -> None:
-    zip_code, state = place
-    county = county_for_zip(zip_code, state)
-    assert county is not None
-
-    zip_only = _payload(state=state, zip=zip_code)
-    explicit = _payload(state=state, zip=zip_code, county=county)
-
-    assert build_household_situation(zip_only) == build_household_situation(explicit)
-
-
 @pytest.mark.parametrize("state", sorted(STATES))
-def test_zip_alone_builds_the_same_situation_as_its_county_named_in_every_state(
-    state,
-) -> None:
-    """The property above on a random sample, here on fixed ZIPs in every state."""
+def test_zip_alone_builds_the_same_situation_as_its_county_named(state) -> None:
+    """Every ZIP the table holds for the state, so across the states every
+    (ZIP, state) pair."""
     for zip_code in _ZIPS_BY_STATE[state]:
         county = county_for_zip(zip_code, state)
-        assert county is not None and _state_of(county) == state
+        assert county is not None and _state_of(county) == state, zip_code
         zip_only = build_household_situation(_payload(state=state, zip=zip_code))
         explicit = build_household_situation(
             _payload(state=state, zip=zip_code, county=county)
         )
         assert zip_only == explicit, zip_code
         assert zip_only["households"]["household"]["county"] == {2026: county}
+
+
+def test_the_per_state_loops_cover_every_zip_and_state() -> None:
+    assert set(_ZIPS_BY_STATE) == STATES
+    assert set().union(*_ZIPS_BY_STATE.values()) == set(_ALL_ZIPS)
 
 
 @PROPERTY
@@ -586,17 +564,16 @@ def test_no_household_takes_up_housing_assistance(value, state) -> None:
         assert record["takes_up_housing_assistance_if_eligible"] == {2026: False}
 
 
-@PROPERTY
-@given(_ZIPS_AND_STATES)
-def test_counties_for_a_zip_lead_with_the_county_it_resolves_to(place) -> None:
-    zip_code, state = place
-    options = counties_for_zip(zip_code, state)
-    assert options[0].code == county_for_zip(zip_code, state)
-    for option in options:
-        assert _state_of(option.code) == state
-        assert option.name
-        if option.resident_share is not None:
-            assert 0 < option.resident_share <= 1
+@pytest.mark.parametrize("state", sorted(STATES))
+def test_counties_for_a_zip_lead_with_the_county_it_resolves_to(state) -> None:
+    for zip_code in _ZIPS_BY_STATE[state]:
+        options = counties_for_zip(zip_code, state)
+        assert options[0].code == county_for_zip(zip_code, state), zip_code
+        for option in options:
+            assert _state_of(option.code) == state, zip_code
+            assert option.name, zip_code
+            if option.resident_share is not None:
+                assert 0 < option.resident_share <= 1, zip_code
 
 
 @PROPERTY
