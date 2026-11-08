@@ -34,7 +34,6 @@ from cliff_watch.calculator import (
     resolved_county,
 )
 from cliff_watch.config import PUBLIC_ASSISTANCE_PROGRAM_OPTIONS, STATE_NAME_BY_CODE
-from cliff_watch.zip_county import RATING_AREA_OVERRIDES, _table, rating_area_override
 from cliff_watch.variable_graph import (
     GROUP_ENTITIES,
     KNOWN_COMPUTED_INPUTS,
@@ -45,6 +44,7 @@ from cliff_watch.variable_graph import (
     situation_inputs,
     situation_variables,
 )
+from cliff_watch.zip_county import RATING_AREA_OVERRIDES, _table, rating_area_override
 
 REPO = Path(__file__).resolve().parents[1]
 SNAPSHOT = (
@@ -277,9 +277,9 @@ def test_location_inputs_follow_the_county_rule(raw):
                 None if rating_area is None else {YEAR: rating_area}
             ), path
         for record in situation["spm_units"].values():
-            assert record["takes_up_housing_assistance_if_eligible"] == {
-                YEAR: False
-            }, path
+            assert record["takes_up_housing_assistance_if_eligible"] == {YEAR: False}, (
+                path
+            )
 
 
 def test_head_income_fields_map_to_distinct_person_components(system):
@@ -461,6 +461,7 @@ def _shared_location(raw):
     if rating_area_override(county) is not None:
         shared.pop("county")
     return shared
+
 
 NODE = shutil.which("node")
 JS_BUILDER = REPO / "frontend" / "src" / "policyengineApi.js"

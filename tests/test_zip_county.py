@@ -146,7 +146,9 @@ def _zips_by_state() -> dict[str, list[str]]:
     table = _table()
     by_state: dict[str, list[str]] = {}
     for zip_code in _ALL_ZIPS:
-        for state in sorted({_state_of(table.codes[i]) for i, _ in table.zips[zip_code]}):
+        for state in sorted(
+            {_state_of(table.codes[i]) for i, _ in table.zips[zip_code]}
+        ):
             by_state.setdefault(state, []).append(zip_code)
     return by_state
 
@@ -539,8 +541,22 @@ def test_zip_alone_builds_the_same_situation_as_its_county_named(state) -> None:
 
 
 def test_the_per_state_loops_cover_every_zip_and_state() -> None:
-    assert set(_ZIPS_BY_STATE) == STATES
-    assert set().union(*_ZIPS_BY_STATE.values()) == set(_ALL_ZIPS)
+    """The loops above walk `_ZIPS_BY_STATE`, so it must list each (ZIP, state)
+    pair the table holds exactly once, including the pairs of ZIPs that cross a
+    state line."""
+    table = _table()
+    pairs = {
+        (zip_code, _state_of(table.codes[index]))
+        for zip_code, rows in table.zips.items()
+        for index, _ in rows
+    }
+    listed = [
+        (zip_code, state) for state, zips in _ZIPS_BY_STATE.items() for zip_code in zips
+    ]
+    assert len(listed) == len(set(listed))
+    assert set(listed) == pairs
+    assert set(_ZIPS_BY_STATE) == {state for _, state in pairs} == STATES
+    assert len(pairs) > len(table.zips)  # some ZIPs cross a state line
 
 
 @PROPERTY
@@ -550,7 +566,9 @@ def test_only_an_override_county_gets_a_rating_area_input(value, county) -> None
         _payload(state=_state_of(county), zip=value, county=county)
     )["households"]["household"]
     if county in RATING_AREA_OVERRIDES:
-        assert household["slcsp_rating_area"] == {2026: RATING_AREA_OVERRIDES[county][1]}
+        assert household["slcsp_rating_area"] == {
+            2026: RATING_AREA_OVERRIDES[county][1]
+        }
     else:
         assert "slcsp_rating_area" not in household
 
@@ -706,9 +724,9 @@ def test_builder_invariants_for_any_inputs(cells) -> None:
     zips, counts = _build(land=land, population=population)
     fips_by_code = {code: fips for fips, (code, _) in ENGINE.items()}
 
-    def in_order(rows, measure):
-        """Most first by `measure`, ties broken by county code."""
-        keys = [(-measure(code), code) for code, _ in rows]
+    def in_order(rows, measure_by_fips):
+        """Most first by each county's measure, ties broken by county code."""
+        keys = [(-measure_by_fips[fips_by_code[code]], code) for code, _ in rows]
         return keys == sorted(keys) and len(set(keys)) == len(keys)
 
     assert set(zips) == set(land)
@@ -722,13 +740,13 @@ def test_builder_invariants_for_any_inputs(cells) -> None:
             assert all(count and count > 0 for _, count in rows)
             assert len(rows) == sum(1 for value in residents.values() if value > 0)
             assert sum(count for _, count in rows) == sum(residents.values())
-            assert in_order(rows, lambda code: residents[fips_by_code[code]])
+            assert in_order(rows, residents)
         else:
             # With no residents, every county with land appears, most land first.
             assert all(count is None for _, count in rows)
             assert len(rows) == len(land[zcta])
             assert {fips_by_code[code] for code, _ in rows} == set(land[zcta])
-            assert in_order(rows, lambda code: land[zcta][fips_by_code[code]])
+            assert in_order(rows, land[zcta])
     assert (counts["zcta_with_residents"] + counts["zcta_without_residents"]) == len(
         zips
     )

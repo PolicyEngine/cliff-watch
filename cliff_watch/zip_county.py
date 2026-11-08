@@ -93,6 +93,7 @@ def rating_area_override(county: str | None) -> int | None:
     entry = RATING_AREA_OVERRIDES.get(county) if county else None
     return entry[1] if entry else None
 
+
 _NON_DIGITS = re.compile(r"[^0-9]")
 
 
