@@ -19,6 +19,7 @@ import {
   applyFilingStatusSelection,
   applyMaritalStatusSelection,
 } from './utils/filingStatus.js'
+import { SNAP_MONTH_NOTE, snapMonthNote } from './utils/snapMonthNote.js'
 
 const metadata = {
   year: 2026,
@@ -330,6 +331,37 @@ test('buildSeriesDataFromResponse carries person-level Medicaid cliff drivers', 
   assert.equal(result.data[0].person_programs.medicaid.adult_1.label, 'Adult 1 Medicaid')
   assert.equal(result.data[1].cliff_drivers[0].key, 'medicaid:adult_1')
   assert.equal(result.data[1].cliff_drivers[0].label, 'Adult 1 Medicaid')
+})
+
+test('the cliff chart note reads the program values buildSeriesDataFromResponse returns', () => {
+  const payload = {
+    state: 'GA',
+    year: 2026,
+    filing_status: 'HEAD_OF_HOUSEHOLD',
+  }
+  const seriesMeta = {
+    pointCount: 2,
+    effectiveStep: 500,
+    alignedMaxEarnedIncome: 1500,
+  }
+  // The fixture gives SNAP of $100 a month at both points; add free school
+  // meals at the second.
+  const response = JSON.parse(JSON.stringify(seriesResponse()))
+  response.result.spm_units.spm_unit.free_school_meals = { 2026: [0, 900] }
+
+  const withMeals = buildSeriesDataFromResponse(payload, metadata, response, descriptor, seriesMeta)
+  const withoutMeals = buildSeriesDataFromResponse(
+    payload,
+    metadata,
+    seriesResponse(),
+    descriptor,
+    seriesMeta,
+  )
+
+  assert.equal(withMeals.data[1].snap, 1200)
+  assert.equal(withMeals.data[1].free_school_meals, 900)
+  assert.equal(snapMonthNote(withMeals.data), SNAP_MONTH_NOTE)
+  assert.equal(snapMonthNote(withoutMeals.data), null)
 })
 
 test('applyFilingStatusSelection adds a spouse when selecting a married status', () => {

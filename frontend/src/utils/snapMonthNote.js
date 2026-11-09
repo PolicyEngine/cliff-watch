@@ -13,12 +13,14 @@ export const SNAP_MONTH_NOTE =
 const positive = (value) => Number(value) > 0
 
 // The note, for a series with a point where the household gets SNAP and one of
-// these programs; otherwise null.
+// these programs; otherwise null. Series points carry each program's annual
+// value under its own key (point.snap, point.head_start), as the API's
+// compute_series and buildSeriesDataFromResponse both return them and as
+// chartModel reads them.
 export function snapMonthNote(data) {
   const applies = (data || []).some(
     (point) =>
-      positive(point?.programs?.snap) &&
-      SNAP_MONTH_PROGRAMS.some((key) => positive(point?.programs?.[key])),
+      positive(point?.snap) && SNAP_MONTH_PROGRAMS.some((key) => positive(point?.[key])),
   )
   return applies ? SNAP_MONTH_NOTE : null
 }
