@@ -1,0 +1,1 @@
+Add a cliff chart note for households that get SNAP and Head Start, Early Head Start or free school meals at some earnings level. Once a family gets SNAP in any month, CliffWatch counts a full year of each of those programs, including the months before its SNAP starts.
