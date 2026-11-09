@@ -216,7 +216,7 @@ python3 -m cliff_watch.calculator examples/sample_household.json --mode series
 - Earnings are assigned to the first adult and held constant over the year.
 - A second adult is treated as a spouse, and later adults are modeled as additional household members in the same household unit.
 - The form has no county field. The API resolves the county from the ZIP, as [County from ZIP](#county-from-zip) describes.
-- Once a family gets SNAP in any month, policyengine-us makes it categorically eligible for Head Start, Early Head Start and free school meals for the whole year, so CliffWatch counts a full year of each, including the months before its SNAP starts. The cliff chart shows a note when a household gets SNAP and one of these programs at the same earnings level. [PolicyEngine/policyengine-us#10766](https://github.com/PolicyEngine/policyengine-us/pull/10766) counts these programs from the first month of SNAP; remove the note (`frontend/src/utils/snapMonthNote.js`) once CliffWatch runs a policyengine-us release that includes it.
+- Once a family gets SNAP in any month, policyengine-us makes it categorically eligible for Head Start, Early Head Start and free school meals for the whole year. So CliffWatch counts a full year of each, including the months before its SNAP starts. The cliff chart shows a note when a household gets SNAP and one of these programs at the same earnings level. Remove the note (`frontend/src/utils/snapMonthNote.js`) once CliffWatch runs a policyengine-us release that counts these programs from the first month of SNAP ([PolicyEngine/policyengine-us#10766](https://github.com/PolicyEngine/policyengine-us/pull/10766)).
 - The modeled bundle is intentionally narrower than every possible administrative program.
 
 ## License
