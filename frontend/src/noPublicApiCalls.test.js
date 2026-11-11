@@ -39,7 +39,8 @@ describe('browser source', () => {
       .map((sourceFile) => path.relative(frontendDirectory, sourceFile))
 
     // Then
-    expect(sourceFiles.length).toBeGreaterThan(20)
+    const scannedFiles = sourceFiles.map((sourceFile) => path.relative(frontendDirectory, sourceFile))
+    expect(scannedFiles).toContain('src/dataLookup.js')
     expect(filesNamingPublicApi).toEqual([])
   })
 })
