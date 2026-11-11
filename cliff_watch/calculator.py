@@ -983,6 +983,154 @@ def _calculate_tanf_amount_array(
         return []
 
 
+# policyengine-us tests categorical eligibility for these programs over the
+# whole year: is_head_start_categorically_eligible adds up an SPM unit's TANF,
+# SSI and SNAP for the year, and meets_school_meal_categorical_eligibility adds
+# up its SNAP, TANF and Head Start-eligible members. So a household that gets
+# SNAP in some months gets a full year of each program it reaches only through
+# that test, including the months before its SNAP starts.
+PART_YEAR_SNAP_PROGRAMS = ("head_start", "early_head_start", "free_school_meals")
+_PART_YEAR_SNAP_VARIABLES = (
+    "snap",
+    "tanf",
+    "ssi",
+    "head_start",
+    "early_head_start",
+    "is_head_start_income_eligible",
+    "school_meal_fpg_ratio",
+    "state_has_universal_free_school_meals",
+)
+
+
+def _snap_months_by_point(
+    simulation: Any, year: int, point_count: int
+) -> list[list[int]]:
+    """Each point's months (1 to 12) in which the household gets SNAP.
+
+    The chart reads January's SNAP times 12, while the categorical tests above
+    read all twelve months, which the simulation has already computed.
+    """
+    months: list[list[int]] = [[] for _ in range(point_count)]
+    for month in range(1, 13):
+        values = _normalize_series_values(
+            _as_float_list(
+                simulation.calculate("snap", f"{year}-{month:02d}", map_to="household")
+            ),
+            point_count,
+        )
+        for index, value in enumerate(values):
+            if value > 0:
+                months[index].append(month)
+    return months
+
+
+def _only_through_categorical_eligibility(
+    simulation: Any,
+    year: int,
+    *,
+    members: list[dict[str, Any]],
+    point_count: int,
+) -> dict[str, list[bool]]:
+    """Whether each point's household fails each program's other tests, so
+    that it would lose the program without categorical eligibility.
+
+    These mirror the engine's other routes: is_head_start_eligible and
+    is_early_head_start_eligible accept the Head Start income test, and
+    school_meal_tier gives the free tier at or below the free income limit and
+    in states with universal free school meals.
+    """
+    income_eligible = _calculate_person_variable_series(
+        simulation,
+        "is_head_start_income_eligible",
+        year,
+        members=members,
+        point_count=point_count,
+    )
+    result = {}
+    for program in ("head_start", "early_head_start"):
+        values = _calculate_person_variable_series(
+            simulation, program, year, members=members, point_count=point_count
+        )
+        result[program] = [
+            any(
+                values[person_id][index] > 0
+                and not income_eligible[person_id][index]
+                for person_id in values
+            )
+            for index in range(point_count)
+        ]
+    fpg_ratio = _normalize_series_values(
+        _calculate_variable_array(
+            simulation, "school_meal_fpg_ratio", year, map_to="household"
+        ),
+        point_count,
+    )
+    universal = _normalize_series_values(
+        _calculate_variable_array(
+            simulation,
+            "state_has_universal_free_school_meals",
+            year,
+            map_to="household",
+        ),
+        point_count,
+    )
+    free_limit = simulation.tax_benefit_system.parameters(
+        f"{year}-01-01"
+    ).gov.usda.school_meals.income.limit.FREE
+    result["free_school_meals"] = [
+        fpg_ratio[index] > free_limit and not universal[index]
+        for index in range(point_count)
+    ]
+    return result
+
+
+def _part_year_snap_by_point(
+    simulation: Any,
+    year: int,
+    *,
+    members: list[dict[str, Any]],
+    point_count: int,
+) -> tuple[list[list[int]], list[dict[str, bool]]]:
+    """Each point's SNAP months, and for each of PART_YEAR_SNAP_PROGRAMS
+    whether the household gets that program for the whole year only because
+    it gets SNAP in some months but not all twelve.
+
+    Points with TANF or SSI stay out, because either one can make the
+    household categorically eligible in months without SNAP.
+    """
+    no_flags = [
+        dict.fromkeys(PART_YEAR_SNAP_PROGRAMS, False) for _ in range(point_count)
+    ]
+    if not all(
+        _variable_exists(simulation, variable) for variable in _PART_YEAR_SNAP_VARIABLES
+    ):
+        return [[] for _ in range(point_count)], no_flags
+    snap_months = _snap_months_by_point(simulation, year, point_count)
+    categorical_only = _only_through_categorical_eligibility(
+        simulation, year, members=members, point_count=point_count
+    )
+    tanf = _normalize_series_values(
+        _calculate_variable_array(simulation, "tanf", year, map_to="household"),
+        point_count,
+    )
+    ssi = _normalize_series_values(
+        _calculate_variable_array(simulation, "ssi", year, map_to="household"),
+        point_count,
+    )
+    flags = []
+    for index in range(point_count):
+        part_year = (
+            0 < len(snap_months[index]) < 12 and tanf[index] <= 0 and ssi[index] <= 0
+        )
+        flags.append(
+            {
+                program: part_year and categorical_only[program][index]
+                for program in PART_YEAR_SNAP_PROGRAMS
+            }
+        )
+    return snap_months, flags
+
+
 def _template_counts(payload: HouseholdInput) -> dict[str, int]:
     people = _resolved_people(payload)
     num_adults = sum(1 for person in people if person["kind"] == "adult")
@@ -1828,6 +1976,12 @@ def calculate_income_series(
         payload,
         point_count,
     )
+    snap_months_by_point, part_year_snap_flags = _part_year_snap_by_point(
+        simulation,
+        payload.year,
+        members=members,
+        point_count=point_count,
+    )
 
     series = []
     previous_result = None
@@ -2012,6 +2166,12 @@ def calculate_income_series(
                 "cliff_drop_annual": round(cliff_drop, 2),
                 "is_cliff": cliff_drop > 0,
                 "cliff_drivers": cliff_drivers,
+                "snap_months": snap_months_by_point[index],
+                "part_year_snap_programs": [
+                    program
+                    for program in PART_YEAR_SNAP_PROGRAMS
+                    if part_year_snap_flags[index][program] and programs[program] > 0
+                ],
             }
         )
         previous_result = result
