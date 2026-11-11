@@ -9,12 +9,13 @@ description = "Dynamic benefit cliff calculator built on PolicyEngine-US."
 requires-python = ">=3.11"
 # Vercel installs from this file (through uv.lock) on every deploy. policyengine's
 # `us` extra pins policyengine-us, policyengine-core and spm-calculator exactly,
-# so this one pin sets the engine.
+# so policyengine's version sets the engine. URL sources keep policyengine and
+# policyengine-us in the function's zip and out of the cold-start install: see
+# "Cold-start install" in the README.
 dependencies = [
-    "policyengine[us]==6.17.1",
+    "policyengine[us] @ https://files.pythonhosted.org/packages/1f/d5/e8b6181f512e5c3b14bbd0638a4c179515a9f479a68a6eaba640005b0fad/policyengine-6.17.1-py3-none-any.whl",
     # policyengine's `us` extra pins this version too, so `uv lock` fails if the
-    # two ever disagree. A URL source keeps the package in the function's zip and
-    # out of the cold-start install: see "Cold-start install" in the README.
+    # two ever disagree.
     "policyengine-us @ https://files.pythonhosted.org/packages/5e/09/86ac3968d2a18e28fce3ba1186fc21728e9f299b96a806d6f204f1e0aaed/policyengine_us-2.2.1-py3-none-any.whl",
 ]
 
