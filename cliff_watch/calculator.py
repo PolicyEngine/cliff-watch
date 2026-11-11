@@ -7,6 +7,7 @@ import math
 import os
 import sys
 import warnings
+from collections.abc import Collection
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -1027,6 +1028,7 @@ def _part_year_snap_by_point(
     *,
     simulation_class: Any,
     point_count: int,
+    included_programs: Collection[str] = PART_YEAR_SNAP_PROGRAMS,
 ) -> tuple[list[list[int]], list[dict[str, bool]]]:
     """Each point's SNAP months, and for each of PART_YEAR_SNAP_PROGRAMS
     whether the household gets that program for the whole year only because
@@ -1038,7 +1040,14 @@ def _part_year_snap_by_point(
     policyengine-us counts TANF as categorical eligibility for all three
     programs and SSI for Head Start and Early Head Start, and a child eligible
     for Head Start makes the household categorically eligible for free school
-    meals. Only series with a candidate point pay for the rerun.
+    meals.
+
+    The rerun adds most of a second to a series call, so CliffWatch runs it
+    only for a series with a point where a program on the chart could fall.
+    A program the user left off the chart (outside included_programs) gets no
+    mark, since the chart shows it at zero. Free school meals can't fall in a
+    state that serves them to every student: there school_meal_tier gives the
+    free tier whatever the household's categorical eligibility.
     """
     no_flags = [
         dict.fromkeys(PART_YEAR_SNAP_PROGRAMS, False) for _ in range(point_count)
@@ -1059,11 +1068,30 @@ def _part_year_snap_by_point(
         }
 
     with_snap = program_values(simulation)
+    universal_meals = (
+        _normalize_series_values(
+            _calculate_variable_array(
+                simulation,
+                "state_has_universal_free_school_meals",
+                year,
+                map_to="household",
+            ),
+            point_count,
+        )
+        if _variable_exists(simulation, "state_has_universal_free_school_meals")
+        else [0.0] * point_count
+    )
+
+    def could_fall(program: str, index: int) -> bool:
+        if program not in included_programs or with_snap[program][index] <= 0:
+            return False
+        return not (program == "free_school_meals" and universal_meals[index])
+
     candidates = [
         index
         for index in range(point_count)
         if 0 < len(snap_months[index]) < 12
-        and any(with_snap[program][index] > 0 for program in PART_YEAR_SNAP_PROGRAMS)
+        and any(could_fall(program, index) for program in PART_YEAR_SNAP_PROGRAMS)
     ]
     if not candidates:
         return snap_months, no_flags
@@ -1076,7 +1104,7 @@ def _part_year_snap_by_point(
     for index in candidates:
         for program in PART_YEAR_SNAP_PROGRAMS:
             flags[index][program] = (
-                with_snap[program][index] > 0
+                could_fall(program, index)
                 and without_snap[program][index] < with_snap[program][index] - 0.01
             )
     return snap_months, flags
@@ -1932,6 +1960,11 @@ def calculate_income_series(
         payload.year,
         simulation_class=Simulation,
         point_count=point_count,
+        included_programs=[
+            program
+            for program in PART_YEAR_SNAP_PROGRAMS
+            if _program_included(payload, program)
+        ],
     )
 
     series = []

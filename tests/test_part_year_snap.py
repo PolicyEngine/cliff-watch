@@ -9,17 +9,21 @@ through those months (`part_year_snap_programs`); the chart note reads both.
 The Georgia pins hold for policyengine-us 1.755.5. Drop or rework the chart note
 once CliffWatch charts SNAP's annual sum (#45) or runs a policyengine-us release
 that counts these programs from the first month of SNAP
-(PolicyEngine/policyengine-us#10766). Either change makes these tests fail.
+(PolicyEngine/policyengine-us#10766). Either change makes the Georgia test fail.
 """
 
 from __future__ import annotations
+
+import copy
 
 import pytest
 
 pytest.importorskip("policyengine_us")
 
+from cliff_watch import calculator
 from cliff_watch.calculator import (
     PART_YEAR_SNAP_PROGRAMS,
+    PUBLIC_ASSISTANCE_PROGRAM_KEYS,
     _load_simulation,
     build_household_variation_situation,
     calculate_income_series,
@@ -135,8 +139,9 @@ CASES = {
         },
         {35_000: ["free_school_meals"], 35_500: ["free_school_meals"]},
     ),
-    # Here SSI goes to the 4-year-old, who keeps Head Start without SNAP and, as
-    # a child eligible for Head Start, keeps the household's free meals too.
+    # Any member's SSI makes the household categorically eligible for Head
+    # Start, so the 4-year-old keeps Head Start without SNAP and, as a child
+    # eligible for Head Start, keeps the household's free meals too.
     "Texas parent of a 4-year-old on SSI and an 8-year-old": (
         {
             "state": "TX",
@@ -198,3 +203,119 @@ def test_marks_match_the_engine_without_snap(raw, marks):
         if expected:
             observed[round(point["earned_income"])] = expected
     assert observed == marks
+
+
+def _count_engine_builds(monkeypatch):
+    """The situations of the simulations each series call builds: one for the
+    series, and one more when CliffWatch reruns it with SNAP turned off."""
+    simulation_class = _load_simulation()
+    built = []
+
+    def build(*args, **kwargs):
+        built.append(kwargs.get("situation"))
+        return simulation_class(*args, **kwargs)
+
+    monkeypatch.setattr(calculator, "_load_simulation", lambda: build)
+    return built
+
+
+def _series_by_wages(raw, min_earned_income, max_earned_income):
+    series = calculate_income_series(
+        _payload(raw),
+        min_earned_income=min_earned_income,
+        max_earned_income=max_earned_income,
+        step=500,
+    )["data"]
+    return {round(point["earned_income"]): point for point in series}
+
+
+def test_a_deselected_program_gets_no_mark_and_no_rerun(monkeypatch):
+    """policyengine-us computes free school meals whether or not the user charts
+    them, and CliffWatch zeroes them only for display. Left out of the chart,
+    they get no mark, and with nothing else at these points that could fall,
+    CliffWatch skips the rerun."""
+    built = _count_engine_builds(monkeypatch)
+    texas = {"state": "TX", "people": [_adult(35), _child(7), _child(10)]}
+
+    charted = _series_by_wages(texas, 41_500, 44_000)
+    assert len(built) == 2
+    built.clear()
+    left_out = _series_by_wages(
+        {
+            **texas,
+            "programs_mode": "custom",
+            "selected_programs": sorted(
+                PUBLIC_ASSISTANCE_PROGRAM_KEYS - {"free_school_meals"}
+            ),
+        },
+        41_500,
+        44_000,
+    )
+    assert len(built) == 1
+
+    for wages in (42_500, 43_000):
+        assert charted[wages]["part_year_snap_programs"] == ["free_school_meals"]
+        assert left_out[wages]["snap_months"] == [10, 11, 12]
+        assert left_out[wages]["free_school_meals"] == 0
+        assert left_out[wages]["part_year_snap_programs"] == []
+
+
+def test_free_meals_in_a_universal_meal_state_skip_the_rerun(monkeypatch):
+    """California serves free meals to every student. At $30,000 this household
+    gets SNAP in part of the year and free meals, and no other program, so
+    CliffWatch skips the rerun."""
+    built = _count_engine_builds(monkeypatch)
+    by_wages = _series_by_wages(
+        {"state": "CA", "people": [_adult(35), _child(8)]}, 29_000, 31_000
+    )
+    point = by_wages[30_000]
+    assert 0 < len(point["snap_months"]) < 12
+    assert point["free_school_meals"] > 0
+    assert point["head_start"] == point["early_head_start"] == 0
+    assert all(not point["part_year_snap_programs"] for point in by_wages.values())
+    assert len(built) == 1
+
+
+def test_snap_moves_no_free_meals_where_every_student_eats_free():
+    """CliffWatch skips the rerun for free meals wherever
+    state_has_universal_free_school_meals holds. That rests on policyengine-us
+    giving those households the same free meals with or without SNAP, which
+    this checks in every state the installed release lists, for a parent of an
+    8-year-old from $0 to $80,000 of wages."""
+    simulation_class = _load_simulation()
+    universal_meals = simulation_class(
+        situation=build_household_variation_situation(
+            _payload(GEORGIA), max_earned_income=1_000, count=2
+        )
+    ).tax_benefit_system.parameters.gov.usda.school_meals.state_universal_free_meals
+    states = [
+        state
+        for state, parameter in universal_meals.children.items()
+        if parameter(f"{YEAR}-01-01")
+    ]
+    assert "CA" in states
+
+    def household(simulation, variable):
+        return simulation.calculate(variable, YEAR, map_to="household").tolist()
+
+    for state in states:
+        situation = build_household_variation_situation(
+            _payload({"state": state, "people": [_adult(35), _child(8)]}),
+            max_earned_income=80_000,
+            count=81,
+            min_earned_income=0,
+        )
+        situation_without_snap = copy.deepcopy(situation)
+        for unit in situation_without_snap["spm_units"].values():
+            unit["takes_up_snap_if_eligible"] = {YEAR: False}
+        with_snap = simulation_class(situation=situation)
+        without_snap = simulation_class(situation=situation_without_snap)
+
+        assert all(household(with_snap, "state_has_universal_free_school_meals")), state
+        assert any(household(with_snap, "snap")), state
+        assert not any(household(without_snap, "snap")), state
+        meals = household(with_snap, "free_school_meals")
+        assert all(value > 0 for value in meals), state
+        assert household(without_snap, "free_school_meals") == pytest.approx(meals), (
+            state
+        )
