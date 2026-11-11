@@ -10,7 +10,7 @@ image = (
     .pip_install(
         "fastapi[standard]",
         # Same engine pin as pyproject.toml, which explains it.
-        "policyengine[us] @ git+https://github.com/PolicyEngine/policyengine.py@393a569cfea034891a124a7de7e74165a066dc18",
+        "policyengine[us]==6.17.1",
     )
     .add_local_dir("api", "/root/api")
     .add_local_dir("cliff_watch", "/root/cliff_watch")

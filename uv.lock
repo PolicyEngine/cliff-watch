@@ -279,7 +279,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6" },
-    { name = "policyengine", extras = ["us"], git = "https://github.com/PolicyEngine/policyengine.py?rev=393a569cfea034891a124a7de7e74165a066dc18" },
+    { name = "policyengine", extras = ["us"], specifier = "==6.17.1" },
     { name = "policyengine-us", url = "https://files.pythonhosted.org/packages/5e/09/86ac3968d2a18e28fce3ba1186fc21728e9f299b96a806d6f204f1e0aaed/policyengine_us-2.2.1-py3-none-any.whl" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5" },
@@ -1511,8 +1511,8 @@ wheels = [
 
 [[package]]
 name = "policyengine"
-version = "6.13.0"
-source = { git = "https://github.com/PolicyEngine/policyengine.py?rev=393a569cfea034891a124a7de7e74165a066dc18#393a569cfea034891a124a7de7e74165a066dc18" }
+version = "6.17.1"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "h5py" },
     { name = "jsonschema" },
@@ -1522,6 +1522,10 @@ dependencies = [
     { name = "psutil" },
     { name = "pydantic" },
     { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/45/483142f35ce0dfa02db01e541f730843b9108ae4b60a8bdae92ac223f3b2/policyengine-6.17.1.tar.gz", hash = "sha256:07a2617c738a77d2f1fd8ff2c5f4d89b040a54f44e9f931331a7ae34fdbbfc9f", size = 1629731, upload-time = "2026-11-10T16:26:24.672Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/d5/e8b6181f512e5c3b14bbd0638a4c179515a9f479a68a6eaba640005b0fad/policyengine-6.17.1-py3-none-any.whl", hash = "sha256:7fa63f9f6524d911ff7a490448a2b202341487dc09d5c945fc0e0c816893df1e", size = 562776, upload-time = "2026-11-10T16:26:22.717Z" },
 ]
 
 [package.optional-dependencies]
