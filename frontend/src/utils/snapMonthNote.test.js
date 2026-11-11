@@ -158,7 +158,8 @@ test('snapMonthNote appears exactly when a point marks a program it carries', ()
         series.some((values, index) => isMarked[index] && values.part_year_snap_programs.includes(key) && values[key] > 0))
       assert.equal(note.includes('Early Head Start'), named.includes('early_head_start'), note)
       assert.equal(note.includes('free school meals'), named.includes('free_school_meals'), note)
-      // It points to Head Start without SNAP only where no marked point has January.
+      // It says you'll see a program without SNAP only where no marked point gets
+      // SNAP in January.
       const january = series.some((values, index) => isMarked[index] && values.snap_months.includes(1))
       assert.equal(note.includes('without SNAP'), !january, note)
     }),

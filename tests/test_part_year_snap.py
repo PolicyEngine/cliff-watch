@@ -6,9 +6,10 @@ October gets a full year of each. /api/series lists the months with SNAP on each
 point (`snap_months`) and marks the programs a point gets for the whole year only
 through those months (`part_year_snap_programs`); the chart note reads both.
 
-The Georgia pins hold for policyengine-us 1.755.5. When CliffWatch's engine counts
-these programs from the first month of SNAP (PolicyEngine/policyengine-us#10766),
-they fail, and the chart note should go.
+The Georgia pins hold for policyengine-us 1.755.5. Drop or rework the chart note
+once CliffWatch charts SNAP's annual sum (#45) or runs a policyengine-us release
+that counts these programs from the first month of SNAP
+(PolicyEngine/policyengine-us#10766). Either change makes these tests fail.
 """
 
 from __future__ import annotations
@@ -101,19 +102,62 @@ CASES = {
         {"state": "CA", "people": [_adult(35), _child(8)]},
         {},
     ),
-    # Child support lifts this parent's SNAP limit earlier; past it, the household
-    # passes Head Start's own income test at some points.
+    # SNAP counts child support and AGI doesn't. So this parent gets SNAP from
+    # October at $21,500 and $22,000 of wages, but at $21,500 the household still
+    # passes Head Start's income test, and only $22,000 gets a mark.
     "Georgia parent of a 4-year-old with child support": (
         {**GEORGIA, "child_support_annual": 6_000},
         {22_000: ["head_start"]},
+    ),
+    # Free school meals count Social Security in full, while Head Start's income
+    # test reads AGI. At $22,000 the household gets SNAP from October and its
+    # school-meal income exceeds the free limit, but the 4-year-old passes Head
+    # Start's income test, and a child eligible for Head Start keeps the free
+    # meals without SNAP.
+    "Texas disabled parent on SSDI with children 4 and 8": (
+        {
+            "state": "TX",
+            "rent_annual": 18_000,
+            "people": [
+                {**_adult(35), "is_disabled": True, "ssdi_amount": 18_000},
+                _child(4),
+                _child(8),
+            ],
+        },
+        {},
+    ),
+    # SSI makes a household categorically eligible for Head Start but not for
+    # school meals, so these meals rest on SNAP alone.
+    "Texas parent of an 8-year-old on SSI and a 10-year-old": (
+        {
+            "state": "TX",
+            "people": [_adult(35), {**_child(8), "ssi_amount": 6_000}, _child(10)],
+        },
+        {35_000: ["free_school_meals"], 35_500: ["free_school_meals"]},
+    ),
+    # Here SSI goes to the 4-year-old, who keeps Head Start without SNAP and, as
+    # a child eligible for Head Start, keeps the household's free meals too.
+    "Texas parent of a 4-year-old on SSI and an 8-year-old": (
+        {
+            "state": "TX",
+            "people": [_adult(35), {**_child(4), "ssi_amount": 6_000}, _child(8)],
+        },
+        {},
+    ),
+    # At $27,500 and $28,000 this household gets SNAP from October, and its
+    # income stays within the free-meal limit, so its meals don't rest on SNAP.
+    "Georgia parent of a 7-year-old": (
+        {**GEORGIA, "people": [_adult(30), _child(7)]},
+        {},
     ),
 }
 
 
 @pytest.mark.parametrize("raw, marks", CASES.values(), ids=CASES.keys())
-def test_marks_match_the_engine_without_categorical_eligibility(raw, marks):
-    """A point marks a program exactly when switching categorical eligibility off
-    lowers it, on a point with SNAP in 1 to 11 months and no TANF or SSI."""
+def test_marks_match_the_engine_without_snap(raw, marks):
+    """A point marks a program exactly when the household gets it, gets SNAP in
+    1 to 11 months, and loses some of it when the engine reruns the series with
+    SNAP turned off."""
     payload = _payload(raw)
     series = calculate_income_series(payload, max_earned_income=80_000, step=500)[
         "data"
@@ -126,10 +170,8 @@ def test_marks_match_the_engine_without_categorical_eligibility(raw, marks):
         count=len(wages),
         min_earned_income=int(wages[0]),
     )
-    for person in situation["people"].values():
-        person["is_head_start_categorically_eligible"] = {YEAR: False}
     for unit in situation["spm_units"].values():
-        unit["meets_school_meal_categorical_eligibility"] = {YEAR: False}
+        unit["takes_up_snap_if_eligible"] = {YEAR: False}
     simulation = _load_simulation()(situation=situation)
     assert [
         round(value)
@@ -137,24 +179,20 @@ def test_marks_match_the_engine_without_categorical_eligibility(raw, marks):
             "employment_income", YEAR, map_to="household"
         ).tolist()
     ] == [round(value) for value in wages]
-    without = {
+    assert not any(simulation.calculate("snap", YEAR, map_to="household").tolist())
+    without_snap = {
         program: simulation.calculate(program, YEAR, map_to="household").tolist()
         for program in PART_YEAR_SNAP_PROGRAMS
     }
 
     observed = {}
     for index, point in enumerate(series):
-        part_year = (
-            0 < len(point["snap_months"]) < 12
-            and point["tanf"] <= 0
-            and point["ssi"] <= 0
-        )
         expected = [
             program
             for program in PART_YEAR_SNAP_PROGRAMS
-            if part_year
+            if 0 < len(point["snap_months"]) < 12
             and point[program] > 0
-            and without[program][index] < point[program] - 0.01
+            and without_snap[program][index] < point[program] - 0.01
         ]
         assert point["part_year_snap_programs"] == expected, point["earned_income"]
         if expected:

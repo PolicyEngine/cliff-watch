@@ -7,8 +7,9 @@ import { formatCurrency } from '../dataLookup.js'
 // beside no SNAP. /api/series marks each such point: `snap_months` lists the
 // months with SNAP, and `part_year_snap_programs` lists the programs the
 // household gets for the whole year only through those months.
-// PolicyEngine/policyengine-us#10766 counts these programs from the first month
-// of SNAP instead; drop this note once CliffWatch's engine carries that change.
+// PolicyEngine/policyengine-us#10766 would count these programs from the first
+// month of SNAP. Drop or rework this note once CliffWatch charts SNAP's annual
+// sum (#45) or runs a policyengine-us release with #10766.
 export const SNAP_MONTH_PROGRAMS = ['head_start', 'early_head_start', 'free_school_meals']
 
 const PROGRAM_NAMES = {
