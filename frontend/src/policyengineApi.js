@@ -1,7 +1,5 @@
 import { applyStateProgramLabels } from './utils/programLabels.js'
 
-const PE_API_URL = 'https://api.policyengine.org'
-
 const STATE_TANF_VARIABLES = {
   AK: 'ak_atap',
   AL: 'al_tanf',
@@ -203,15 +201,6 @@ function isCcdfModeledState(state, metadata) {
     return fromMetadata.includes(state)
   }
   return DEFAULT_CCDF_MODELED_STATES.has(state)
-}
-
-export class PolicyEngineApiError extends Error {
-  constructor(message, status, response) {
-    super(message)
-    this.name = 'PolicyEngineApiError'
-    this.status = status
-    this.response = response
-  }
 }
 
 const roundCurrency = (value) => Math.round((Number(value) || 0) * 100) / 100
@@ -904,50 +893,6 @@ export function buildSituation(payload, options = {}) {
   }
 }
 
-async function fetchWithTimeout(url, options, timeout = 120000) {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeout)
-  try {
-    return await fetch(url, { ...options, signal: controller.signal })
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
-
-async function policyEngineCalculate(household) {
-  const response = await fetchWithTimeout(`${PE_API_URL}/us/calculate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ household }),
-  })
-
-  if (!response.ok) {
-    let body
-    try {
-      body = await response.json()
-    } catch {
-      body = await response.text()
-    }
-    throw new PolicyEngineApiError(
-      `PolicyEngine API error: ${response.status}`,
-      response.status,
-      body,
-    )
-  }
-
-  const payload = await response.json()
-  if (payload?.status && payload.status !== 'ok') {
-    throw new PolicyEngineApiError(
-      payload.message || 'PolicyEngine API calculation failed.',
-      response.status,
-      payload,
-    )
-  }
-  return payload
-}
-
 function getStateName(metadata, stateCode) {
   return metadata?.states?.find((item) => item.code === stateCode)?.name || stateCode
 }
@@ -1589,74 +1534,4 @@ export function buildSeriesDataFromResponse(payload, metadata, apiResponse, desc
     point_count: data.length,
     max_net_resources: Math.max(...data.map((item) => item.net_resources), 0),
   }
-}
-
-export async function calculateHouseholdViaPolicyEngine(payload, metadata) {
-  const baseSituation = buildSituation(payload, { includeIncomeOverrides: true, metadata })
-  const delta = metadata?.defaults?.cliff_delta || 1000
-  const bumpedSituation = buildSituation(
-    {
-      ...payload,
-      earned_income: payload.earned_income + delta,
-    },
-    { includeIncomeOverrides: true, metadata },
-  )
-
-  const [baseResponse, bumpedResponse] = await Promise.all([
-    policyEngineCalculate(baseSituation.situation),
-    policyEngineCalculate(bumpedSituation.situation),
-  ])
-
-  const result = buildHouseholdResultFromResponse(
-    payload,
-    metadata,
-    baseResponse,
-    baseSituation.descriptor,
-  )
-  const bumpedResult = buildHouseholdResultFromResponse(
-    {
-      ...payload,
-      earned_income: payload.earned_income + delta,
-    },
-    metadata,
-    bumpedResponse,
-    bumpedSituation.descriptor,
-  )
-  const resourceChangeAnnual = roundCurrency(
-    bumpedResult.totals.net_resources - result.totals.net_resources,
-  )
-  const gapAnnual = Math.max(0, roundCurrency(-resourceChangeAnnual))
-
-  result.cliff = {
-    delta_annual: delta,
-    resource_change_annual: resourceChangeAnnual,
-    resource_change_monthly: monthlyAmount(resourceChangeAnnual),
-    gap_annual: gapAnnual,
-    gap_monthly: monthlyAmount(gapAnnual),
-    effective_marginal_rate: delta
-      ? roundCurrency((1 - (resourceChangeAnnual / delta)) * 10000) / 10000
-      : 0,
-    is_on_cliff: gapAnnual > 0,
-  }
-
-  return result
-}
-
-export async function calculateSeriesViaPolicyEngine(payload, metadata) {
-  const seriesMeta = buildSituation(payload, {
-    includeIncomeOverrides: false,
-    withAxes: true,
-    maxEarnedIncome: payload.max_earned_income,
-    minEarnedIncome: payload.min_earned_income,
-    step: payload.step,
-    metadata,
-  })
-  const response = await policyEngineCalculate(seriesMeta.situation)
-  return buildSeriesDataFromResponse(
-    payload,
-    metadata,
-    response,
-    seriesMeta.descriptor,
-    seriesMeta,
-  )
 }
