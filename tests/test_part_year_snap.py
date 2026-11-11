@@ -262,8 +262,8 @@ def test_a_deselected_program_gets_no_mark_and_no_rerun(monkeypatch):
 
 def test_free_meals_in_a_universal_meal_state_skip_the_rerun(monkeypatch):
     """California serves free meals to every student. At $30,000 this household
-    gets SNAP in part of the year and free meals, and no other program, so
-    CliffWatch skips the rerun."""
+    gets SNAP in part of the year and free meals, and neither Head Start nor
+    Early Head Start, so CliffWatch skips the rerun."""
     built = _count_engine_builds(monkeypatch)
     by_wages = _series_by_wages(
         {"state": "CA", "people": [_adult(35), _child(8)]}, 29_000, 31_000

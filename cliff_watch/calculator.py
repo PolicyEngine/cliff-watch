@@ -1028,7 +1028,7 @@ def _part_year_snap_by_point(
     *,
     simulation_class: Any,
     point_count: int,
-    included_programs: Collection[str] = PART_YEAR_SNAP_PROGRAMS,
+    included_programs: Collection[str],
 ) -> tuple[list[list[int]], list[dict[str, bool]]]:
     """Each point's SNAP months, and for each of PART_YEAR_SNAP_PROGRAMS
     whether the household gets that program for the whole year only because

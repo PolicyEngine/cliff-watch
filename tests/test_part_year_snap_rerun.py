@@ -158,10 +158,9 @@ def test_rerun_turns_snap_off_in_a_copy_of_the_situation():
     _, marks, reruns, situation = _run(points)
     assert marks == [["head_start"]]
     (rerun,) = reruns
-    assert [
-        unit["takes_up_snap_if_eligible"] for unit in rerun["spm_units"].values()
-    ] == [{YEAR: False}]
-    assert rerun["people"] == SITUATION["people"]
+    without_snap = copy.deepcopy(SITUATION)
+    without_snap["spm_units"]["spm_unit"]["takes_up_snap_if_eligible"] = {YEAR: False}
+    assert rerun == without_snap
     assert situation == SITUATION
 
 
