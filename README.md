@@ -120,7 +120,9 @@ graph; regenerate it after changing either builder or the pinned
 uv run python scripts/generate_variable_graph.py
 ```
 
-Opt-in live checks post built situations to api.policyengine.org:
+Opt-in live checks post built situations to api.policyengine.org. They send no
+credential, so they stop working once the Public API accepts only PolicyEngine's
+own servers:
 
 ```bash
 POLICYENGINE_LIVE_API=1 uv run pytest tests/test_live_policyengine_api.py
