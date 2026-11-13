@@ -48,7 +48,12 @@ def engine_versions() -> dict[str, str]:
     """Installed engine packages, so a deployment can be checked from outside."""
     return {
         package: version(package)
-        for package in ("policyengine-us", "policyengine-core", "spm-calculator")
+        for package in (
+            "policyengine",
+            "policyengine-us",
+            "policyengine-core",
+            "spm-calculator",
+        )
     }
 
 

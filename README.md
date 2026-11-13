@@ -34,7 +34,7 @@ Because differencing is linear, the marginal tax rate decomposes exactly: each p
 | Layer | Technology |
 | --- | --- |
 | Frontend | React 18, Vite 5, Recharts, react-simple-maps |
-| Runtime calculations | Python, [PolicyEngine US](https://github.com/PolicyEngine/policyengine-us) |
+| Runtime calculations | Python, `calculate_household` from [policyengine.py](https://github.com/PolicyEngine/policyengine.py), which runs [PolicyEngine US](https://github.com/PolicyEngine/policyengine-us) |
 | Local API | built-in `http.server` wrapper around shared compute helpers |
 | Deploy target | static frontend + serverless-style `api/` handlers |
 
@@ -60,19 +60,13 @@ More detail is in [COMPUTE_STRATEGY.md](COMPUTE_STRATEGY.md).
 
 ### 1. Python setup
 
-Install the locked environment Vercel deploys (pulls PolicyEngine-US automatically):
+Install the locked environment Vercel deploys:
 
 ```bash
 uv sync --extra dev
 ```
 
-`pyproject.toml` pins the engine (`policyengine-us`, `policyengine-core`, `spm-calculator`) exactly, with the reason for each pin, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump a pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after.
-
-If you already have a local `policyengine-us` checkout, you can point this repo at it:
-
-```bash
-export POLICYENGINE_US_REPO=../policyengine-us
-```
+The calculator runs on `pe.us.calculate_household` from [policyengine.py](https://github.com/PolicyEngine/policyengine.py). `pyproject.toml` pins `policyengine`, whose `us` extra pins `policyengine-us`, `policyengine-core` and `spm-calculator` exactly, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump the pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after. A bump that moves `policyengine-us` also moves its wheel URL in `pyproject.toml`, and `uv lock` fails until the two agree.
 
 ### 2. Frontend setup
 
@@ -167,14 +161,12 @@ With that variable set, browser requests go to the Modal backend's
 
 ## Cold-start install
 
-Vercel's Python runtime ships a function's dependencies in its zip while the function totals 225 MiB or less. Past that, it installs the public packages into `/tmp` when an instance starts, before any of this app's code runs, and those packages leave the zip. `pyproject.toml` removes packages a household calculation never imports, so this function totals about 189 MiB and no install runs. The builder then fills the zip with bytecode up to 220 MiB. That fill shrinks as the function grows, and a preview with none of it took 38 to 42 seconds on first requests, a few seconds longer than previews with the fill and inside the routes' 60-second limit.
-
-If a version bump takes the function past 225 MiB, the install comes back, and two platform limits shape it:
+The function's dependencies exceed the 225 MiB that Vercel's Python runtime bundles, so the runtime installs the public ones into `/tmp` when an instance starts, before any of this app's code runs. Packages with a URL source stay in the zip. That install runs under two platform limits:
 
 - Lambda gives an instance's init 10 seconds. An init that runs longer stops and starts again on the same instance, and `/tmp` keeps what it wrote.
-- `/tmp` holds about 513 MiB, and each file takes whole 4 KiB blocks, so many small files take far more room than their sizes add up to.
+- `/tmp` holds about 513 MiB, and each file takes whole 4 KiB blocks, so many small files take more room than their sizes add up to.
 
-An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. `tests/test_deploy_footprint.py` fails when the function passes 225 MiB, and when a complete install stops fitting on top of a stopped one. If the first fails after a version bump, trim another package, or accept the install and update this section. If the second fails, trim another package or give one a URL source. `main` requires no checks, so a failing run warns the author of a bump and doesn't block its merge.
+An install that stops partway leaves its temporary files in `/tmp`. If a complete install no longer fits beside them, every request on that instance fails with "No space left on device" until the platform replaces it. So `pyproject.toml` removes packages a household calculation never imports and gives `policyengine` and `policyengine-us` URL sources, and `tests/test_deploy_footprint.py` fails if a complete install stops fitting on top of a stopped one. If that test fails after a version bump, trim another package or give one a URL source. `spm-calculator`, at 57 MiB, comes next. `main` requires no checks, so a failing run warns the author of a bump and doesn't block its merge.
 
 ## County from ZIP
 
@@ -219,6 +211,9 @@ python3 -m cliff_watch.calculator examples/sample_household.json --mode series
 - A second adult is treated as a spouse, and later adults are modeled as additional household members in the same household unit.
 - The form has no county field. The API resolves the county from the ZIP, as [County from ZIP](#county-from-zip) describes.
 - The modeled bundle is intentionally narrower than every possible administrative program.
+- Every adult counts as working 40 hours a week at every earnings level, including zero, because the form doesn't ask about hours. Work tests therefore pass: SNAP's time limit, child care activity tests and, from 2027, Medicaid's community engagement test.
+- A household that selects TANF counts as enrolled at every earnings level, even where the calculated grant is zero, so rules that favor enrolled families apply throughout, such as Nebraska's waived child care fee. Florida's extra earnings disregard ignores enrollment and follows the engine's new-applicant rule, so TANF for a Florida family of three stops as earnings pass about $4,700.
+- State and local taxes include Maryland's county income tax, at the rate of the county the API resolves from the ZIP.
 
 ## License
 

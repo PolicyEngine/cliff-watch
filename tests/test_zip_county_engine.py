@@ -10,9 +10,10 @@ import pytest
 
 pytest.importorskip("policyengine_us")
 
+from policyengine_us import Simulation
+
 from api._shared import _series_cached, compute_series
 from cliff_watch.calculator import (
-    _load_simulation,
     build_household_situation,
     calculate_household,
     calculate_income_series,
@@ -53,7 +54,7 @@ def _series(payload):
 
 
 def _engine_values(payload, *variables):
-    simulation = _load_simulation()(situation=build_household_situation(payload))
+    simulation = Simulation(situation=build_household_situation(payload))
     return {
         variable: simulation.calculate(variable, YEAR).tolist()[0]
         for variable in variables
@@ -288,7 +289,7 @@ def _rating_areas_and_benchmarks(counties, rating_areas=None):
         for group in groups:
             situation[group][f"{group}_{index}"] = {"members": [person]}
 
-    simulation = _load_simulation()(situation=situation)
+    simulation = Simulation(situation=situation)
     return dict(
         zip(
             counties,
@@ -379,7 +380,7 @@ def test_the_counties_without_a_benchmark_match_the_engine() -> None:
         for group in groups:
             situation[group][f"{group}_{index}"] = {"members": [person]}
 
-    simulation = _load_simulation()(situation=situation)
+    simulation = Simulation(situation=situation)
     benchmark = simulation.calculate("slcsp", YEAR, map_to="household")
 
     assert len(benchmark) == len(codes)

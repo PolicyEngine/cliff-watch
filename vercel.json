@@ -5,16 +5,16 @@
   "outputDirectory": "frontend/out",
   "functions": {
     "api/calculate.py": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/series.py": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/metadata.py": {
       "maxDuration": 10
     },
     "api/households.py": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
   }
 }
