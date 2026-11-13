@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import os
 import sys
 import warnings
+from collections.abc import Collection
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -983,6 +985,131 @@ def _calculate_tanf_amount_array(
         return []
 
 
+# policyengine-us tests categorical eligibility for these programs over the
+# whole year: is_head_start_categorically_eligible adds up an SPM unit's TANF,
+# SSI and SNAP for the year, and meets_school_meal_categorical_eligibility adds
+# up its SNAP, TANF and Head Start-eligible members, among others. So a
+# household that gets SNAP in some months gets a full year of each program it
+# reaches only through SNAP, including the months before its SNAP starts.
+PART_YEAR_SNAP_PROGRAMS = ("head_start", "early_head_start", "free_school_meals")
+_PART_YEAR_SNAP_VARIABLES = (
+    "snap",
+    "takes_up_snap_if_eligible",
+    *PART_YEAR_SNAP_PROGRAMS,
+)
+
+
+def _snap_months_by_point(
+    simulation: Any, year: int, point_count: int
+) -> list[list[int]]:
+    """Each point's months (1 to 12) in which the household gets SNAP.
+
+    The chart reads January's SNAP times 12, while the categorical tests above
+    read all twelve months, which the simulation has already computed.
+    """
+    months: list[list[int]] = [[] for _ in range(point_count)]
+    for month in range(1, 13):
+        values = _normalize_series_values(
+            _as_float_list(
+                simulation.calculate("snap", f"{year}-{month:02d}", map_to="household")
+            ),
+            point_count,
+        )
+        for index, value in enumerate(values):
+            if value > 0:
+                months[index].append(month)
+    return months
+
+
+def _part_year_snap_by_point(
+    simulation: Any,
+    situation: dict[str, Any],
+    year: int,
+    *,
+    simulation_class: Any,
+    point_count: int,
+    included_programs: Collection[str],
+) -> tuple[list[list[int]], list[dict[str, bool]]]:
+    """Each point's SNAP months, and for each of PART_YEAR_SNAP_PROGRAMS
+    whether the household gets that program for the whole year only because
+    it gets SNAP in some months but not all twelve.
+
+    A program gets a mark at a point where the household gets it and gets SNAP
+    in 1 to 11 months, and where it falls when the engine reruns the series
+    with SNAP turned off. The rerun keeps every other route to the program:
+    policyengine-us counts TANF as categorical eligibility for all three
+    programs and SSI for Head Start and Early Head Start, and a child eligible
+    for Head Start makes the household categorically eligible for free school
+    meals.
+
+    The rerun adds most of a second to a series call, so CliffWatch runs it
+    only for a series with a point where a program on the chart could fall.
+    A program the user left off the chart (outside included_programs) gets no
+    mark, since the chart shows it at zero. Free school meals can't fall in a
+    state that serves them to every student: there school_meal_tier gives the
+    free tier whatever the household's categorical eligibility.
+    """
+    no_flags = [
+        dict.fromkeys(PART_YEAR_SNAP_PROGRAMS, False) for _ in range(point_count)
+    ]
+    if not all(
+        _variable_exists(simulation, variable) for variable in _PART_YEAR_SNAP_VARIABLES
+    ):
+        return [[] for _ in range(point_count)], no_flags
+    snap_months = _snap_months_by_point(simulation, year, point_count)
+
+    def program_values(sim: Any) -> dict[str, list[float]]:
+        return {
+            program: _normalize_series_values(
+                _calculate_variable_array(sim, program, year, map_to="household"),
+                point_count,
+            )
+            for program in PART_YEAR_SNAP_PROGRAMS
+        }
+
+    with_snap = program_values(simulation)
+    universal_meals = (
+        _normalize_series_values(
+            _calculate_variable_array(
+                simulation,
+                "state_has_universal_free_school_meals",
+                year,
+                map_to="household",
+            ),
+            point_count,
+        )
+        if _variable_exists(simulation, "state_has_universal_free_school_meals")
+        else [0.0] * point_count
+    )
+
+    def could_fall(program: str, index: int) -> bool:
+        if program not in included_programs or with_snap[program][index] <= 0:
+            return False
+        return not (program == "free_school_meals" and universal_meals[index])
+
+    candidates = [
+        index
+        for index in range(point_count)
+        if 0 < len(snap_months[index]) < 12
+        and any(could_fall(program, index) for program in PART_YEAR_SNAP_PROGRAMS)
+    ]
+    if not candidates:
+        return snap_months, no_flags
+
+    situation_without_snap = copy.deepcopy(situation)
+    for unit in situation_without_snap.get("spm_units", {}).values():
+        unit["takes_up_snap_if_eligible"] = {year: False}
+    without_snap = program_values(simulation_class(situation=situation_without_snap))
+    flags = no_flags
+    for index in candidates:
+        for program in PART_YEAR_SNAP_PROGRAMS:
+            flags[index][program] = (
+                could_fall(program, index)
+                and without_snap[program][index] < with_snap[program][index] - 0.01
+            )
+    return snap_months, flags
+
+
 def _template_counts(payload: HouseholdInput) -> dict[str, int]:
     people = _resolved_people(payload)
     num_adults = sum(1 for person in people if person["kind"] == "adult")
@@ -1627,14 +1754,13 @@ def calculate_income_series(
     descriptor = _household_descriptor(payload)
     members = descriptor["people"]
     Simulation = _load_simulation()
-    simulation = Simulation(
-        situation=build_household_variation_situation(
-            payload,
-            max_earned_income=aligned_max_earned_income,
-            count=point_count,
-            min_earned_income=aligned_min_earned_income,
-        )
+    situation = build_household_variation_situation(
+        payload,
+        max_earned_income=aligned_max_earned_income,
+        count=point_count,
+        min_earned_income=aligned_min_earned_income,
     )
+    simulation = Simulation(situation=copy.deepcopy(situation))
 
     earned_incomes = _normalize_series_values(
         _calculate_variable_array(
@@ -1828,6 +1954,18 @@ def calculate_income_series(
         payload,
         point_count,
     )
+    snap_months_by_point, part_year_snap_flags = _part_year_snap_by_point(
+        simulation,
+        situation,
+        payload.year,
+        simulation_class=Simulation,
+        point_count=point_count,
+        included_programs=[
+            program
+            for program in PART_YEAR_SNAP_PROGRAMS
+            if _program_included(payload, program)
+        ],
+    )
 
     series = []
     previous_result = None
@@ -2012,6 +2150,12 @@ def calculate_income_series(
                 "cliff_drop_annual": round(cliff_drop, 2),
                 "is_cliff": cliff_drop > 0,
                 "cliff_drivers": cliff_drivers,
+                "snap_months": snap_months_by_point[index],
+                "part_year_snap_programs": [
+                    program
+                    for program in PART_YEAR_SNAP_PROGRAMS
+                    if part_year_snap_flags[index][program] and programs[program] > 0
+                ],
             }
         )
         previous_result = result

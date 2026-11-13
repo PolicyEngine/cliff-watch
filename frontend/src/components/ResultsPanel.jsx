@@ -4,6 +4,7 @@ import CliffInsights from './CliffInsights'
 import { formatCurrency } from '../dataLookup'
 import { countyContext, countyDraftValue } from '../utils/countyContext'
 import { householdStateName, householdSummary } from '../utils/householdSummary'
+import { snapMonthNote } from '../utils/snapMonthNote'
 import { buildShareUrl } from '../utils/urlState'
 
 function copyTextFallback(text) {
@@ -138,6 +139,7 @@ function ResultsPanel({
 
   const location = seriesData?.location
   const county = countyContext(location, householdStateName(inputs, metadata))
+  const snapNote = snapMonthNote(seriesData?.data)
 
   return (
     <section className="results-panel">
@@ -170,6 +172,7 @@ function ResultsPanel({
                 </p>
               )}
               {seriesError && <p className="chart-note warning">{seriesError}</p>}
+              {snapNote && <p className="chart-note">{snapNote}</p>}
               <BenefitChart
                 data={seriesData?.data || []}
                 metadata={metadata}

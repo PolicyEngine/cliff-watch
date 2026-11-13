@@ -1,0 +1,526 @@
+[
+  {
+    "earned_income": 26000.0,
+    "step_annual": 500,
+    "net_resources": 57296.78,
+    "net_change_annual": 0.0,
+    "core_support": 33335.18,
+    "taxes": 2038.4,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 6166.26,
+    "snap": 1065.6,
+    "free_school_meals": 0.0,
+    "head_start": 13086.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5789.82,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 1989.0,
+    "state_taxes_before_refundable_credits": 49.4,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": false,
+    "cliff_drop_annual": 0.0,
+    "is_cliff": false,
+    "cliff_drivers": [],
+    "snap_months": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "part_year_snap_programs": []
+  },
+  {
+    "earned_income": 26500.0,
+    "step_annual": 500,
+    "net_resources": 57524.38,
+    "net_change_annual": 227.6,
+    "core_support": 33125.98,
+    "taxes": 2101.6,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 6155.76,
+    "snap": 946.8,
+    "free_school_meals": 0.0,
+    "head_start": 13086.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5709.92,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 2027.25,
+    "state_taxes_before_refundable_credits": 74.35,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": true,
+    "cliff_drop_annual": 0.0,
+    "is_cliff": false,
+    "cliff_drivers": [],
+    "snap_months": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "part_year_snap_programs": []
+  },
+  {
+    "earned_income": 27000.0,
+    "step_annual": 500,
+    "net_resources": 57748.38,
+    "net_change_annual": 224.0,
+    "core_support": 32913.18,
+    "taxes": 2164.8,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 6145.26,
+    "snap": 824.4,
+    "free_school_meals": 0.0,
+    "head_start": 13086.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5630.02,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 2065.5,
+    "state_taxes_before_refundable_credits": 99.3,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": true,
+    "cliff_drop_annual": 0.0,
+    "is_cliff": false,
+    "cliff_drivers": [],
+    "snap_months": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "part_year_snap_programs": []
+  },
+  {
+    "earned_income": 27500.0,
+    "step_annual": 500,
+    "net_resources": 57270.38,
+    "net_change_annual": -478.0,
+    "core_support": 31998.38,
+    "taxes": 2228.0,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 6134.76,
+    "snap": 0.0,
+    "free_school_meals": 0.0,
+    "head_start": 13086.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5550.12,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 2103.75,
+    "state_taxes_before_refundable_credits": 124.25,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": true,
+    "cliff_drop_annual": 478.0,
+    "is_cliff": true,
+    "cliff_drivers": [
+      {
+        "key": "snap",
+        "label": "SNAP",
+        "kind": "benefit_loss",
+        "raw_change_annual": -824.4,
+        "raw_change_monthly": -68.7,
+        "resource_effect_annual": -824.4,
+        "resource_effect_monthly": -68.7
+      },
+      {
+        "key": "federal_refundable_credits",
+        "label": "Federal refundable tax credits",
+        "kind": "benefit_loss",
+        "raw_change_annual": -79.9,
+        "raw_change_monthly": -6.66,
+        "resource_effect_annual": -79.9,
+        "resource_effect_monthly": -6.66
+      },
+      {
+        "key": "taxes",
+        "label": "Higher taxes",
+        "kind": "tax_increase",
+        "raw_change_annual": 63.2,
+        "raw_change_monthly": 5.27,
+        "resource_effect_annual": -63.2,
+        "resource_effect_monthly": -5.27
+      },
+      {
+        "key": "aca_ptc",
+        "label": "ACA premium tax credits",
+        "kind": "benefit_loss",
+        "raw_change_annual": -10.5,
+        "raw_change_monthly": -0.88,
+        "resource_effect_annual": -10.5,
+        "resource_effect_monthly": -0.88
+      }
+    ],
+    "snap_months": [
+      10,
+      11,
+      12
+    ],
+    "part_year_snap_programs": [
+      "head_start"
+    ]
+  },
+  {
+    "earned_income": 28000.0,
+    "step_annual": 500,
+    "net_resources": 57616.78,
+    "net_change_annual": 346.4,
+    "core_support": 31907.98,
+    "taxes": 2291.2,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 6124.26,
+    "snap": 0.0,
+    "free_school_meals": 0.0,
+    "head_start": 13086.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5470.22,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 2142.0,
+    "state_taxes_before_refundable_credits": 149.2,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": true,
+    "cliff_drop_annual": 0.0,
+    "is_cliff": false,
+    "cliff_drivers": [],
+    "snap_months": [
+      10,
+      11,
+      12
+    ],
+    "part_year_snap_programs": [
+      "head_start"
+    ]
+  },
+  {
+    "earned_income": 28500.0,
+    "step_annual": 500,
+    "net_resources": 44563.18,
+    "net_change_annual": -13053.6,
+    "core_support": 18417.58,
+    "taxes": 2354.4,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 5799.76,
+    "snap": 0.0,
+    "free_school_meals": 0.0,
+    "head_start": 0.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5390.32,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 2180.25,
+    "state_taxes_before_refundable_credits": 174.15,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": true,
+    "cliff_drop_annual": 13053.6,
+    "is_cliff": true,
+    "cliff_drivers": [
+      {
+        "key": "head_start",
+        "label": "Head Start",
+        "kind": "benefit_loss",
+        "raw_change_annual": -13086.0,
+        "raw_change_monthly": -1090.5,
+        "resource_effect_annual": -13086.0,
+        "resource_effect_monthly": -1090.5
+      },
+      {
+        "key": "aca_ptc",
+        "label": "ACA premium tax credits",
+        "kind": "benefit_loss",
+        "raw_change_annual": -324.5,
+        "raw_change_monthly": -27.04,
+        "resource_effect_annual": -324.5,
+        "resource_effect_monthly": -27.04
+      },
+      {
+        "key": "federal_refundable_credits",
+        "label": "Federal refundable tax credits",
+        "kind": "benefit_loss",
+        "raw_change_annual": -79.9,
+        "raw_change_monthly": -6.66,
+        "resource_effect_annual": -79.9,
+        "resource_effect_monthly": -6.66
+      },
+      {
+        "key": "taxes",
+        "label": "Higher taxes",
+        "kind": "tax_increase",
+        "raw_change_annual": 63.2,
+        "raw_change_monthly": 5.27,
+        "resource_effect_annual": -63.2,
+        "resource_effect_monthly": -5.27
+      }
+    ],
+    "snap_months": [],
+    "part_year_snap_programs": []
+  },
+  {
+    "earned_income": 29000.0,
+    "step_annual": 500,
+    "net_resources": 44850.33,
+    "net_change_annual": 287.15,
+    "core_support": 18267.93,
+    "taxes": 2417.6,
+    "medicaid": 6513.95,
+    "chip": 0.0,
+    "chip_premium": 0.0,
+    "aca_ptc": 5730.01,
+    "snap": 0.0,
+    "free_school_meals": 0.0,
+    "head_start": 0.0,
+    "early_head_start": 0.0,
+    "housing_assistance": 0.0,
+    "ssi": 0.0,
+    "ssdi": 0.0,
+    "federal_refundable_credits": 5310.42,
+    "state_refundable_credits": 0.0,
+    "federal_taxes_before_refundable_credits": 2218.5,
+    "state_taxes_before_refundable_credits": 199.1,
+    "tanf": 0.0,
+    "wic": 713.55,
+    "child_care_subsidies": 0.0,
+    "household_costs": {
+      "rent": 0.0,
+      "utilities": 0.0,
+      "childcare": 0.0,
+      "food": 0.0,
+      "transportation": 0.0,
+      "health_insurance_premiums": 0.0,
+      "technology": 0.0,
+      "debt_payments": 0.0,
+      "education_training": 0.0,
+      "other_expenses": 0.0,
+      "chip_premium": 0.0
+    },
+    "person_programs": {
+      "medicaid": {
+        "adult_1": {
+          "label": "Adult 1 Medicaid",
+          "value": 0.0
+        },
+        "child_1": {
+          "label": "Child 1 Medicaid",
+          "value": 6513.95
+        }
+      }
+    },
+    "has_previous_point": true,
+    "cliff_drop_annual": 0.0,
+    "is_cliff": false,
+    "cliff_drivers": [],
+    "snap_months": [],
+    "part_year_snap_programs": []
+  }
+]
