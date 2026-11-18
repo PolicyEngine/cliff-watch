@@ -6,17 +6,21 @@ the components that rules read. Values are for the pinned policyengine-us.
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
+from api._shared import compute_series_request
 from cliff_watch.calculator import (
+    _series_axis,
     build_household_situation,
     calculate_household,
     calculate_income_series,
     household_input_from_dict,
 )
-from cliff_watch.config import STATE_TANF_VARIABLES
+from cliff_watch.config import DEFAULT_SERIES_TARGET_POINTS, STATE_TANF_VARIABLES
 
 YEAR = 2026
 
@@ -298,3 +302,56 @@ def test_household_path_matches_the_series_at_the_same_earnings(
     assert point["totals"]["net_resources"] == pytest.approx(
         series_point["net_resources"], abs=0.05
     )
+
+
+@pytest.mark.parametrize(
+    "lower, upper, requested_step, expected_axis",
+    [
+        (52_500, 53_500, 100, list(range(52_500, 53_501, 100))),
+        (0, 375, 100, [0, 93.75, 187.5, 281.25, 375]),
+    ],
+)
+def test_bounded_wage_axis_uses_the_requested_window(
+    lower, upper, requested_step, expected_axis
+):
+    raw = {
+        "state": "GA",
+        "people": [
+            {"kind": "adult", "age": 30},
+            {"kind": "adult", "age": 35, "earned_income": 10_000},
+        ],
+        "min_earned_income": lower,
+        "max_earned_income": upper,
+        "step": requested_step,
+    }
+    series = compute_series_request(raw)
+    wages = [point["earned_income"] for point in series["data"]]
+    assert wages == [10_000 + value for value in expected_axis]
+    gaps = [round(b - a, 2) for a, b in pairwise(wages)]
+    assert [p["step_annual"] for p in series["data"][1:]] == gaps
+    assert series["step_annual"] == max(gaps)
+
+
+def test_default_curve_keeps_the_full_window_and_rounded_upper_bound():
+    payload = household_input_from_dict(
+        {"state": "GA", "household_type": "single_adult"}
+    )
+    assert _series_axis(payload, None, 375, 500) == (0, 40_000, 81)
+    assert _series_axis(payload, None, 100_001, 500) == (0, 100_500, 202)
+
+
+@given(
+    lower=st.integers(min_value=0, max_value=200_000),
+    width=st.integers(min_value=1, max_value=200_000),
+    step=st.integers(min_value=1, max_value=5_000),
+)
+def test_bounded_axis_covers_its_exact_interval_within_the_point_budget(
+    lower, width, step
+):
+    payload = household_input_from_dict(
+        {"state": "GA", "household_type": "single_adult"}
+    )
+    start, end, count = _series_axis(payload, lower, lower + width, step)
+    assert (start, end) == (lower, lower + width)
+    assert 2 <= count <= DEFAULT_SERIES_TARGET_POINTS
+    assert width <= step * (count - 1) or count == DEFAULT_SERIES_TARGET_POINTS

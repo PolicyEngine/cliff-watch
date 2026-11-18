@@ -34,7 +34,7 @@ function dedupeSorted(points) {
   if (!points.length) return points
   const out = [points[0]]
   for (let i = 1; i < points.length; i += 1) {
-    if (Math.round(points[i].earned_income) !== Math.round(out[out.length - 1].earned_income)) {
+    if (points[i].earned_income !== out[out.length - 1].earned_income) {
       out.push(points[i])
     }
   }
@@ -114,53 +114,62 @@ export async function refineCliffZones({
   const programs = applyStateProgramLabels(metadata?.programs || [], metadata, inputs?.state)
   const programKeys = programs.map((p) => p.key)
 
+  // The chart shows household wages. The model varies the primary earner
+  // from zero and keeps everyone else's wages fixed at the first point.
+  const fixedWages = coarseSeries.data[0].earned_income
+  const lastWages = coarseSeries.data[coarseSeries.data.length - 1].earned_income
   const refinementJobs = report.zones.map(async (zone) => {
     const margin = Math.max(coarseStep / 2, refineStep)
-    const start = Math.max(0, zone.startIncomeAnnual - margin)
-    const end = zone.endIncomeAnnual + margin
+    const start = Math.max(fixedWages, zone.startIncomeAnnual - margin)
+    const end = Math.min(lastWages, zone.endIncomeAnnual + margin)
     try {
       const refined = await calculateSeriesFn(inputs, metadata, {
-        minEarnedIncome: start,
-        maxEarnedIncome: end,
+        minEarnedIncome: Math.floor(round(start - fixedWages)),
+        maxEarnedIncome: Math.ceil(round(end - fixedWages)),
         step: refineStep,
       })
-      return { failed: false, points: refined?.data || [] }
+      const points = (refined?.data || []).filter((point) => (
+        Number.isFinite(point?.earned_income)
+        && Number.isFinite(point.net_resources)
+        && point.earned_income >= start
+        && point.earned_income <= end
+      )).sort((a, b) => a.earned_income - b.earned_income)
+      if (
+        points.length < 2
+        || points[0].earned_income > zone.startIncomeAnnual
+        || points.at(-1).earned_income < zone.endIncomeAnnual
+      ) {
+        return null
+      }
+
+      // Measure the resulting grid in the original zone. Keep the coarse
+      // observations too: a refined grid need not line up with them.
+      const wages = [...coarseSeries.data, ...points]
+        .map((point) => point.earned_income)
+        .filter((income) => income >= zone.startIncomeAnnual && income <= zone.endIncomeAnnual)
+        .sort((a, b) => a - b)
+      let maxGap = 0
+      for (let i = 1; i < wages.length; i += 1) {
+        maxGap = Math.max(maxGap, round(wages[i] - wages[i - 1]))
+      }
+      return maxGap > 0 && maxGap < coarseStep ? { points, maxGap } : null
     } catch (err) {
       console.error('Cliff refinement failed', err)
-      return { failed: true, points: [] }
+      return null
     }
   })
 
-  const refinedBatches = await Promise.all(refinementJobs)
+  const batches = await Promise.all(refinementJobs)
   if (isCancelled()) return coarseSeries
 
-  // Failed zones stay at the coarse step. Report them so the page can say so
-  // instead of silently showing cliff edges that may be off by a whole step.
-  const failedZoneCount = refinedBatches.filter((batch) => batch.failed).length
+  const refined = batches.filter(Boolean)
   const refinementStatus = {
-    refinement_zone_count: refinedBatches.length,
-    refinement_failed_zone_count: failedZoneCount,
+    refinement_zone_count: batches.length,
+    refinement_failed_zone_count: batches.length - refined.length,
   }
+  if (!refined.length) return { ...coarseSeries, ...refinementStatus }
 
-  const ranges = refinedBatches
-    .map(({ points: batch }) => {
-      if (!batch.length) return null
-      const first = batch[0].earned_income
-      const last = batch[batch.length - 1].earned_income
-      return { min: first, max: last, points: batch }
-    })
-    .filter(Boolean)
-
-  if (!ranges.length) {
-    return failedZoneCount ? { ...coarseSeries, ...refinementStatus } : coarseSeries
-  }
-
-  const keptCoarse = coarseSeries.data.filter((point) => {
-    const income = point.earned_income
-    return !ranges.some((range) => income >= range.min && income <= range.max)
-  })
-
-  const mergedRaw = [...keptCoarse, ...ranges.flatMap((range) => range.points)]
+  const mergedRaw = [...coarseSeries.data, ...refined.flatMap((batch) => batch.points)]
     .sort((a, b) => a.earned_income - b.earned_income)
 
   const deduped = dedupeSorted(mergedRaw)
@@ -179,8 +188,8 @@ export async function refineCliffZones({
       ...withDeltas.map((p) => Number(p.net_resources) || 0),
       0,
     ),
-    refined_zone_count: ranges.length,
-    refined_step_annual: refineStep,
+    refined_zone_count: refined.length,
+    refined_step_annual: Math.max(...refined.map((batch) => batch.maxGap)),
     ...refinementStatus,
   }
 }
