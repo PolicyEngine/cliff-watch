@@ -3,6 +3,20 @@
   "installCommand": "cd frontend && bun install",
   "buildCommand": "cd frontend && bun run build",
   "outputDirectory": "frontend/out",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "header", "key": "x-forwarded-host", "value": "cliff-watch\\.vercel\\.app" }],
+      "destination": "https://www.policyengine.org/us/cliffwatch",
+      "permanent": true
+    },
+    {
+      "source": "/((?!api/).*)",
+      "has": [{ "type": "header", "key": "x-forwarded-host", "value": "cliff-watch\\.vercel\\.app" }],
+      "destination": "https://www.policyengine.org/us/cliffwatch/$1",
+      "permanent": true
+    }
+  ],
   "functions": {
     "api/calculate.py": {
       "maxDuration": 60
