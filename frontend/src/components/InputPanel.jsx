@@ -147,15 +147,16 @@ function CurrencyField({
   value,
   onChange,
   compact = false,
-  step = 'any',
+  unit = '$/year',
+  min = 0,
   tooltip,
 }) {
   const input = (
     <input
       type="number"
       id={id}
-      min="0"
-      step={step}
+      min={min}
+      step="any"
       value={value ?? 0}
       onChange={(event) => onChange(Number(event.target.value) || 0)}
     />
@@ -164,7 +165,7 @@ function CurrencyField({
   if (compact) {
     return (
       <label className="compact-field">
-        <span>{label}</span>
+        <span>{label} ({unit})</span>
         {input}
       </label>
     )
@@ -173,7 +174,7 @@ function CurrencyField({
   return (
     <div className="form-group">
       <label htmlFor={id}>
-        {label} ($/year)
+        {label} ({unit})
         {tooltip ? <InfoTooltip text={tooltip} /> : null}
       </label>
       {input}
@@ -212,6 +213,7 @@ function InputPanel({
 }) {
   const [currentStepId, setCurrentStepId] = useState('location')
   const [sampleFilter, setSampleFilter] = useState(null)
+  const [expensePeriod, setExpensePeriod] = useState('year')
   const inputs = useMemo(
     () => (metadata && draft && scenario
       ? combineDraftAndScenarioToInputs(draft, scenario, metadata)
@@ -402,6 +404,7 @@ function InputPanel({
 
   const resetWizard = () => {
     setSampleFilter(null)
+    setExpensePeriod('year')
     onReset()
     goToStep('location')
   }
@@ -425,6 +428,10 @@ function InputPanel({
         aria-label="Household setup progress"
       />
       <form
+        onInvalidCapture={event => {
+          const details = event.target.closest('details')
+          if (details) details.open = true
+        }}
         onSubmit={(event) => {
           event.preventDefault()
           if (!currentStepComplete) return
@@ -758,7 +765,7 @@ function InputPanel({
                     <CurrencyField
                       id="chart_max_earned_income"
                       label="Chart max wages"
-                      step={10000}
+                      min={10000}
                       value={inputs.chart_max_earned_income}
                       onChange={(value) => onScenarioChange({ chart_max_earned_income: value || 100000 })}
                       tooltip="Optional upper bound for the wage chart."
@@ -802,6 +809,7 @@ function InputPanel({
                     <CurrencyField
                       id="liquid_assets"
                       label="Checking and savings"
+                      unit="$"
                       value={inputs.liquid_assets}
                       onChange={(value) => onScenarioChange({ liquid_assets: value })}
                       tooltip="Counts toward SNAP, TANF and SSI asset limits where modeled."
@@ -811,14 +819,30 @@ function InputPanel({
 
                 <section className="advanced-section">
                   <h3 className="advanced-section-title">Budget costs</h3>
+                  <div className="form-group">
+                    <label htmlFor="expense-period">Enter expenses</label>
+                    <select
+                      id="expense-period"
+                      value={expensePeriod}
+                      onChange={event => setExpensePeriod(event.target.value)}
+                    >
+                      <option value="year">Per year</option>
+                      <option value="month">Per month</option>
+                    </select>
+                  </div>
                   <div className="advanced-field-grid">
                     {EXPENSE_FIELDS.map((field) => (
                       <CurrencyField
                         key={field.key}
                         id={field.key}
                         label={field.label}
-                        value={inputs[field.key]}
-                        onChange={(value) => onScenarioChange({ [field.key]: value })}
+                        unit={expensePeriod === 'month' ? '$/month' : '$/year'}
+                        value={expensePeriod === 'month'
+                          ? Number((inputs[field.key] / 12).toFixed(2))
+                          : inputs[field.key]}
+                        onChange={value => onScenarioChange({
+                          [field.key]: expensePeriod === 'month' ? Number((value * 12).toFixed(2)) : value,
+                        })}
                         tooltip={field.tooltip}
                       />
                     ))}
