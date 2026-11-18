@@ -191,6 +191,35 @@ body {
   gap: 0.85rem;
 }
 
+.sample-household {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.sample-controls, .sample-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.sample-filter select {
+  padding: 0.45rem;
+  color: inherit;
+  font: inherit;
+}
+
+.sample-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sample-details p, .sample-details ul, .sample-household > p {
+  margin: 0.45rem 0;
+}
+
 .wizard-option-card {
   display: grid;
   gap: 0.45rem;

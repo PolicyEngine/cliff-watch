@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createBlankDraft } from 'policyengine-household-wizard'
 import InputPanel from './components/InputPanel'
+import { projectSample } from './wizard/projectSample'
 // Lazy-load the chart-heavy ResultsPanel (and its recharts dependencies) so
 // the initial JS bundle is small. The panel is only mounted after the user
 // hits "Find cliffs," so this defers ~hundreds of KB of chart code.
@@ -41,6 +42,7 @@ function App() {
   const [metadata, setMetadata] = useState(null)
   const [draft, setDraft] = useState(() => createBlankDraft())
   const [scenario, setScenario] = useState(null)
+  const [sample, setSample] = useState(null)
   const [seriesData, setSeriesData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [seriesLoading, setSeriesLoading] = useState(false)
@@ -135,6 +137,15 @@ function App() {
     if (!metadata) return
     setDraft(createBlankDraft())
     setScenario(createInitialScenario(metadata))
+    setSample(null)
+    clearResults()
+  }
+
+  const handleSample = (nextSample) => {
+    const next = projectSample(nextSample, draft, metadata)
+    setDraft(next.draft)
+    setScenario(next.scenario)
+    setSample(next.source)
     clearResults()
   }
 
@@ -285,6 +296,8 @@ function App() {
           onDraftChange={handleDraftChange}
           onScenarioChange={handleScenarioChange}
           onReset={handleReset}
+          sample={sample}
+          onSample={handleSample}
         />
 
         <div ref={resultsRef} />

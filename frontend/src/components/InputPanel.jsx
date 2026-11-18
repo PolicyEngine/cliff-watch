@@ -6,6 +6,7 @@ import {
   hasValidZip,
 } from '../dataLookup.js'
 import { applyStateProgramLabels } from '../utils/programLabels.js'
+import SampleHousehold, { SampleDetails } from './SampleHousehold'
 import { maxAdultsForMetadata } from '../utils/filingStatus.js'
 import {
   WizardOptionCard,
@@ -146,7 +147,7 @@ function CurrencyField({
   value,
   onChange,
   compact = false,
-  step = 500,
+  step = 'any',
   tooltip,
 }) {
   const input = (
@@ -206,8 +207,11 @@ function InputPanel({
   onDraftChange,
   onScenarioChange,
   onReset,
+  sample,
+  onSample,
 }) {
   const [currentStepId, setCurrentStepId] = useState('location')
+  const [sampleFilter, setSampleFilter] = useState(null)
   const inputs = useMemo(
     () => (metadata && draft && scenario
       ? combineDraftAndScenarioToInputs(draft, scenario, metadata)
@@ -343,6 +347,7 @@ function InputPanel({
   }[currentStepId]
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex >= WIZARD_STEPS.length - 1
+  const reviewSample = isFirstStep && sample && canCalculate
 
   const goToStep = (stepId) => {
     if (WIZARD_STEPS.some((step) => step.id === stepId)) {
@@ -363,7 +368,7 @@ function InputPanel({
         onDraftChange(nextDraft)
       }
     }
-    setCurrentStepId(WIZARD_STEPS[currentStepIndex + 1].id)
+    setCurrentStepId(reviewSample ? 'review' : WIZARD_STEPS[currentStepIndex + 1].id)
   }
 
   const chooseMaritalStatus = (nextMaritalStatus) => {
@@ -396,6 +401,7 @@ function InputPanel({
   }
 
   const resetWizard = () => {
+    setSampleFilter(null)
     onReset()
     goToStep('location')
   }
@@ -434,7 +440,7 @@ function InputPanel({
           <section className="wizard-step">
             <div className="wizard-step-heading">
               <h3>Where does the household live?</h3>
-              <p>Enter the household ZIP code.</p>
+              <p>{sample ? 'Enter the ZIP code where you want to model this household.' : 'Enter the household ZIP code.'}</p>
             </div>
             <div className="form-grid form-grid--single">
               <div className="form-group">
@@ -467,6 +473,14 @@ function InputPanel({
                 ) : null}
               </div>
             </div>
+            <SampleHousehold
+              metadata={metadata}
+              draft={draft}
+              sample={sample}
+              filter={sampleFilter}
+              setFilter={setSampleFilter}
+              onSample={onSample}
+            />
           </section>
         ) : null}
 
@@ -654,6 +668,15 @@ function InputPanel({
                             onChange={(event) => updatePerson(index, { age: event.target.value })}
                           />
                         </label>
+                        {(sample || person.earned_income > 0) && (
+                          <CurrencyField
+                            id={`dependent-${index}-earned-income`}
+                            label="Annual wages"
+                            compact
+                            value={person.earned_income}
+                            onChange={value => updatePerson(index, { earned_income: value })}
+                          />
+                        )}
                       </div>
 
                       <PersonFlagGrid
@@ -674,6 +697,7 @@ function InputPanel({
               <h3>Review and calculate</h3>
               <p>Check the household, adjust optional details if needed, then build the cliff chart.</p>
             </div>
+            {sample && <SampleDetails sample={sample} metadata={metadata} />}
 
             <div className="wizard-review-grid">
               <button type="button" className="wizard-review-item" onClick={() => goToStep('location')}>
@@ -831,7 +855,7 @@ function InputPanel({
               ? 'Building chart...'
               : isLastStep
                 ? canCalculate ? 'Find cliffs' : 'Complete required fields'
-                : 'Continue'}
+                : reviewSample ? 'Review household' : 'Continue'}
           </button>
         </div>
       </form>

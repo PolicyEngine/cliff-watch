@@ -55,7 +55,7 @@ function encodePerson(person) {
     Math.round(age),
     kind,
     flags,
-    Math.round(Number(person.earned_income) || 0),
+    Number(person.earned_income) || 0,
   ].join(':')
 }
 
@@ -132,7 +132,7 @@ export function encodeInputs(inputs) {
   NUMERIC_FIELDS.forEach(([param, field]) => {
     const value = Number(inputs[field]) || 0
     if (value > 0) {
-      params.set(param, String(Math.round(value)))
+      params.set(param, String(value))
     }
   })
 
