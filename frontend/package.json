@@ -11,7 +11,7 @@
     "test:live": "POLICYENGINE_LIVE_API=1 vitest run src/policyengineApi.live.test.js"
   },
   "dependencies": {
-    "policyengine-household-wizard": "^0.1.0",
+    "policyengine-household-wizard": "https://codeload.github.com/PolicyEngine/policyengine-household-wizard/tar.gz/d546a3e06f84e5ffa3aded2cd7d134ff89bf7bc6",
     "@policyengine/ui-kit": "^0.12.0",
     "next": "^16.2.6",
     "react": "^19.2.0",
