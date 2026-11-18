@@ -30,7 +30,7 @@ jobs:
       - name: Run tests
         run: |
           cd frontend
-          bun run test
+          bun run test --maxWorkers=2
 
   python:
     runs-on: ubuntu-latest
