@@ -1,6 +1,13 @@
 from cliff_watch.calculator import _candidate_policyengine_repo
 
 
+def test_custom_engine_checkout_disables_saved_sample_charts(monkeypatch):
+    from api._shared import metadata_response
+
+    monkeypatch.setenv("POLICYENGINE_US_REPO", "/my/engine")
+    assert metadata_response()["series_revision"] is None
+
+
 def test_candidate_policyengine_repo_requires_explicit_env_var(
     monkeypatch,
 ) -> None:

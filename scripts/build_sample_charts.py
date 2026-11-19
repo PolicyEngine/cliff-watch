@@ -31,7 +31,9 @@ def compact_json(obj):
 
 def generate(output: Path, check: bool = False):
     metadata = metadata_response()
-    revision = metadata["series_revision"]
+    revision = metadata.get("series_revision")
+    if not revision:
+        raise ValueError("Sample charts require the pinned simulator with a revision")
     result = subprocess.run(
         ["bun", "scripts/sampleChartRequests.mjs"],
         input=compact_json(metadata),

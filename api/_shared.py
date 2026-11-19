@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import asdict
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler
@@ -74,7 +75,11 @@ def metadata_response() -> dict[str, Any]:
     return {
         "year": DEFAULT_YEAR,
         "engine": engine_versions(),
-        "series_revision": series_revision(),
+        # An explicit source checkout can contain unpublished formulas while
+        # the installed package still reports the version used for the bundle.
+        "series_revision": (
+            None if os.environ.get("POLICYENGINE_US_REPO") else series_revision()
+        ),
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,

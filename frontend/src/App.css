@@ -200,6 +200,8 @@ body {
 
 .sample-results-controls {
   margin-bottom: 1rem;
+  /* Keep Edit and Draw another below the site header after a sample opens. */
+  scroll-margin-top: 4.5rem;
 }
 
 .sample-results-controls .sample-household {
