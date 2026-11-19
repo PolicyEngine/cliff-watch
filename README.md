@@ -1,6 +1,6 @@
 # Benefit Cliff Calculator
 
-This repo is a dynamic benefit cliff calculator for comparing modeled household resources across earnings levels and across states using individually entered household members and ages. It keeps the lightweight repo shape of [`tanf-calculator`](https://github.com/PolicyEngine/tanf-calculator), but swaps the static precompute grid for an on-demand PolicyEngine-backed API.
+CliffWatch compares modeled household resources across earnings levels and states. Users can open a precomputed chart for a sampled household or enter their own household for an on-demand PolicyEngine calculation.
 
 ## What This Repo Does
 
@@ -69,7 +69,7 @@ uv sync --extra dev
 
 `pyproject.toml` pins the engine (`policyengine-us`, `policyengine-core`, `spm-calculator`) exactly, with the reason for each pin, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump a pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after.
 
-If you already have a local `policyengine-us` checkout, you can point this repo at it:
+To calculate with a local `policyengine-us` checkout, set the environment variable below. CliffWatch then calculates sample charts with that checkout as well.
 
 ```bash
 export POLICYENGINE_US_REPO=../policyengine-us
