@@ -16,6 +16,7 @@ import { calculateSeriesForSample } from './sampleSeries'
 import { readSampleChart, sampleChartKey, writeSampleChart } from './utils/sampleChartCache'
 import {
   COARSE_SAMPLING_REFINING_NOTE,
+  cliffRefinementStep,
   refineCliffZones,
   refinementFailureNote,
   refinementNote,
@@ -219,28 +220,32 @@ function App() {
       }
     }
 
-    setSeriesData(primary)
+    // Saved windows are raw model points for refinement, outside the displayed
+    // chart and the finished-chart cache.
+    const { sample_refinements: sampleRefinements, ...coarseSeries } = primary
+    setSeriesData(coarseSeries)
     setSeriesLoading(false)
 
-    const refineStep = Math.max(100, Math.floor((primary?.step_annual || defaultStep) / 5))
+    const refineStep = cliffRefinementStep(coarseSeries.step_annual || defaultStep)
     let refined
     try {
       refined = await refineCliffZones({
-        coarseSeries: primary,
+        coarseSeries,
         inputs: nextInputs,
         metadata,
         refineStep,
+        sampleRefinements,
         calculateSeriesFn: calculateSeries,
         isCancelled,
       })
     } catch (err) {
       console.error('Refinement error', err)
       if (isCancelled()) return
-      setSeriesError(refinementFailureNote(primary?.step_annual))
+      setSeriesError(refinementFailureNote(coarseSeries.step_annual))
       return
     }
     if (isCancelled()) return
-    if (refined !== primary) {
+    if (refined !== coarseSeries) {
       setSeriesData(refined)
     }
     setSeriesError(refinementNote(refined, { usedFallbackStep }))

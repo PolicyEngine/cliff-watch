@@ -42,9 +42,9 @@ CliffWatch calculates custom households on demand and caches repeated requests i
 
 **Try a sample household** opens a chart from the shared wizard’s 2024 US microdata catalog. The catalog supplies the state. CliffWatch uses an editable example ZIP from that state or keeps the user’s ZIP if it matches. An example ZIP is the most populous single-county residential ZIP in the state that the wizard recognizes, using the bundled 2020 Census lookup.
 
-For each default sample, the static frontend serves the model’s initial earnings curve from a state bundle. It matches the full calculation inputs and the backend's model revision before displaying the curve. The chart refines cliff intervals in the background and can reopen a finished sample from browser storage. Edits, user-supplied ZIPs and missing or stale samples use the live calculator.
+For each default sample, a static file contains the model’s earnings curve and its more closely spaced observations around each cliff. One state file serves every sample in that state. The browser matches the full calculation inputs and model revision, then uses the same chart code as a live calculation. It can reopen a finished sample from browser storage. Custom inputs, missing intervals and model revisions without matching results use the live calculator.
 
-After changing the model, ZIP data or sample catalog, install the frontend dependencies and run `uv run python -m scripts.build_sample_charts` from the repository root. Commit the regenerated state bundles with the change.
+After changing the model, ZIP data, sample catalog or refinement intervals, install the frontend dependencies and run `uv run python -m scripts.build_sample_charts` from the repository root. Commit the regenerated state bundles with the change. CI checks that every catalog slot and every requested cliff interval has a saved result.
 
 More detail is in [COMPUTE_STRATEGY.md](COMPUTE_STRATEGY.md).
 

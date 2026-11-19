@@ -14,7 +14,14 @@ export async function calculateSeriesForSample(inputs, metadata, options) {
     try {
       const key = await jsonDigest(payload)
       const base = process.env.NEXT_PUBLIC_BASE_PATH || ''
-      const response = await fetch(`${base}/sample-charts/${payload.state}.json?v=${metadata.series_revision}`)
+      const build = process.env.NEXT_PUBLIC_SERIES_BUILD
+      const query = new URLSearchParams({ v: metadata.series_revision })
+      if (build) query.set('build', build)
+      // All draws in a state share this file. A new catalog build or model
+      // revision gets its own URL even when it keeps the same example ZIP.
+      const response = await fetch(`${base}/sample-charts/${payload.state}.json?${query}`, {
+        cache: build ? 'force-cache' : 'default',
+      })
       if (response.ok) {
         const bundle = await response.json()
         const encoded = bundle.revision === metadata.series_revision && bundle.charts?.[key]

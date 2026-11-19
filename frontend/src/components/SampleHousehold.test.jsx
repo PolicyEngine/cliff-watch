@@ -217,7 +217,7 @@ test('failed sample calculations can be retried directly from the chart', async 
   }
 })
 
-test('reopening a saved sample URL displays its chart without another calculation', async () => {
+test('a first sample click and its reopened share link display the finished cliff without live calculations', async () => {
   const { webcrypto } = await import('node:crypto')
   const entries = new Map()
   vi.stubGlobal('crypto', webcrypto)
@@ -231,8 +231,14 @@ test('reopening a saved sample URL displays its chart without another calculatio
   metadata.series_revision = 'test-calculator'
   try {
     drawCliffWatchSample.mockResolvedValue(virginiaSample)
-    calculateSeries.mockResolvedValue({
-      data: [{ earned_income: 0, net_resources: 1234 }], point_count: 1, step_annual: 100,
+    const point = wages => ({
+      earned_income: wages,
+      net_resources: 1234 + wages - (wages >= 300 ? 1100 : 0),
+    })
+    calculateSeriesForSample.mockResolvedValueOnce({
+      data: [point(0), { ...point(500), is_cliff: true }, point(1000)],
+      point_count: 3, step_annual: 500,
+      sample_refinements: { '0:750:100': [0, 100, 200, 300, 400, 500, 600, 700].map(point) },
     })
     await mount()
     await act(async () => {
@@ -241,14 +247,20 @@ test('reopening a saved sample URL displays its chart without another calculatio
     })
     const query = window.location.search
     assert.equal(chart().textContent, '1234')
-    assert.equal(calculateSeries.mock.calls.length, 1)
+    assert.equal(calculateSeries.mock.calls.length, 0)
+    const finished = await [...entries.values()][0].clone().json()
+    assert.equal(finished.refined_step_annual, 100)
+    assert.equal(finished.refined_zone_count, 1)
+    assert.equal(finished.data.find(p => p.earned_income === 300).cliff_drop_annual, 1000)
+    assert.equal(Object.hasOwn(finished, 'sample_refinements'), false)
     await act(() => root.unmount())
     root = createRoot(host)
     await mount(query)
     await act(async () => {
       await vi.waitFor(() => assert.equal(chart()?.textContent, '1234'))
     })
-    assert.equal(calculateSeries.mock.calls.length, 1)
+    assert.equal(calculateSeries.mock.calls.length, 0)
+    assert.equal(calculateSeriesForSample.mock.calls.length, 1)
   } finally {
     delete metadata.engine
     delete metadata.series_revision

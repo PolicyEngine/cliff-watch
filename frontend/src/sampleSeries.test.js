@@ -18,19 +18,25 @@ async function mockBundle(modify = bundle => bundle) {
   return fetch
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+})
 
 it('opens the saved curve for the exact public inputs without a simulation request', async () => {
+  vi.stubEnv('NEXT_PUBLIC_SERIES_BUILD', 'catalog-build')
   const fetch = await mockBundle()
   expect(await calculateSeriesForSample(inputs, metadata, options)).toEqual(curve)
-  expect(fetch.mock.calls).toEqual([['/sample-charts/GA.json?v=current']])
+  expect(fetch.mock.calls).toEqual([[
+    '/sample-charts/GA.json?v=current&build=catalog-build', { cache: 'force-cache' },
+  ]])
 })
 
 it('opens a fresh share link using its normalized inputs without a catalog ID or browser cache', async () => {
   const fetch = await mockBundle()
   const fromLink = { zip_code: inputs.zip, people: inputs.people }
   expect(await calculateSeriesForSample(fromLink, metadata, options)).toEqual(curve)
-  expect(fetch.mock.calls).toEqual([['/sample-charts/GA.json?v=current']])
+  expect(fetch.mock.calls).toEqual([['/sample-charts/GA.json?v=current', { cache: 'default' }]])
 })
 
 it.each([
@@ -46,7 +52,7 @@ it.each([
 it('uses the live series for an edited amount or a personally chosen ZIP', async () => {
   const fetch = await mockBundle()
   expect(await calculateSeriesForSample({ ...inputs, rent_annual: 15000 }, metadata, options)).toEqual({ live: true })
-  expect(fetch.mock.calls[0]).toEqual(['/sample-charts/GA.json?v=current'])
+  expect(fetch.mock.calls[0]).toEqual(['/sample-charts/GA.json?v=current', { cache: 'default' }])
   expect(fetch.mock.calls[1][1].method).toBe('POST')
   fetch.mockClear()
   expect(await calculateSeriesForSample({ ...inputs, zip: '30303' }, metadata, options)).toEqual({ live: true })
