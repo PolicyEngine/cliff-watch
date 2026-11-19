@@ -15,9 +15,8 @@ export function SampleDetails({ sample, metadata }) {
   return (
     <div className="sample-details">
       <p role="status">
-        Started with a household from {state} in PolicyEngine’s {sample.provenance.year} US microdata.
-        Its household members, ages and wages are prefilled. Your ZIP sets the scenario location.
-        {' '}{participation[metadata.defaults?.programs_mode || 'all']} Change participation in Review.
+        Sample household from {state} in PolicyEngine’s {sample.provenance.year} US microdata.
+        {sample.exampleZip && ` The chart uses example ZIP ${sample.exampleZip}.`}
       </p>
       {omitted.length > 0 && (
         <p>
@@ -29,6 +28,7 @@ export function SampleDetails({ sample, metadata }) {
       )}
       <details>
         <summary>Source income and calculation assumptions</summary>
+        <p>{participation[metadata.defaults?.programs_mode || 'all']}</p>
         <ul>
           {sample.draft.people.map(person => (
             <li key={person.id}>
@@ -42,8 +42,7 @@ export function SampleDetails({ sample, metadata }) {
         </ul>
         <p>
           CliffWatch applies {metadata.year} rules, varies Adult 1’s wages and holds other wages fixed.
-          Expenses and unlisted income start at zero. Review these amounts and the household’s
-          other characteristics before calculating.
+          Expenses and unlisted income start at zero.
         </p>
         <a href={sample.provenance.url}>Source dataset and release</a>
       </details>
@@ -52,12 +51,12 @@ export function SampleDetails({ sample, metadata }) {
 }
 
 export default function SampleHousehold({
-  metadata, draft, sample, filter, setFilter, onSample,
+  metadata, draft, sample, filter, setFilter, onSample, onEdit,
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const request = useRef(0)
-  const zipState = getZipState(draft.zip)
+  const zipState = sample?.exampleZip ? null : getZipState(draft.zip)
   const stateCode = zipState || (filter ?? (sample ? '' : draft.state)) || ''
 
   // An edit, a reset, a change of pool or leaving this step supersedes a pending draw.
@@ -102,6 +101,7 @@ export default function SampleHousehold({
             {metadata.states?.map(state => <option key={state.code} value={state.code}>{state.name}</option>)}
           </select>
         </label>
+        {onEdit && <button type="button" className="reset-btn" onClick={onEdit}>Edit household</button>}
       </div>
       {error && <p role="alert">No sample could be loaded. Try again or enter the household manually.</p>}
       {sample && <SampleDetails sample={sample} metadata={metadata} />}

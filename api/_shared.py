@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler
 from importlib.metadata import version
+from pathlib import Path
 from typing import Any, Callable
 
 from cliff_watch.calculator import (
@@ -52,10 +54,27 @@ def engine_versions() -> dict[str, str]:
     }
 
 
+@lru_cache(maxsize=1)
+def series_revision() -> str:
+    """Bind saved sample charts to the code, engine and geography that made them."""
+    root = Path(__file__).resolve().parents[1]
+    digest = hashlib.sha256(json.dumps(engine_versions(), sort_keys=True).encode())
+    for source in (
+        "api/_shared.py",
+        "cliff_watch/calculator.py",
+        "cliff_watch/config.py",
+        "cliff_watch/zip_county.py",
+        "cliff_watch/data/zip_county.json.gz",
+    ):
+        digest.update(hashlib.sha256((root / source).read_bytes()).digest())
+    return digest.hexdigest()
+
+
 def metadata_response() -> dict[str, Any]:
     return {
         "year": DEFAULT_YEAR,
         "engine": engine_versions(),
+        "series_revision": series_revision(),
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,

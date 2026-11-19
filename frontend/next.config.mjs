@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 const defaultBasePath = process.env.VERCEL_ENV === "preview"
   ? ""
   : "/us/cliff-watch";
@@ -11,7 +13,10 @@ const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig = {
   ...(basePath ? { basePath } : {}),
-  env: { NEXT_PUBLIC_BASE_PATH: basePath },
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
+    NEXT_PUBLIC_SERIES_BUILD: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || randomUUID(),
+  },
   ...(isDev ? {} : { output: "export" }),
   trailingSlash: true,
   assetPrefix: basePath || undefined,

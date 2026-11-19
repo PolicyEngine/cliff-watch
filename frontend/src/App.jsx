@@ -12,6 +12,8 @@ import {
   loadMetadata,
 } from './dataLookup'
 import { decodeInputs, syncUrlToInputs } from './utils/urlState'
+import { calculateSeriesForSample } from './sampleSeries'
+import { readSampleChart, sampleChartKey, writeSampleChart } from './utils/sampleChartCache'
 import {
   COARSE_SAMPLING_REFINING_NOTE,
   refineCliffZones,
@@ -50,6 +52,7 @@ function App() {
   const [error, setError] = useState(null)
   const [seriesError, setSeriesError] = useState(null)
   const resultsRef = useRef(null)
+  const sampleResultsRef = useRef(null)
   const requestVersionRef = useRef(0)
   const handleCalculateRef = useRef(null)
   const autoCalculateRef = useRef(null)
@@ -99,8 +102,9 @@ function App() {
     if (!pendingAutoScrollRef.current) return undefined
     if (!(loading || seriesData)) return undefined
 
+    const requestVersion = requestVersionRef.current
     const id = setTimeout(() => {
-      if (window.scrollY < 50) {
+      if (requestVersion === requestVersionRef.current && window.scrollY < 50) {
         // Instant, not smooth: this fires during page load, where browsers
         // throttle animated scrolling in background tabs and scroll
         // restoration competes with it.
@@ -114,6 +118,7 @@ function App() {
   }, [loading, seriesData])
 
   const clearResults = () => {
+    pendingAutoScrollRef.current = false
     requestVersionRef.current += 1
     setSeriesData(null)
     setSeriesLoading(false)
@@ -124,6 +129,9 @@ function App() {
   }
 
   const handleDraftChange = (nextDraft) => {
+    if (sample?.exampleZip && nextDraft.zip !== draft.zip) {
+      setSample({ ...sample, exampleZip: null })
+    }
     setDraft(nextDraft)
     clearResults()
   }
@@ -142,16 +150,23 @@ function App() {
   }
 
   const handleSample = (nextSample) => {
-    const next = projectSample(nextSample, draft, metadata)
+    pendingAutoScrollRef.current = false
+    // An example ZIP belongs to the draw. Carry only a user-selected location
+    // into a new sample, including its county when one was chosen.
+    const next = projectSample(nextSample, sample?.exampleZip ? {} : draft, metadata)
     setDraft(next.draft)
     setScenario(next.scenario)
     setSample(next.source)
-    clearResults()
+    handleCalculate(
+      combineDraftAndScenarioToInputs(next.draft, next.scenario, metadata),
+      { sample: next.source },
+    )
   }
 
   const runSeries = async (
     nextInputs,
     requestVersion = requestVersionRef.current,
+    { sample, reopen = false } = {},
   ) => {
     if (requestVersion !== requestVersionRef.current) return
     setSeriesLoading(true)
@@ -161,12 +176,25 @@ function App() {
     const defaultStep = metadata?.defaults?.series_step || 1000
     const fallbackStep = Math.max(defaultStep, 2500)
     const isCancelled = () => requestVersion !== requestVersionRef.current
+    let cacheKey = null
+    if (sample?.exampleZip || reopen) {
+      cacheKey = await sampleChartKey(nextInputs, metadata, defaultStep)
+      const cached = await readSampleChart(cacheKey)
+      if (isCancelled()) return
+      if (cached) {
+        setSeriesData(cached)
+        setSeriesLoading(false)
+        return
+      }
+    }
 
     let primary = null
     let primaryError = null
     let usedFallbackStep = false
     try {
-      primary = await calculateSeries(nextInputs, metadata, { step: defaultStep })
+      primary = sample?.exampleZip
+        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep, sample })
+        : await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
       primaryError = err
       console.error(err)
@@ -216,12 +244,16 @@ function App() {
       setSeriesData(refined)
     }
     setSeriesError(refinementNote(refined, { usedFallbackStep }))
+    if (sample?.exampleZip && !usedFallbackStep) {
+      void writeSampleChart(cacheKey, refined, metadata)
+    }
   }
 
   const handleCalculate = async (
     nextInputs = (draft && scenario && metadata
       ? combineDraftAndScenarioToInputs(draft, scenario, metadata)
       : null),
+    options = {},
   ) => {
     if (!metadata || !nextInputs || !hasCompleteRequiredInputs(nextInputs)) return
 
@@ -233,11 +265,13 @@ function App() {
     setHasCalculated(true)
     setError(null)
     setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (requestVersion === requestVersionRef.current) {
+        (sampleResultsRef.current || resultsRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
     }, 50)
 
     try {
-      await runSeries(nextInputs, requestVersion)
+      await runSeries(nextInputs, requestVersion, options)
       if (requestVersion !== requestVersionRef.current) return
       setLoading(false)
     } catch (err) {
@@ -269,7 +303,7 @@ function App() {
       const pending = autoCalculateRef.current
       autoCalculateRef.current = null
       pendingAutoScrollRef.current = true
-      handleCalculateRef.current(pending)
+      handleCalculateRef.current(pending, { reopen: true })
     }
   })
 
@@ -298,6 +332,7 @@ function App() {
           onReset={handleReset}
           sample={sample}
           onSample={handleSample}
+          sampleResultsRef={sampleResultsRef}
         />
 
         <div ref={resultsRef} />
@@ -321,6 +356,7 @@ function App() {
             error={error}
             seriesError={seriesError}
             onCountyChange={handleCountyChange}
+            onRetry={() => handleCalculate()}
           />
         </Suspense>
       </main>

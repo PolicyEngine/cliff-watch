@@ -1,5 +1,6 @@
 import { hasValidZip } from '../dataLookup'
 import { createInitialScenario } from './cliffWatchDraft'
+import { EXAMPLE_ZIP_BY_STATE } from './sampleZips'
 
 // Correspond exactly to the person variables in cliff_watch.calculator.HEAD_INCOME_INPUTS.
 const nonwageFields = [
@@ -11,6 +12,7 @@ const nonwageFields = [
 export function projectSample(sample, currentDraft, metadata) {
   const { state, maritalStatus, people } = sample.draft
   const keepZip = hasValidZip(currentDraft.zip, state)
+  const exampleZip = keepZip ? null : EXAMPLE_ZIP_BY_STATE[state]
   const scenario = createInitialScenario(metadata)
   const nonwageIncome = []
   people.forEach((person, index) => {
@@ -29,10 +31,10 @@ export function projectSample(sample, currentDraft, metadata) {
       maritalStatus,
       people: people.map(({ id, kind, age, employmentIncome }) => ({ id, kind, age, employmentIncome })),
       year: metadata.year,
-      zip: keepZip ? currentDraft.zip : null,
+      zip: keepZip ? currentDraft.zip : exampleZip,
       county: keepZip ? currentDraft.county : null,
     },
     scenario,
-    source: { ...sample, nonwageIncome },
+    source: { ...sample, nonwageIncome, exampleZip },
   }
 }

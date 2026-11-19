@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   getZipState,
   hasCompleteRequiredInputs,
@@ -210,9 +210,15 @@ function InputPanel({
   onReset,
   sample,
   onSample,
+  sampleResultsRef,
 }) {
   const [currentStepId, setCurrentStepId] = useState('location')
   const [sampleFilter, setSampleFilter] = useState(null)
+  useEffect(() => {
+    if (currentStepId === 'sample-results') {
+      sampleResultsRef?.current?.focus({ preventScroll: true })
+    }
+  }, [currentStepId, sampleResultsRef])
   const [expensePeriod, setExpensePeriod] = useState('year')
   const inputs = useMemo(
     () => (metadata && draft && scenario
@@ -349,7 +355,6 @@ function InputPanel({
   }[currentStepId]
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex >= WIZARD_STEPS.length - 1
-  const reviewSample = isFirstStep && sample && canCalculate
 
   const goToStep = (stepId) => {
     if (WIZARD_STEPS.some((step) => step.id === stepId)) {
@@ -360,17 +365,6 @@ function InputPanel({
   const goBack = () => {
     if (isFirstStep) return
     setCurrentStepId(WIZARD_STEPS[currentStepIndex - 1].id)
-  }
-
-  const goNext = () => {
-    if (isLastStep) return
-    if (currentStepId === 'adults') {
-      const nextDraft = clampDraftAdultAges(draft)
-      if (nextDraft !== draft) {
-        onDraftChange(nextDraft)
-      }
-    }
-    setCurrentStepId(reviewSample ? 'review' : WIZARD_STEPS[currentStepIndex + 1].id)
   }
 
   const chooseMaritalStatus = (nextMaritalStatus) => {
@@ -418,6 +412,29 @@ function InputPanel({
     )
   }
 
+  const sampleControls = (
+    <SampleHousehold
+      metadata={metadata}
+      draft={draft}
+      sample={sample}
+      filter={sampleFilter}
+      setFilter={setSampleFilter}
+      onSample={next => {
+        onSample(next)
+        setCurrentStepId('sample-results')
+      }}
+      onEdit={currentStepId === 'sample-results' ? () => goToStep('review') : undefined}
+    />
+  )
+
+  if (currentStepId === 'sample-results' && sample) {
+    return (
+      <section className="input-panel sample-results-controls" aria-label="Sample household" tabIndex={-1} ref={sampleResultsRef}>
+        {sampleControls}
+      </section>
+    )
+  }
+
   return (
     <section className="input-panel">
       <h2>Household information</h2>
@@ -435,19 +452,22 @@ function InputPanel({
         onSubmit={(event) => {
           event.preventDefault()
           if (!currentStepComplete) return
-          if (isLastStep) {
+          const nextDraft = currentStepId === 'adults' ? clampDraftAdultAges(draft) : draft
+          if (nextDraft !== draft) onDraftChange(nextDraft)
+          if (isLastStep || (sample && canCalculate)) {
             if (!canCalculate) return
-            onCalculate()
+            onCalculate(combineDraftAndScenarioToInputs(nextDraft, scenario, metadata))
+            if (sample) setCurrentStepId('sample-results')
             return
           }
-          goNext()
+          setCurrentStepId(WIZARD_STEPS[currentStepIndex + 1].id)
         }}
       >
         {currentStepId === 'location' ? (
           <section className="wizard-step">
             <div className="wizard-step-heading">
               <h3>Where does the household live?</h3>
-              <p>{sample ? 'Enter the ZIP code where you want to model this household.' : 'Enter the household ZIP code.'}</p>
+              <p>Enter the household ZIP code.</p>
             </div>
             <div className="form-grid form-grid--single">
               <div className="form-group">
@@ -480,14 +500,7 @@ function InputPanel({
                 ) : null}
               </div>
             </div>
-            <SampleHousehold
-              metadata={metadata}
-              draft={draft}
-              sample={sample}
-              filter={sampleFilter}
-              setFilter={setSampleFilter}
-              onSample={onSample}
-            />
+            {sampleControls}
           </section>
         ) : null}
 
@@ -701,8 +714,8 @@ function InputPanel({
         {currentStepId === 'review' ? (
           <section className="wizard-step">
             <div className="wizard-step-heading">
-              <h3>Review and calculate</h3>
-              <p>Check the household, adjust optional details if needed, then build the cliff chart.</p>
+              <h3>{sample ? 'Edit household' : 'Review and calculate'}</h3>
+              <p>{sample ? 'Choose a household detail to edit, then update the chart.' : 'Check the household, adjust optional details if needed, then build the cliff chart.'}</p>
             </div>
             {sample && <SampleDetails sample={sample} metadata={metadata} />}
 
@@ -877,9 +890,11 @@ function InputPanel({
           >
             {loading
               ? 'Building chart...'
-              : isLastStep
-                ? canCalculate ? 'Find cliffs' : 'Complete required fields'
-                : reviewSample ? 'Review household' : 'Continue'}
+              : sample && canCalculate
+                ? 'Update chart'
+                : isLastStep
+                  ? canCalculate ? 'Find cliffs' : 'Complete required fields'
+                  : 'Continue'}
           </button>
         </div>
       </form>

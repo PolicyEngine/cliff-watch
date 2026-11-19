@@ -33,17 +33,18 @@ Because differencing is linear, the marginal tax rate decomposes exactly: each p
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 18, Vite 5, Recharts, react-simple-maps |
+| Frontend | Next.js static export, React, Recharts |
 | Runtime calculations | Python, [PolicyEngine US](https://github.com/PolicyEngine/policyengine-us) |
 | Local API | built-in `http.server` wrapper around shared compute helpers |
 | Deploy target | static frontend + serverless-style `api/` handlers |
 
-The important product constraint is that we do **not** precompute every state, income point, and program combination. Instead:
+CliffWatch calculates custom households on demand and caches repeated requests in memory by input signature.
 
-1. the frontend stays static
-2. household, state, and series requests are computed on demand
-3. repeated requests are cached in memory by input signature
-4. only metadata is effectively static
+**Try a sample household** opens a chart from the shared wizard’s 2024 US microdata catalog. The catalog supplies the state. CliffWatch uses an editable example ZIP from that state or keeps the user’s ZIP if it matches. An example ZIP is the most populous single-county residential ZIP in the state that the wizard recognizes, using the bundled 2020 Census lookup.
+
+For each default sample, the static frontend serves the model’s initial earnings curve from a state bundle. It matches the full calculation inputs and the backend's model revision before displaying the curve. The chart refines cliff intervals in the background and can reopen a finished sample from browser storage. Edits, user-supplied ZIPs and missing or stale samples use the live calculator.
+
+After changing the model, ZIP data or sample catalog, install the frontend dependencies and run `uv run python -m scripts.build_sample_charts` from the repository root. Commit the regenerated state bundles with the change.
 
 More detail is in [COMPUTE_STRATEGY.md](COMPUTE_STRATEGY.md).
 

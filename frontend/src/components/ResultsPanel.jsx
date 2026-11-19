@@ -116,12 +116,14 @@ function ResultsPanel({
   error,
   seriesError,
   onCountyChange,
+  onRetry,
 }) {
   if (error) {
     return (
       <section className="results-panel">
         <div className="error">
           {error}
+          {hasCalculated && <button type="button" className="reset-btn" onClick={onRetry}>Retry calculation</button>}
         </div>
       </section>
     )
@@ -197,7 +199,10 @@ function ResultsPanel({
           ) : (
             <>
               {seriesError && <p className="chart-note warning">{seriesError}</p>}
-              <div className="chart-empty">The cliff chart is unavailable right now.</div>
+              <div className="chart-empty">
+                The cliff chart is unavailable right now.{' '}
+                <button type="button" className="reset-btn" onClick={onRetry}>Retry calculation</button>
+              </div>
             </>
           )}
         </div>

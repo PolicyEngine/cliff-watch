@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { gunzipSync } from 'node:zlib'
 import { test } from 'vitest'
-import { hasCompleteRequiredInputs } from '../dataLookup'
+import { getZipState, hasCompleteRequiredInputs } from '../dataLookup'
 import { decodeInputs, encodeInputs } from '../utils/urlState'
 import { combineDraftAndScenarioToInputs, createInitialScenario, inputsToDraft, inputsToScenario, isDraftReady } from './cliffWatchDraft'
 import { drawCliffWatchSample } from './sampleHousehold'
 import { projectSample } from './projectSample'
+import { EXAMPLE_ZIP_BY_STATE } from './sampleZips'
 
-test('the installed catalog supplies an editable sample without inventing a ZIP', async () => {
+test('a sample projects into a ready scenario with either a user or example ZIP', async () => {
   const sample = await drawCliffWatchSample({ stateCode: 'GA', random: () => 0.5 })
   const draft = sample.draft
   const metadata = { year: 2026 }
@@ -17,8 +20,10 @@ test('the installed catalog supplies an editable sample without inventing a ZIP'
   assert.equal(hasCompleteRequiredInputs(toInputs(draft)), false)
 
   // The user supplies their scenario location at the calculator's policy year.
-  const located = { ...draft, zip: '30303', year: metadata.year }
+  const located = { ...draft, zip: '30303', county: 'FULTON_COUNTY_GA', year: metadata.year }
   const projected = projectSample(sample, located, metadata)
+  assert.equal(projected.source.exampleZip, null)
+  assert.equal(projected.draft.county, located.county)
   const original = combineDraftAndScenarioToInputs(projected.draft, projected.scenario, metadata)
   const decoded = decodeInputs(encodeInputs(original))
   const reopened = combineDraftAndScenarioToInputs(inputsToDraft(decoded), inputsToScenario(decoded, metadata), metadata)
@@ -31,8 +36,32 @@ test('the installed catalog supplies an editable sample without inventing a ZIP'
   assert.ok(Number.isInteger(sample.provenance.year))
   assert.ok(new URL(sample.provenance.url).protocol === 'https:')
   const moved = projectSample(sample, { zip: '23219', county: 'RICHMOND_CITY_VA' }, metadata)
-  assert.equal(moved.draft.zip, null)
+  assert.equal(moved.draft.zip, '30044')
+  assert.equal(moved.source.exampleZip, moved.draft.zip)
   assert.equal(moved.draft.county, null)
+  assert.equal(hasCompleteRequiredInputs(toInputs(moved.draft)), true)
+  assert.deepEqual(projectSample(sample, {}, metadata), moved)
+  assert.equal(sample.draft.zip, null)
+})
+
+test('every example uses the most populous single-county ZIP accepted in its state', () => {
+  const tablePath = new URL('../../../cliff_watch/data/zip_county.json.gz', import.meta.url)
+  const table = JSON.parse(gunzipSync(readFileSync(tablePath)).toString('utf8'))
+  const byState = {}
+  for (const [zip, rows] of Object.entries(table.zips)) {
+    if (rows.length !== 1) continue
+    const [[countyIndex, residents]] = rows
+    const state = table.counties[countyIndex][0].slice(-2)
+    if (!(residents > 0) || getZipState(zip) !== state) continue
+    const previous = byState[state]
+    if (!previous || residents > previous.residents || (residents === previous.residents && zip < previous.zip)) {
+      byState[state] = { zip, residents }
+    }
+  }
+  assert.equal(Object.keys(byState).length, 51)
+  assert.deepEqual(EXAMPLE_ZIP_BY_STATE, Object.fromEntries(
+    Object.entries(byState).map(([state, choice]) => [state, choice.zip]),
+  ))
 })
 
 test('a legacy unclaimed SSI amount remains a valid wizard draft', () => {

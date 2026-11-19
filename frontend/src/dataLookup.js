@@ -434,7 +434,7 @@ export async function calculateStateResult(inputs, metadata) {
   return response.result
 }
 
-export async function calculateSeries(inputs, metadata, options = {}) {
+export function buildSeriesPayload(inputs, metadata, options = {}) {
   const normalized = normalizeInputs(inputs, metadata)
   const payload = buildHouseholdPayload(inputs, metadata)
   payload.max_earned_income = Math.round(
@@ -444,7 +444,11 @@ export async function calculateSeries(inputs, metadata, options = {}) {
   if (options.minEarnedIncome) {
     payload.min_earned_income = Math.max(0, Math.round(options.minEarnedIncome))
   }
-  return postJson('/api/series', payload, {
+  return payload
+}
+
+export async function calculateSeries(inputs, metadata, options = {}) {
+  return postJson('/api/series', buildSeriesPayload(inputs, metadata, options), {
     retryDelaysMs: options.retryDelaysMs,
   })
 }
