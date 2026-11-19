@@ -36,7 +36,7 @@ test('identical calculation requests reuse the entire refined chart', async () =
   const key = await sampleChartKey(inputs, metadata, 500)
   expect(key).toBeTruthy()
   expect(await readSampleChart(key)).toBeNull()
-  await writeSampleChart(key, chart, metadata)
+  await writeSampleChart(key, chart)
   const reloaded = { ...inputs, zip: undefined, zip_code: inputs.zip }
   expect(await readSampleChart(await sampleChartKey(reloaded, metadata, 500))).toEqual(chart)
 })
@@ -59,6 +59,7 @@ test('each calculation input and model or frontend revision scopes the result', 
   keys.push(await sampleChartKey(inputs, metadata, 500))
   expect(keys).not.toContain(original)
   expect(await sampleChartKey(inputs, { ...metadata, engine: {} }, 500)).toBeNull()
+  expect(await sampleChartKey(inputs, { ...metadata, series_revision: undefined }, 500)).toBeNull()
 })
 
 test('incomplete series are retried and unreadable or unavailable storage is harmless', async () => {
@@ -67,26 +68,23 @@ test('incomplete series are retried and unreadable or unavailable storage is har
     { ...chart, truncated: true },
     { ...chart, point_count: 3 },
   ]) {
-    await writeSampleChart('test', incomplete, metadata)
+    await writeSampleChart('test', incomplete)
     expect(await readSampleChart('test')).toBeNull()
   }
   entries.set('test', new Response('invalid-json', { headers: { 'x-cliffwatch-expires': String(Date.now() + 60000) } }))
   expect(await readSampleChart('test')).toBeNull()
   expect(entries.has('test')).toBe(false)
   vi.stubGlobal('caches', { open: () => Promise.reject(new Error('storage unavailable')) })
-  await writeSampleChart('test', chart, metadata)
+  await writeSampleChart('test', chart)
   expect(await readSampleChart('test')).toBeNull()
 })
 
-test('the cache evicts old samples and expires unversioned servers earlier', async () => {
-  for (let i = 0; i < 17; i++) await writeSampleChart(String(i), chart, metadata)
+test('the cache evicts old samples and expires saved charts after 30 days', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  for (let i = 0; i < 17; i++) await writeSampleChart(String(i), chart)
   expect(entries.size).toBe(16)
   expect(await readSampleChart('0')).toBeNull()
-  const now = Date.now()
-  vi.useFakeTimers({ toFake: ['Date'] })
-  vi.setSystemTime(now)
-  await writeSampleChart('legacy', chart, { ...metadata, series_revision: null })
-  vi.setSystemTime(now + 2 * 60 * 60 * 1000)
-  expect(await readSampleChart('legacy')).toBeNull()
   expect(await readSampleChart('16')).toEqual(chart)
+  vi.setSystemTime(Date.now() + 30 * 24 * 60 * 60 * 1000)
+  expect(await readSampleChart('16')).toBeNull()
 })

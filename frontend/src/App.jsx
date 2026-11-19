@@ -192,8 +192,8 @@ function App() {
     let primaryError = null
     let usedFallbackStep = false
     try {
-      primary = sample?.exampleZip
-        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep, sample })
+      primary = sample?.exampleZip || reopen
+        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep })
         : await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
       primaryError = err
@@ -245,7 +245,7 @@ function App() {
     }
     setSeriesError(refinementNote(refined, { usedFallbackStep }))
     if (sample?.exampleZip && !usedFallbackStep) {
-      void writeSampleChart(cacheKey, refined, metadata)
+      void writeSampleChart(cacheKey, refined)
     }
   }
 

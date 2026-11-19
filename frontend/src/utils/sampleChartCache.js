@@ -4,14 +4,15 @@ import { jsonDigest } from './jsonDigest'
 const CACHE_NAME = 'cliffwatch-sample-charts-v1'
 const MAX_CHARTS = 16
 const MAX_CHART_BYTES = 1024 * 1024
-const HOUR = 60 * 60 * 1000
+const LIFETIME = 30 * 24 * 60 * 60 * 1000
 
 // Two profiles with identical calculation inputs have the same chart. A
 // shared URL can therefore reopen a saved sample without a catalog ID in it.
 export async function sampleChartKey(inputs, metadata, step) {
   const build = process.env.NEXT_PUBLIC_SERIES_BUILD
   const engine = metadata?.engine
-  if (!build || !['policyengine-us', 'policyengine-core', 'spm-calculator'].every(name => engine?.[name])) {
+  if (!build || !metadata?.series_revision
+    || !['policyengine-us', 'policyengine-core', 'spm-calculator'].every(name => engine?.[name])) {
     return null
   }
 
@@ -19,7 +20,7 @@ export async function sampleChartKey(inputs, metadata, step) {
     if (!globalThis.caches || !globalThis.crypto?.subtle) return null
     const hash = await jsonDigest([
       build,
-      metadata.series_revision || null,
+      metadata.series_revision,
       Object.entries(engine).sort(([a], [b]) => a.localeCompare(b)),
       buildSeriesPayload(inputs, metadata, { step }),
     ])
@@ -53,17 +54,14 @@ export async function readSampleChart(key) {
   return null
 }
 
-export async function writeSampleChart(key, series, metadata) {
+export async function writeSampleChart(key, series) {
   if (!key || !isComplete(series)) return
   try {
     const body = JSON.stringify(series)
     if (new Blob([body]).size > MAX_CHART_BYTES) return
     const cache = await caches.open(CACHE_NAME)
-    // Older backends only identify their model packages. Keep their charts
-    // briefly while those deployments roll over to the full source revision.
-    const lifetime = metadata.series_revision ? 30 * 24 * HOUR : HOUR
     await cache.put(key, new Response(body, {
-      headers: { 'x-cliffwatch-expires': String(Date.now() + lifetime) },
+      headers: { 'x-cliffwatch-expires': String(Date.now() + LIFETIME) },
     }))
     // Cache.keys() returns insertion order. This store only holds sample charts.
     const keys = await cache.keys()

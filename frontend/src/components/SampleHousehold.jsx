@@ -15,7 +15,7 @@ export function SampleDetails({ sample, metadata }) {
   return (
     <div className="sample-details">
       <p role="status">
-        Sample household from {state} in PolicyEngine’s {sample.provenance.year} US microdata.
+        Sample household from {state} in PolicyEngine’s {sample.provenance.year} synthetic US population.
         {sample.exampleZip && ` The chart uses example ZIP ${sample.exampleZip}.`}
       </p>
       {omitted.length > 0 && (

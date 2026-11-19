@@ -17,9 +17,8 @@ from tempfile import NamedTemporaryFile
 
 from api._shared import (
     _series_cached,
-    compute_series,
+    compute_series_request,
     metadata_response,
-    parse_household_payload,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,12 +62,7 @@ def generate(output: Path, check: bool = False):
 
         charts = {}
         for digest, payload in sorted(requests.items()):
-            series = compute_series(
-                parse_household_payload(payload),
-                max_earned_income=payload["max_earned_income"],
-                step=payload["step"],
-                min_earned_income=payload.get("min_earned_income", 0),
-            )
+            series = compute_series_request(payload)
             if not series["data"] or series["point_count"] != len(series["data"]):
                 raise ValueError(f"Incomplete series for {state}/{digest}")
             # Gzip wraps each chart separately so the browser inflates only the

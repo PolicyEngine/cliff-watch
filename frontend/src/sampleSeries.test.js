@@ -5,7 +5,7 @@ import { calculateSeriesForSample, sampleRequestDigest } from './sampleSeries'
 
 const inputs = { state: 'GA', zip: '30044', people: [{ kind: 'adult', age: 33 }] }
 const metadata = { year: 2026, series_revision: 'current', defaults: { series_step: 500 } }
-const options = { step: 500, sample: { exampleZip: '30044' } }
+const options = { step: 500 }
 const curve = { point_count: 1, data: [{ earned_income: 0, net_resources: 12345 }] }
 
 async function mockBundle(modify = bundle => bundle) {
@@ -26,6 +26,13 @@ it('opens the saved curve for the exact public inputs without a simulation reque
   expect(fetch.mock.calls).toEqual([['/sample-charts/GA.json?v=current']])
 })
 
+it('opens a fresh share link using its normalized inputs without a catalog ID or browser cache', async () => {
+  const fetch = await mockBundle()
+  const fromLink = { zip_code: inputs.zip, people: inputs.people }
+  expect(await calculateSeriesForSample(fromLink, metadata, options)).toEqual(curve)
+  expect(fetch.mock.calls).toEqual([['/sample-charts/GA.json?v=current']])
+})
+
 it.each([
   ['old model', bundle => ({ ...bundle, revision: 'previous' })],
   ['unavailable profile', bundle => ({ ...bundle, charts: {} })],
@@ -39,6 +46,8 @@ it.each([
 it('uses the live series for an edited amount or a personally chosen ZIP', async () => {
   const fetch = await mockBundle()
   expect(await calculateSeriesForSample({ ...inputs, rent_annual: 15000 }, metadata, options)).toEqual({ live: true })
+  expect(fetch.mock.calls[0]).toEqual(['/sample-charts/GA.json?v=current'])
+  expect(fetch.mock.calls[1][1].method).toBe('POST')
   fetch.mockClear()
   expect(await calculateSeriesForSample({ ...inputs, zip: '30303' }, metadata, options)).toEqual({ live: true })
   expect(fetch.mock.calls).toHaveLength(1)

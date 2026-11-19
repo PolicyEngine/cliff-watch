@@ -7,6 +7,7 @@ import App from '../App'
 import { decodeInputs } from '../utils/urlState'
 import { drawCliffWatchSample } from '../wizard/sampleHousehold'
 import { calculateSeries } from '../dataLookup'
+import { calculateSeriesForSample } from '../sampleSeries'
 
 const metadata = {
   year: 2026,
@@ -19,7 +20,7 @@ vi.mock('../dataLookup', async importOriginal => ({
   ...await importOriginal(), loadMetadata: async () => metadata, calculateSeries: vi.fn(),
 }))
 vi.mock('../sampleSeries', () => ({
-  calculateSeriesForSample: (...args) => calculateSeries(...args),
+  calculateSeriesForSample: vi.fn((...args) => calculateSeries(...args)),
 }))
 // Keep the real results panel and substitute only the SVG chart.
 vi.mock('./BenefitChart', () => ({
@@ -74,6 +75,17 @@ test('manual and existing shared scenarios do not load or draw a sample', async 
   assert.equal(drawCliffWatchSample.mock.calls.length, 0)
   assert.equal(calculateSeries.mock.calls[0][0].rent_annual, 10800)
   assert.equal(calculateSeries.mock.calls[0][0].people[0].ssi_amount, 0)
+})
+
+test('a fresh sample URL checks the saved chart without drawing a household', async () => {
+  calculateSeriesForSample.mockResolvedValueOnce({
+    data: [{ earned_income: 0, net_resources: 5678 }], point_count: 1, step_annual: 100,
+  })
+  await mount('?s=GA&zip=30044&ms=unmarried&p=33:a::0')
+  assert.equal(calculateSeriesForSample.mock.calls[0][0].zip, '30044')
+  assert.equal(chart().textContent, '5678')
+  assert.equal(drawCliffWatchSample.mock.calls.length, 0)
+  assert.equal(calculateSeries.mock.calls.length, 0)
 })
 
 test('a pending draw cannot override manual entry and a failed draw can be retried', async () => {
@@ -216,6 +228,7 @@ test('reopening a saved sample URL displays its chart without another calculatio
     keys: async () => [...entries.keys()],
   }) })
   metadata.engine = { 'policyengine-us': '1', 'policyengine-core': '2', 'spm-calculator': '3' }
+  metadata.series_revision = 'test-calculator'
   try {
     drawCliffWatchSample.mockResolvedValue(virginiaSample)
     calculateSeries.mockResolvedValue({
@@ -238,6 +251,7 @@ test('reopening a saved sample URL displays its chart without another calculatio
     assert.equal(calculateSeries.mock.calls.length, 1)
   } finally {
     delete metadata.engine
+    delete metadata.series_revision
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
   }
