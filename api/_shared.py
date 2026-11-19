@@ -113,7 +113,7 @@ def _series_cached(
     serialized_payload: str,
     max_earned_income: int,
     step: int,
-    min_earned_income: int,
+    min_earned_income: int | None,
 ) -> dict[str, Any]:
     payload = parse_household_payload(json.loads(serialized_payload))
     return calculate_income_series(
@@ -139,7 +139,7 @@ def compute_series(
     *,
     max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
     step: int = DEFAULT_SERIES_STEP,
-    min_earned_income: int = 0,
+    min_earned_income: int | None = None,
 ) -> dict[str, Any]:
     series = _series_cached(
         _serialize_payload(payload),
@@ -163,6 +163,16 @@ def compute_series(
         ),
         "location": household_location(payload),
     }
+
+
+def compute_series_request(raw: dict[str, Any]) -> dict[str, Any]:
+    lower = raw.get("min_earned_income")
+    return compute_series(
+        parse_household_payload(raw),
+        max_earned_income=int(raw.get("max_earned_income", DEFAULT_SERIES_MAX_EARNINGS)),
+        step=int(raw.get("step", DEFAULT_SERIES_STEP)),
+        min_earned_income=int(lower) if lower is not None else None,
+    )
 
 
 def compute_household_types(payload: HouseholdInput) -> dict[str, Any]:

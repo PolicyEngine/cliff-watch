@@ -520,8 +520,8 @@ test('calculateSeries uses the Cliff Watch API directly', async () => {
   const originalFetch = globalThis.fetch
   const requests = []
 
-  globalThis.fetch = async (url) => {
-    requests.push(String(url))
+  globalThis.fetch = async (url, options) => {
+    requests.push(JSON.parse(options.body))
 
     assert.equal(String(url), '/api/series')
     return new Response(
@@ -550,7 +550,10 @@ test('calculateSeries uses the Cliff Watch API directly', async () => {
     )
 
     assert.deepEqual(result.data, [])
-    assert.deepEqual(requests, ['/api/series'])
+    assert.equal('min_earned_income' in requests[0], false)
+    await calculateSeries(seriesInputs, metadata, { minEarnedIncome: 0, maxEarnedIncome: 375 })
+    assert.equal(requests[1].min_earned_income, 0)
+    assert.equal(requests[1].max_earned_income, 375)
   } finally {
     globalThis.fetch = originalFetch
   }

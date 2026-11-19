@@ -150,3 +150,48 @@ test('refinementFailureNote names the step a cliff edge can be off by', () => {
     "Couldn't refine the chart around its cliffs, so cliff edges there may be off by up to $2,500. Reload the page to try again.",
   )
 })
+
+test('refinement requests vary the primary earner and measure returned gaps', async () => {
+  const fixedWages = 10000
+  const coarse = coarseSeries()
+  for (const point of coarse.data) point.earned_income += fixedWages
+  const calls = []
+  const refined = await refineCliffZones({
+    coarseSeries: coarse,
+    inputs,
+    metadata,
+    refineStep: REFINE_STEP,
+    calculateSeriesFn: async (_inputs, _metadata, options) => {
+      calls.push(options)
+      const points = seriesPoints(options.minEarnedIncome, options.maxEarnedIncome, 1000)
+      for (const point of points) point.earned_income += fixedWages
+      return { data: points, step_annual: 1 }
+    },
+  })
+  assert.equal(calls[0].minEarnedIncome, 3750)
+  assert.equal(refined.refined_zone_count, 2)
+  assert.equal(refined.refined_step_annual, 1000)
+  assert.equal(refined.data[0].earned_income, fixedWages)
+})
+
+test('empty, incomplete, or unchanged coverage preserves the coarse zone and reports failure', async () => {
+  for (const data of [[], seriesPoints(7000, 7500, 100), coarseSeries().data]) {
+    const refined = await refineWith(async () => ({ data }))
+    assert.equal(refined.refinement_failed_zone_count, 2)
+    assert.deepEqual(refined.data, coarseSeries().data)
+    assert.equal(refined.refined_step_annual, undefined)
+  }
+})
+
+test('a mixed grid reports the largest measured refined gap and preserves coarse points', async () => {
+  const refined = await refineWith(async (_inputs, _metadata, options) => {
+    const points = seriesPoints(options.minEarnedIncome, options.maxEarnedIncome, 250)
+    // Drop two adjacent samples inside the second original cliff interval.
+    return { data: points.filter((p) => ![15750, 16000].includes(p.earned_income)) }
+  })
+  assert.equal(refined.refined_zone_count, 2)
+  assert.equal(refined.refined_step_annual, 750)
+  for (const coarse of coarseSeries().data) {
+    assert.ok(refined.data.some((point) => point.earned_income === coarse.earned_income))
+  }
+})

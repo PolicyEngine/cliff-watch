@@ -1594,6 +1594,26 @@ def _resolve_series_step(
     )
 
 
+def _series_axis(
+    payload: HouseholdInput, lower_bound: int | None, max_earned_income: int, step: int
+) -> tuple[int, int, int]:
+    if lower_bound is None:
+        lower = 0
+        upper = _resolve_series_max_earned_income(payload, max_earned_income)
+        whole_range_step = _resolve_series_step(upper, step)
+        upper = _round_up_to_increment(upper, whole_range_step)
+        return lower, upper, (upper // whole_range_step) + 1
+
+    # A refinement describes an exact window on the primary earner's axis.
+    # A zero lower bound is meaningful for a cliff near the start.
+    lower = max(0, int(lower_bound))
+    upper = int(max_earned_income)
+    if upper <= lower:
+        raise ValueError("The upper earnings bound must exceed the lower bound")
+    intervals = math.ceil((upper - lower) / max(1, step))
+    return lower, upper, min(DEFAULT_SERIES_TARGET_POINTS, intervals + 1)
+
+
 def _build_cliff_drivers(
     previous_result: dict[str, Any],
     result: dict[str, Any],
@@ -1735,30 +1755,19 @@ def calculate_income_series(
     *,
     max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
     step: int = DEFAULT_SERIES_STEP,
-    min_earned_income: int = 0,
+    min_earned_income: int | None = None,
 ) -> dict[str, Any]:
-    effective_max_earned_income = _resolve_series_max_earned_income(
-        payload,
-        max_earned_income,
+    lower, upper, point_count = _series_axis(
+        payload, min_earned_income, max_earned_income, step
     )
-    effective_step = _resolve_series_step(effective_max_earned_income, step)
-    aligned_max_earned_income = _round_up_to_increment(
-        effective_max_earned_income,
-        effective_step,
-    )
-    aligned_min_earned_income = max(0, int(min_earned_income))
-    if aligned_min_earned_income >= aligned_max_earned_income:
-        aligned_min_earned_income = 0
-    effective_window = aligned_max_earned_income - aligned_min_earned_income
-    point_count = max(2, (effective_window // effective_step) + 1)
     descriptor = _household_descriptor(payload)
     members = descriptor["people"]
     Simulation = _load_simulation()
     situation = build_household_variation_situation(
         payload,
-        max_earned_income=aligned_max_earned_income,
+        max_earned_income=upper,
         count=point_count,
-        min_earned_income=aligned_min_earned_income,
+        min_earned_income=lower,
     )
     simulation = Simulation(situation=copy.deepcopy(situation))
 
@@ -1969,7 +1978,6 @@ def calculate_income_series(
 
     series = []
     previous_result = None
-    step_monthly = _monthly_amount(effective_step)
     truncated = False
     truncation_reason = None
     fixed_household_costs = {
@@ -2116,10 +2124,15 @@ def calculate_income_series(
             if previous_result is not None and cliff_drop > 0
             else []
         )
+        wages = round(earned_income, 2)
         series.append(
             {
-                "earned_income": round(earned_income, 2),
-                "step_annual": effective_step,
+                "earned_income": wages,
+                "step_annual": (
+                    round(wages - series[-1]["earned_income"], 2)
+                    if series
+                    else 0
+                ),
                 "net_resources": net_resources,
                 "net_change_annual": round(net_change, 2)
                 if has_previous_point
@@ -2163,7 +2176,7 @@ def calculate_income_series(
     return {
         "data": series,
         "requested_step_annual": step,
-        "step_annual": effective_step,
+        "step_annual": max(point["step_annual"] for point in series),
         "requested_max_earned_income": max_earned_income,
         "max_earned_income": series[-1]["earned_income"] if series else 0,
         "truncated": truncated,

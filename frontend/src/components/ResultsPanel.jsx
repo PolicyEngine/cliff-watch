@@ -164,7 +164,7 @@ function ResultsPanel({
               <p className="chart-subtitle">
                 Calculated through {formatCurrency(seriesData?.max_earned_income || 0)}/year in {formatCurrency(seriesData?.step_annual || 0)}/year wage and salary steps
                 {seriesData?.refined_zone_count
-                  ? `, refined to ${formatCurrency(seriesData.refined_step_annual || 0)}/year around ${seriesData.refined_zone_count} cliff ${seriesData.refined_zone_count === 1 ? 'zone' : 'zones'}`
+                  ? `, refined to gaps of at most ${formatCurrency(Math.ceil(seriesData.refined_step_annual))}/year around ${seriesData.refined_zone_count} cliff ${seriesData.refined_zone_count === 1 ? 'zone' : 'zones'}`
                   : ''}
                 .
               </p>

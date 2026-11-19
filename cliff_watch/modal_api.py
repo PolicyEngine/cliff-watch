@@ -9,11 +9,9 @@ def create_app():
     from fastapi.responses import JSONResponse
 
     from api._shared import (
-        DEFAULT_SERIES_MAX_EARNINGS,
-        DEFAULT_SERIES_STEP,
         compute_household,
         compute_household_types,
-        compute_series,
+        compute_series_request,
         metadata_response,
         parse_household_payload,
     )
@@ -51,19 +49,7 @@ def create_app():
     async def series(request: Request) -> JSONResponse:
         try:
             raw_payload = await request.json()
-            payload = parse_household_payload(raw_payload)
-            response = compute_series(
-                payload,
-                max_earned_income=int(
-                    raw_payload.get(
-                        "max_earned_income",
-                        DEFAULT_SERIES_MAX_EARNINGS,
-                    )
-                ),
-                step=int(raw_payload.get("step", DEFAULT_SERIES_STEP)),
-                min_earned_income=int(raw_payload.get("min_earned_income", 0)),
-            )
-            return JSONResponse(response)
+            return JSONResponse(compute_series_request(raw_payload))
         except Exception as exc:
             return JSONResponse(
                 {"error": f"Calculation failed: {exc}"},

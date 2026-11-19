@@ -10,11 +10,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from api._shared import (
-    DEFAULT_SERIES_MAX_EARNINGS,
-    DEFAULT_SERIES_STEP,
     compute_household,
     compute_household_types,
-    compute_series,
+    compute_series_request,
     handle_options,
     metadata_response,
     parse_household_payload,
@@ -43,14 +41,7 @@ class DevApiHandler(BaseHTTPRequestHandler):
                     "result": compute_household(parse_household_payload(payload))
                 }
             elif self.path == "/api/series":
-                response = compute_series(
-                    parse_household_payload(payload),
-                    max_earned_income=int(
-                        payload.get("max_earned_income", DEFAULT_SERIES_MAX_EARNINGS)
-                    ),
-                    step=int(payload.get("step", DEFAULT_SERIES_STEP)),
-                    min_earned_income=int(payload.get("min_earned_income", 0)),
-                )
+                response = compute_series_request(payload)
             elif self.path == "/api/households":
                 response = compute_household_types(parse_household_payload(payload))
             else:
