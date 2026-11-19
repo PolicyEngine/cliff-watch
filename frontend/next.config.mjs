@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 const defaultBasePath = process.env.VERCEL_ENV === "preview"
   ? ""
-  : "/us/cliff-watch";
+  : "/us/cliffwatch";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH !== undefined
   ? process.env.NEXT_PUBLIC_BASE_PATH
