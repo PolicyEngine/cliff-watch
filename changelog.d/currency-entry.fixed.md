@@ -1,1 +1,1 @@
-The household form accepts expenses and other dollar amounts in ordinary dollar and cent increments, including when Advanced inputs is closed. Households can enter budget costs per month or per year. Calculations and shared links retain the annual amounts.
+The household form accepts dollars and cents, including when Advanced inputs is closed. Households can enter monthly or yearly expenses. CliffWatch uses annual amounts for calculations and shared links.
