@@ -90,7 +90,7 @@ function decodePerson(token) {
   }
 }
 
-export function encodeInputs(inputs) {
+export function encodeInputs(inputs, sample) {
   if (!inputs) return ''
   const params = new URLSearchParams()
 
@@ -136,6 +136,8 @@ export function encodeInputs(inputs) {
     }
   })
 
+  const query = params.toString()
+  if (sample?.originalQuery === query) params.set('sample', sample.marker)
   return params.toString()
 }
 
@@ -209,15 +211,15 @@ export function decodeInputs(search) {
   return Object.keys(decoded).length ? decoded : null
 }
 
-export function buildShareUrl(inputs) {
-  const encoded = encodeInputs(inputs)
+export function buildShareUrl(inputs, sample) {
+  const encoded = encodeInputs(inputs, sample)
   const { origin, pathname } = window.location
   return encoded ? `${origin}${pathname}?${encoded}` : `${origin}${pathname}`
 }
 
-export function syncUrlToInputs(inputs) {
+export function syncUrlToInputs(inputs, sample) {
   if (typeof window === 'undefined') return
-  const encoded = encodeInputs(inputs)
+  const encoded = encodeInputs(inputs, sample)
   const next = encoded ? `${window.location.pathname}?${encoded}` : window.location.pathname
   const current = `${window.location.pathname}${window.location.search}`
   if (next !== current) {

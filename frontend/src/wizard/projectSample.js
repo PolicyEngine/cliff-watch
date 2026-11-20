@@ -29,7 +29,9 @@ export function projectSample(sample, currentDraft, metadata) {
     draft: {
       state,
       maritalStatus,
-      people: people.map(({ id, kind, age, employmentIncome }) => ({ id, kind, age, employmentIncome })),
+      people: people.map(({ id, kind, age, employmentIncome, isDisabled, isFullTimeStudent }) => ({
+        id, kind, age, employmentIncome, isDisabled, isFullTimeStudent,
+      })),
       year: metadata.year,
       zip: keepZip ? currentDraft.zip : exampleZip,
       county: keepZip ? currentDraft.county : null,

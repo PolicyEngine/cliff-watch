@@ -39,10 +39,10 @@ async function copyTextToClipboard(text) {
   copyTextFallback(text)
 }
 
-function ShareButton({ inputs }) {
+function ShareButton({ inputs, sample }) {
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
-  const shareUrl = buildShareUrl(inputs)
+  const shareUrl = buildShareUrl(inputs, sample)
 
   const handleClick = async () => {
     try {
@@ -107,6 +107,7 @@ function CountyNote({ context, location, onCountyChange }) {
 }
 
 function ResultsPanel({
+  sample,
   metadata,
   inputs,
   seriesData,
@@ -149,7 +150,7 @@ function ResultsPanel({
         <div className="chart-container full-width">
           <div className="chart-header-row">
             <h3>Cliff chart</h3>
-            <ShareButton inputs={inputs} />
+            <ShareButton inputs={inputs} sample={sample} />
           </div>
           <p className="chart-subtitle">
             {householdSummary(inputs, metadata, county.countyName)}

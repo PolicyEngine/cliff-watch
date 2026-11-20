@@ -160,16 +160,18 @@ def generate(output: Path, check=False, refine_only=False):
     for state, requests in sorted(by_state.items()):
         path = output / f"{state}.json"
         bundle = json.loads(path.read_bytes()) if path.exists() else {}
-        if (
-            bundle.get("revision") != revision
-            or requests.keys() != bundle.get("charts", {}).keys()
-        ):
+        previous = (
+            bundle.get("charts", {}) if bundle.get("revision") == revision else {}
+        )
+        if previous.keys() != requests.keys():
             if check or refine_only:
                 raise ValueError(
                     f"{state}: outdated revision or missing primary payload"
                 )
             charts = {
-                digest: encode_chart(run_series(payload))
+                digest: previous[digest]
+                if digest in previous
+                else encode_chart(run_series(payload))
                 for digest, payload in sorted(requests.items())
             }
             bundle = {"revision": revision, "charts": charts}

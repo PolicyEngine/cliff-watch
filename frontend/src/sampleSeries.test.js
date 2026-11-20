@@ -28,7 +28,8 @@ it('opens the saved curve for the exact public inputs without a simulation reque
   const fetch = await mockBundle()
   expect(await calculateSeriesForSample(inputs, metadata, options)).toEqual(curve)
   expect(fetch.mock.calls).toEqual([[
-    '/sample-charts/GA.json?v=current&build=catalog-build', { cache: 'force-cache' },
+    '/sample-charts/GA.json?v=current&build=catalog-build',
+    { cache: 'force-cache', signal: expect.any(AbortSignal) },
   ]])
 })
 
@@ -36,7 +37,9 @@ it('opens a fresh share link using its normalized inputs without a catalog ID or
   const fetch = await mockBundle()
   const fromLink = { zip_code: inputs.zip, people: inputs.people }
   expect(await calculateSeriesForSample(fromLink, metadata, options)).toEqual(curve)
-  expect(fetch.mock.calls).toEqual([['/sample-charts/GA.json?v=current', { cache: 'default' }]])
+  expect(fetch.mock.calls).toEqual([[
+    '/sample-charts/GA.json?v=current', { cache: 'default', signal: expect.any(AbortSignal) },
+  ]])
 })
 
 it.each([
@@ -52,7 +55,9 @@ it.each([
 it('uses the live series for an edited amount or a personally chosen ZIP', async () => {
   const fetch = await mockBundle()
   expect(await calculateSeriesForSample({ ...inputs, rent_annual: 15000 }, metadata, options)).toEqual({ live: true })
-  expect(fetch.mock.calls[0]).toEqual(['/sample-charts/GA.json?v=current', { cache: 'default' }])
+  expect(fetch.mock.calls[0]).toEqual([
+    '/sample-charts/GA.json?v=current', { cache: 'default', signal: expect.any(AbortSignal) },
+  ])
   expect(fetch.mock.calls[1][1].method).toBe('POST')
   fetch.mockClear()
   expect(await calculateSeriesForSample({ ...inputs, zip: '30303' }, metadata, options)).toEqual({ live: true })

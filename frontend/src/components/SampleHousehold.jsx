@@ -16,7 +16,8 @@ export function SampleDetails({ sample, metadata }) {
     <div className="sample-details">
       <p role="status">
         Sample household from {state} in PolicyEngine’s {sample.provenance.year} synthetic US population.
-        {sample.exampleZip && ` The chart uses example ZIP ${sample.exampleZip}.`}
+        {sample.exampleZip && ` The sample catalog supplies the state. The chart uses example ZIP ${sample.exampleZip}.`}
+        {' '}CliffWatch applies {metadata.year} rules to the original {sample.provenance.year} dollar amounts.
       </p>
       {omitted.length > 0 && (
         <p>
@@ -33,6 +34,8 @@ export function SampleDetails({ sample, metadata }) {
           {sample.draft.people.map(person => (
             <li key={person.id}>
               {person.kind === 'adult' ? 'Adult' : 'Dependent'}, age {person.age}
+              {person.isFullTimeStudent && ' · full-time student'}
+              {person.isDisabled && ' · has a disability'}
               {' · '}{dollars(person.employmentIncome || 0)} annual wages in {sample.provenance.year} dollars
               {sample.nonwageIncome.filter(item => item.included && item.personId === person.id).map(item =>
                 <span key={item.label}> · {dollars(item.amount)} in {item.label}</span>
@@ -41,7 +44,7 @@ export function SampleDetails({ sample, metadata }) {
           ))}
         </ul>
         <p>
-          CliffWatch applies {metadata.year} rules, varies Adult 1’s wages and holds other wages fixed.
+          The weighted catalog contains {sample.provenance.drawsPerState || 32} draws per state and DC from {sample.provenance.dataset} ({sample.provenance.buildId}). CliffWatch varies Adult 1’s wages and holds other wages fixed.
           Expenses and unlisted income start at zero.
         </p>
         <a href={sample.provenance.url}>Source dataset and release</a>

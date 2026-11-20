@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, test, vi } from 'vitest'
 import App from '../App'
 import { decodeInputs } from '../utils/urlState'
-import { drawCliffWatchSample } from '../wizard/sampleHousehold'
+import { drawCliffWatchSample, getCliffWatchSample } from '../wizard/sampleHousehold'
 import { calculateSeries } from '../dataLookup'
 import { calculateSeriesForSample } from '../sampleSeries'
 
@@ -15,6 +15,7 @@ const metadata = {
 }
 vi.mock('../wizard/sampleHousehold', () => ({
   drawCliffWatchSample: vi.fn(),
+  getCliffWatchSample: vi.fn(),
 }))
 vi.mock('../dataLookup', async importOriginal => ({
   ...await importOriginal(), loadMetadata: async () => metadata, calculateSeries: vi.fn(),
@@ -35,6 +36,7 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/')
   Element.prototype.scrollIntoView = vi.fn()
   calculateSeries.mockResolvedValue({ data: [{ earned_income: 0, net_resources: 1234 }], step_annual: 100 })
+  getCliffWatchSample.mockImplementation(async id => id === virginiaSample.id ? virginiaSample : undefined)
 })
 afterEach(async () => {
   await act(() => root.unmount())
@@ -45,6 +47,11 @@ async function mount(query = '') {
   window.history.replaceState(null, '', '/' + query)
   await act(async () => root.render(<App />))
   await act(async () => { await vi.dynamicImportSettled() })
+}
+async function remount(query) {
+  await act(() => root.unmount())
+  root = createRoot(host)
+  await mount(query)
 }
 const drawButton = () => host.querySelector('.sample-household button')
 const current = () => decodeInputs(window.location.search)
@@ -62,7 +69,7 @@ async function fillZip(value) {
 // Public PolicyBench 2024 input, scenario_066, as the sampler would project it.
 // The mock keeps UI assertions stable across sample-catalog updates.
 const virginiaSample = {
-  id: 'test-va-066', provenance: { year: 2024 },
+  id: 'VA-6', provenance: { year: 2024, dataset: 'populace_us_2024', buildId: 'test-release-2024' },
   draft: {
     state: 'VA', zip: null, county: null, maritalStatus: 'single', year: 2024,
     people: [{ id: 'adult-1', kind: 'adult', age: 40, employmentIncome: 520 }],
@@ -73,19 +80,25 @@ test('manual and existing shared scenarios do not load or draw a sample', async 
   await mount('?s=GA&zip=30303&ms=unmarried&p=30:a::0&rent=10800')
   assert.equal(drawButton().textContent, 'Try a sample household')
   assert.equal(drawCliffWatchSample.mock.calls.length, 0)
+  assert.equal(getCliffWatchSample.mock.calls.length, 0)
   assert.equal(calculateSeries.mock.calls[0][0].rent_annual, 10800)
   assert.equal(calculateSeries.mock.calls[0][0].people[0].ssi_amount, 0)
 })
 
-test('a fresh sample URL checks the saved chart without drawing a household', async () => {
-  calculateSeriesForSample.mockResolvedValueOnce({
-    data: [{ earned_income: 0, net_resources: 5678 }], point_count: 1, step_annual: 100,
+test('a legacy link matching a bundled chart discloses the source without guessing a slot', async () => {
+  calculateSeriesForSample.mockImplementationOnce(async (_inputs, _meta, _options, onCatalogMatch) => {
+    onCatalogMatch()
+    return { data: [{ earned_income: 0, net_resources: 5678 }], point_count: 1, step_annual: 100 }
   })
   await mount('?s=GA&zip=30044&ms=unmarried&p=33:a::0')
   assert.equal(calculateSeriesForSample.mock.calls[0][0].zip, '30044')
   assert.equal(chart().textContent, '5678')
   assert.equal(drawCliffWatchSample.mock.calls.length, 0)
   assert.equal(calculateSeries.mock.calls.length, 0)
+  assert.equal(getCliffWatchSample.mock.calls.length, 0)
+  assert.match(host.textContent, /These inputs match a chart from PolicyEngine’s 2024 synthetic US population/)
+  assert.equal(host.querySelector('.sample-details'), null)
+  assert.equal(new URLSearchParams(window.location.search).has('sample'), false)
 })
 
 test('a pending draw cannot override manual entry and a failed draw can be retried', async () => {
@@ -141,6 +154,12 @@ test('a draw retains the entered ZIP, resets scenario assumptions, and can be ed
   assert.equal(current().programs_mode, undefined)
   assert.doesNotMatch(host.querySelector('.sample-details').textContent, /example ZIP/)
   assert.equal(calculateSeries.mock.calls.length, originalCalls + 1)
+  const query = window.location.search
+  assert.equal(new URLSearchParams(query).get('sample'), 'test-release-2024:VA-6:user')
+  await remount(query)
+  assert.equal(host.querySelector('form'), null)
+  assert.equal(current().zip, '23219')
+  assert.doesNotMatch(host.querySelector('.sample-details').textContent, /example ZIP/)
   await click(button('Edit household'))
   await click([...host.querySelectorAll('.wizard-review-item')].find(item => item.textContent.startsWith('Adults')))
   const age = host.querySelector('[aria-label="Adult 1 age"]')
@@ -155,8 +174,27 @@ test('a draw retains the entered ZIP, resets scenario assumptions, and can be ed
   assert.equal(submitted.people[0].earned_income, 520)
   assert.equal(submitted.rent_annual, 0)
   assert.equal(submitted.programs_mode, 'all')
+  assert.equal(new URLSearchParams(window.location.search).has('sample'), false)
   assert.equal(host.querySelector('form'), null)
   assert.equal(chart().textContent, '1234')
+})
+
+test('the source details show positive student and disability flags next to the relevant person', async () => {
+  drawCliffWatchSample.mockResolvedValue({
+    ...virginiaSample,
+    draft: {
+      ...virginiaSample.draft,
+      people: [
+        ...virginiaSample.draft.people,
+        { id: 'dependent-1', kind: 'dependent', age: 21, isFullTimeStudent: true, isDisabled: true },
+      ],
+    },
+  })
+  await mount()
+  await click(drawButton())
+  const [adult, dependent] = host.querySelectorAll('.sample-details li')
+  assert.doesNotMatch(adult.textContent, /student|disability/)
+  assert.match(dependent.textContent, /Dependent, age 21 · full-time student · has a disability/)
 })
 
 test('an example ZIP keeps the national pool until the user enters their own location', async () => {
@@ -203,7 +241,10 @@ test('a slower sample calculation cannot replace the next household’s result',
 test('failed sample calculations can be retried directly from the chart', async () => {
   drawCliffWatchSample.mockResolvedValue(virginiaSample)
   const failure = new Error('service temporarily unavailable')
-  calculateSeries.mockRejectedValueOnce(failure).mockRejectedValueOnce(failure)
+  calculateSeriesForSample.mockRejectedValueOnce(failure).mockResolvedValueOnce({
+    data: [{ earned_income: 0, net_resources: 1234 }], point_count: 1, step_annual: 100,
+  })
+  calculateSeries.mockRejectedValueOnce(failure) // Live coarse fallback on the first attempt.
   const log = vi.spyOn(console, 'error').mockImplementation(() => {})
   try {
     await mount()
@@ -212,6 +253,8 @@ test('failed sample calculations can be retried directly from the chart', async 
     await click(button('Retry calculation'))
     assert.equal(chart().textContent, '1234')
     assert.equal(drawCliffWatchSample.mock.calls.length, 1)
+    assert.equal(calculateSeriesForSample.mock.calls.length, 2)
+    assert.equal(calculateSeries.mock.calls.length, 1)
   } finally {
     log.mockRestore()
   }
@@ -220,6 +263,9 @@ test('failed sample calculations can be retried directly from the chart', async 
 test('a first sample click and its reopened share link display the finished cliff without live calculations', async () => {
   const { webcrypto } = await import('node:crypto')
   const entries = new Map()
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
   vi.stubGlobal('crypto', webcrypto)
   vi.stubEnv('NEXT_PUBLIC_SERIES_BUILD', 'test-build')
   vi.stubGlobal('caches', { open: async () => ({
@@ -253,18 +299,54 @@ test('a first sample click and its reopened share link display the finished clif
     assert.equal(finished.refined_zone_count, 1)
     assert.equal(finished.data.find(p => p.earned_income === 300).cliff_drop_annual, 1000)
     assert.equal(Object.hasOwn(finished, 'sample_refinements'), false)
-    await act(() => root.unmount())
-    root = createRoot(host)
-    await mount(query)
+    assert.equal(new URLSearchParams(query).get('sample'), 'test-release-2024:VA-6:example')
+    await click(button('Copy share link'))
+    assert.deepEqual(writeText.mock.calls, [[window.location.href]])
+    await click(button('Edit household'))
+    await click(button('Update chart'))
+    assert.equal(chart().textContent, '1234')
+    assert.equal(calculateSeriesForSample.mock.calls.length, 1)
+    assert.equal(calculateSeries.mock.calls.length, 0)
+    await remount(query)
     await act(async () => {
       await vi.waitFor(() => assert.equal(chart()?.textContent, '1234'))
     })
     assert.equal(calculateSeries.mock.calls.length, 0)
     assert.equal(calculateSeriesForSample.mock.calls.length, 1)
+    assert.deepEqual(getCliffWatchSample.mock.calls, [['VA-6']])
+    assert.equal(host.querySelector('form'), null)
+    assert.ok(button('Edit household'))
+    assert.match(host.querySelector('.sample-details').textContent, /2024 synthetic US population/)
+    assert.match(host.querySelector('.sample-details').textContent, /example ZIP 22193/)
+    assert.match(host.querySelector('.sample-details').textContent, /2026 rules/)
+    assert.equal(window.location.search, query)
   } finally {
     delete metadata.engine
     delete metadata.series_revision
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+    if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard)
+    else delete navigator.clipboard
   }
+})
+
+test.each([
+  ['different release', params => params.set('sample', 'other-build:VA-6:example')],
+  ['unknown slot', params => params.set('sample', 'test-release-2024:VA-28:example')],
+  ['different ZIP', params => params.set('zip', '23219')],
+  ['edited expenses', params => params.set('rent', '1234.50')],
+])('a sample link with %s keeps the shared inputs and drops its sample marker', async (_label, change) => {
+  drawCliffWatchSample.mockResolvedValue(virginiaSample)
+  await mount()
+  await click(drawButton())
+  const params = new URLSearchParams(window.location.search)
+  assert.ok(params.has('sample'))
+  change(params)
+  const supplied = decodeInputs(params.toString())
+  await remount('?' + params)
+  assert.equal(new URLSearchParams(window.location.search).has('sample'), false)
+  assert.deepEqual(current(), supplied)
+  assert.ok(host.querySelector('form'))
+  assert.equal(host.querySelector('.sample-details'), null)
+  assert.equal(drawCliffWatchSample.mock.calls.length, 1)
 })

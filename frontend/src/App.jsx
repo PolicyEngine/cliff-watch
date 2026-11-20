@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createBlankDraft } from 'policyengine-household-wizard'
 import InputPanel from './components/InputPanel'
+import { getCliffWatchSample } from './wizard/sampleHousehold'
 import { projectSample } from './wizard/projectSample'
 // Lazy-load the chart-heavy ResultsPanel (and its recharts dependencies) so
 // the initial JS bundle is small. The panel is only mounted after the user
@@ -11,7 +12,7 @@ import {
   hasCompleteRequiredInputs,
   loadMetadata,
 } from './dataLookup'
-import { decodeInputs, syncUrlToInputs } from './utils/urlState'
+import { decodeInputs, encodeInputs, syncUrlToInputs } from './utils/urlState'
 import { calculateSeriesForSample } from './sampleSeries'
 import { readSampleChart, sampleChartKey, writeSampleChart } from './utils/sampleChartCache'
 import {
@@ -41,11 +42,33 @@ function cleanSeriesErrorMessage(error) {
   return `Chart calculation failed: ${message}`
 }
 
+function sampleOrigin(projected, metadata) {
+  const { source, draft, scenario } = projected
+  return {
+    ...source,
+    originalQuery: encodeInputs(combineDraftAndScenarioToInputs(draft, scenario, metadata)),
+    marker: [source.provenance.buildId, source.id, source.exampleZip ? 'example' : 'user'].join(':'),
+  }
+}
+
+async function restoreSample(marker, inputs, draft, metadata) {
+  if (!marker) return null
+  const [build, id, location] = marker.split(':')
+  if (!/^[A-Z]{2}-\d{1,3}$/.test(id) || !['example', 'user'].includes(location)) return null
+  const household = await getCliffWatchSample(id)
+  if (!household || household.provenance.buildId !== build) return null
+  const projected = projectSample(household, location === 'example' ? {} : draft, metadata)
+  const source = sampleOrigin(projected, metadata)
+  return source.marker === marker && source.originalQuery === encodeInputs(inputs)
+    ? { ...source, restored: true } : null
+}
+
 function App() {
   const [metadata, setMetadata] = useState(null)
   const [draft, setDraft] = useState(() => createBlankDraft())
   const [scenario, setScenario] = useState(null)
   const [sample, setSample] = useState(null)
+  const [catalogMatch, setCatalogMatch] = useState(false)
   const [seriesData, setSeriesData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [seriesLoading, setSeriesLoading] = useState(false)
@@ -56,13 +79,15 @@ function App() {
   const sampleResultsRef = useRef(null)
   const requestVersionRef = useRef(0)
   const handleCalculateRef = useRef(null)
+  const lastCalculationOptions = useRef({})
   const autoCalculateRef = useRef(null)
   const pendingAutoScrollRef = useRef(false)
 
   useEffect(() => {
+    let active = true
     loadMetadata()
-      .then((meta) => {
-        setMetadata(meta)
+      .then(async (meta) => {
+        if (!active) return
         const fromUrl = typeof window !== 'undefined'
           ? decodeInputs(window.location.search)
           : null
@@ -73,28 +98,33 @@ function App() {
             ...initialScenario,
             ...inputsToScenario(fromUrl, meta),
           }
-          setDraft(seededDraft)
-          setScenario(seededScenario)
           const seededInputs = combineDraftAndScenarioToInputs(
             seededDraft,
             seededScenario,
             meta,
           )
-          syncUrlToInputs(seededInputs)
-          autoCalculateRef.current = seededInputs
+          const marker = new URLSearchParams(window.location.search).get('sample')
+          const source = await restoreSample(marker, seededInputs, seededDraft, meta).catch(() => null)
+          if (!active) return
+          setDraft(seededDraft)
+          setScenario(seededScenario)
+          setSample(source)
+          autoCalculateRef.current = { inputs: seededInputs, sample: source }
         } else {
           setScenario(initialScenario)
         }
+        setMetadata(meta)
       })
-      .catch((err) => setError(err.message || 'Failed to load app metadata.'))
+      .catch((err) => { if (active) setError(err.message || 'Failed to load app metadata.') })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
     if (draft && scenario && metadata) {
       const combined = combineDraftAndScenarioToInputs(draft, scenario, metadata)
-      syncUrlToInputs(combined)
+      syncUrlToInputs(combined, sample)
     }
-  }, [draft, scenario, metadata])
+  }, [draft, scenario, metadata, sample])
 
   // On share-link auto-calculation the browser's initial-load scroll
   // restoration overrides handleCalculate's one-shot scroll, so retry as the
@@ -125,6 +155,7 @@ function App() {
     setSeriesLoading(false)
     setLoading(false)
     setHasCalculated(false)
+    setCatalogMatch(false)
     setError(null)
     setSeriesError(null)
   }
@@ -157,10 +188,11 @@ function App() {
     const next = projectSample(nextSample, sample?.exampleZip ? {} : draft, metadata)
     setDraft(next.draft)
     setScenario(next.scenario)
-    setSample(next.source)
+    const source = sampleOrigin(next, metadata)
+    setSample(source)
     handleCalculate(
       combineDraftAndScenarioToInputs(next.draft, next.scenario, metadata),
-      { sample: next.source },
+      { sample: source },
     )
   }
 
@@ -170,6 +202,7 @@ function App() {
     { sample, reopen = false } = {},
   ) => {
     if (requestVersion !== requestVersionRef.current) return
+    setCatalogMatch(false)
     setSeriesLoading(true)
     setSeriesData(null)
     setSeriesError(null)
@@ -183,6 +216,7 @@ function App() {
       const cached = await readSampleChart(cacheKey)
       if (isCancelled()) return
       if (cached) {
+        if (reopen && !sample) setCatalogMatch(true)
         setSeriesData(cached)
         setSeriesLoading(false)
         return
@@ -194,7 +228,9 @@ function App() {
     let usedFallbackStep = false
     try {
       primary = sample?.exampleZip || reopen
-        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep })
+        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep }, () => {
+          if (reopen && !sample && !isCancelled()) setCatalogMatch(true)
+        })
         : await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
       primaryError = err
@@ -249,7 +285,7 @@ function App() {
       setSeriesData(refined)
     }
     setSeriesError(refinementNote(refined, { usedFallbackStep }))
-    if (sample?.exampleZip && !usedFallbackStep) {
+    if (sample?.exampleZip && sample.originalQuery === encodeInputs(nextInputs) && !usedFallbackStep) {
       void writeSampleChart(cacheKey, refined)
     }
   }
@@ -262,6 +298,7 @@ function App() {
   ) => {
     if (!metadata || !nextInputs || !hasCompleteRequiredInputs(nextInputs)) return
 
+    lastCalculationOptions.current = options
     const requestVersion = requestVersionRef.current + 1
     requestVersionRef.current = requestVersion
     setSeriesData(null)
@@ -308,7 +345,7 @@ function App() {
       const pending = autoCalculateRef.current
       autoCalculateRef.current = null
       pendingAutoScrollRef.current = true
-      handleCalculateRef.current(pending, { reopen: true })
+      handleCalculateRef.current(pending.inputs, { reopen: true, sample: pending.sample })
     }
   })
 
@@ -331,7 +368,7 @@ function App() {
           draft={draft}
           scenario={scenario}
           loading={loading}
-          onCalculate={handleCalculate}
+          onCalculate={inputs => handleCalculate(inputs, { sample })}
           onDraftChange={handleDraftChange}
           onScenarioChange={handleScenarioChange}
           onReset={handleReset}
@@ -351,7 +388,9 @@ function App() {
             </div>
           }
         >
+          {catalogMatch && !sample && <p>These inputs match a chart from PolicyEngine’s 2024 synthetic US population. The sample catalog supplies the state. The chart uses an example ZIP and applies {metadata.year} rules to the original dollar amounts.</p>}
           <ResultsPanel
+            sample={sample}
             metadata={metadata}
             inputs={combinedInputs}
             seriesData={seriesData}
@@ -361,7 +400,7 @@ function App() {
             error={error}
             seriesError={seriesError}
             onCountyChange={handleCountyChange}
-            onRetry={() => handleCalculate()}
+            onRetry={() => handleCalculate(undefined, lastCalculationOptions.current)}
           />
         </Suspense>
       </main>

@@ -215,6 +215,9 @@ function InputPanel({
   const [currentStepId, setCurrentStepId] = useState('location')
   const [sampleFilter, setSampleFilter] = useState(null)
   useEffect(() => {
+    if (sample?.restored) setCurrentStepId('sample-results')
+  }, [sample?.restored])
+  useEffect(() => {
     if (currentStepId === 'sample-results') {
       sampleResultsRef?.current?.focus({ preventScroll: true })
     }

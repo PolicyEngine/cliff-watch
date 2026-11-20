@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import { test } from 'vitest'
-import { getZipState, hasCompleteRequiredInputs } from '../dataLookup'
+import { buildSeriesPayload, getZipState, hasCompleteRequiredInputs } from '../dataLookup'
 import { decodeInputs, encodeInputs } from '../utils/urlState'
 import { combineDraftAndScenarioToInputs, createInitialScenario, inputsToDraft, inputsToScenario, isDraftReady } from './cliffWatchDraft'
 import { drawCliffWatchSample } from './sampleHousehold'
@@ -97,4 +97,22 @@ test('a spouse’s pension is disclosed separately and never assigned to the hea
   assert.deepEqual(source.nonwageIncome, [{
     personId: 'adult-2', amount: 32200, label: 'taxable private pension', included: false,
   }])
+})
+
+test('disability and full-time student status stay with the person through calculation and sharing', () => {
+  const metadata = { year: 2026 }
+  const people = [
+    { id: 'adult-1', kind: 'adult', age: 40, isDisabled: true },
+    { id: 'dependent-1', kind: 'dependent', age: 17, isFullTimeStudent: true },
+    { id: 'dependent-2', kind: 'dependent', age: 12 },
+  ]
+  const { draft, scenario } = projectSample({ draft: { state: 'OH', maritalStatus: 'single', people } }, {}, metadata)
+  const inputs = combineDraftAndScenarioToInputs(draft, scenario, metadata)
+  const decoded = decodeInputs(encodeInputs(inputs))
+  const reopened = combineDraftAndScenarioToInputs(inputsToDraft(decoded), inputsToScenario(decoded, metadata), metadata)
+  const payload = buildSeriesPayload(inputs, metadata)
+  assert.deepEqual(buildSeriesPayload(reopened, metadata), payload)
+  assert.deepEqual(payload.people.map(p => [p.is_disabled, p.is_full_time_student]), [
+    [true, false], [false, true], [false, false],
+  ])
 })
