@@ -441,7 +441,7 @@ export async function calculateSeries(inputs, metadata, options = {}) {
     options.maxEarnedIncome ?? normalized.chart_max_earned_income,
   )
   payload.step = options.step || metadata?.defaults?.series_step || 2500
-  if (options.minEarnedIncome) {
+  if (options.minEarnedIncome != null) {
     payload.min_earned_income = Math.max(0, Math.round(options.minEarnedIncome))
   }
   return postJson('/api/series', payload, {
