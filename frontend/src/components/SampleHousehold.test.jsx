@@ -20,7 +20,8 @@ vi.mock('../wizard/sampleHousehold', () => ({
 vi.mock('../dataLookup', async importOriginal => ({
   ...await importOriginal(), loadMetadata: async () => metadata, calculateSeries: vi.fn(),
 }))
-vi.mock('../sampleSeries', () => ({
+vi.mock('../sampleSeries', async importOriginal => ({
+  ...await importOriginal(),
   calculateSeriesForSample: vi.fn((...args) => calculateSeries(...args)),
 }))
 // Keep the real results panel and substitute only the SVG chart.
@@ -86,7 +87,7 @@ test('manual and existing shared scenarios do not load or draw a sample', async 
 })
 
 test('a legacy link matching a bundled chart discloses the source without guessing a slot', async () => {
-  calculateSeriesForSample.mockImplementationOnce(async (_inputs, _meta, _options, onCatalogMatch) => {
+  calculateSeriesForSample.mockImplementationOnce(async (_inputs, _meta, _options, { onCatalogMatch }) => {
     onCatalogMatch()
     return { data: [{ earned_income: 0, net_resources: 5678 }], point_count: 1, step_annual: 100 }
   })
@@ -335,6 +336,8 @@ test.each([
   ['unknown slot', params => params.set('sample', 'test-release-2024:VA-28:example')],
   ['different ZIP', params => params.set('zip', '23219')],
   ['edited expenses', params => params.set('rent', '1234.50')],
+  ['an unsupported sensitive field', params => params.set('ssdi_amount', '1234')],
+  ['a duplicate known field', params => params.append('zip', '30303')],
 ])('a sample link with %s keeps the shared inputs and drops its sample marker', async (_label, change) => {
   drawCliffWatchSample.mockResolvedValue(virginiaSample)
   await mount()
@@ -348,5 +351,25 @@ test.each([
   assert.deepEqual(current(), supplied)
   assert.ok(host.querySelector('form'))
   assert.equal(host.querySelector('.sample-details'), null)
+  assert.equal(calculateSeriesForSample.mock.lastCall[3].sample, null)
   assert.equal(drawCliffWatchSample.mock.calls.length, 1)
+})
+
+test('reopening an untouched, uncached marked sample retains its public curve identity', async () => {
+  drawCliffWatchSample.mockResolvedValue(virginiaSample)
+  await mount()
+  await click(drawButton())
+  const initial = calculateSeriesForSample.mock.lastCall
+  assert.equal(initial[3].sample.exampleZip, initial[0].zip)
+  assert.deepEqual(initial[3].sample.originalInputs, initial[0])
+  const params = new URLSearchParams(window.location.search)
+  params.append('utm_source', 'newsletter')
+  params.append('campaign_metadata', 'example')
+  params.sort()
+  await remount('?' + params + '#results')
+  const restored = calculateSeriesForSample.mock.lastCall
+  assert.equal(restored[3].sample.restored, true)
+  assert.equal(restored[3].sample.exampleZip, restored[0].zip)
+  assert.deepEqual(restored[3].sample.originalInputs, restored[0])
+  assert.equal(calculateSeriesForSample.mock.calls.length, 2)
 })

@@ -13,7 +13,7 @@ import {
   loadMetadata,
 } from './dataLookup'
 import { decodeInputs, encodeInputs, syncUrlToInputs } from './utils/urlState'
-import { calculateSeriesForSample } from './sampleSeries'
+import { calculateSeriesForSample, matchesOriginalSample } from './sampleSeries'
 import { readSampleChart, sampleChartKey, writeSampleChart } from './utils/sampleChartCache'
 import {
   COARSE_SAMPLING_REFINING_NOTE,
@@ -44,22 +44,39 @@ function cleanSeriesErrorMessage(error) {
 
 function sampleOrigin(projected, metadata) {
   const { source, draft, scenario } = projected
+  const inputs = combineDraftAndScenarioToInputs(draft, scenario, metadata)
   return {
     ...source,
-    originalQuery: encodeInputs(combineDraftAndScenarioToInputs(draft, scenario, metadata)),
+    originalInputs: inputs,
+    originalQuery: encodeInputs(inputs),
     marker: [source.provenance.buildId, source.id, source.exampleZip ? 'example' : 'user'].join(':'),
   }
 }
 
-async function restoreSample(marker, inputs, draft, metadata) {
-  if (!marker) return null
+async function restoreSample(params, inputs, draft, metadata) {
+  const [marker, ...duplicates] = params.getAll('sample')
+  if (!marker || duplicates.length) return null
   const [build, id, location] = marker.split(':')
   if (!/^[A-Z]{2}-\d{1,3}$/.test(id) || !['example', 'user'].includes(location)) return null
   const household = await getCliffWatchSample(id)
   if (!household || household.provenance.buildId !== build) return null
   const projected = projectSample(household, location === 'example' ? {} : draft, metadata)
   const source = sampleOrigin(projected, metadata)
-  return source.marker === marker && source.originalQuery === encodeInputs(inputs)
+  // Check the raw household fields too: decoding can drop duplicate or
+  // unsupported values. Unrelated URL metadata has no bearing on the chart.
+  const expected = new URLSearchParams(source.originalQuery)
+  expected.set('sample', source.marker)
+  const householdFields = new Set([...Object.keys(inputs), ...inputs.people.flatMap(Object.keys)])
+  const supplied = new URLSearchParams()
+  for (const [key, value] of params) {
+    const singleField = new URLSearchParams([[key, value]])
+    if (expected.has(key) || householdFields.has(key) || decodeInputs(singleField.toString())) {
+      supplied.append(key, value)
+    }
+  }
+  expected.sort()
+  supplied.sort()
+  return expected.toString() === supplied.toString() && matchesOriginalSample(source, inputs)
     ? { ...source, restored: true } : null
 }
 
@@ -103,8 +120,8 @@ function App() {
             seededScenario,
             meta,
           )
-          const marker = new URLSearchParams(window.location.search).get('sample')
-          const source = await restoreSample(marker, seededInputs, seededDraft, meta).catch(() => null)
+          const params = new URLSearchParams(window.location.search)
+          const source = await restoreSample(params, seededInputs, seededDraft, meta).catch(() => null)
           if (!active) return
           setDraft(seededDraft)
           setScenario(seededScenario)
@@ -122,7 +139,7 @@ function App() {
   useEffect(() => {
     if (draft && scenario && metadata) {
       const combined = combineDraftAndScenarioToInputs(draft, scenario, metadata)
-      syncUrlToInputs(combined, sample)
+      syncUrlToInputs(combined, matchesOriginalSample(sample, combined) ? sample : null)
     }
   }, [draft, scenario, metadata, sample])
 
@@ -228,8 +245,11 @@ function App() {
     let usedFallbackStep = false
     try {
       primary = sample?.exampleZip || reopen
-        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep }, () => {
-          if (reopen && !sample && !isCancelled()) setCatalogMatch(true)
+        ? await calculateSeriesForSample(nextInputs, metadata, { step: defaultStep }, {
+          sample,
+          onCatalogMatch: () => {
+            if (reopen && !sample && !isCancelled()) setCatalogMatch(true)
+          },
         })
         : await calculateSeries(nextInputs, metadata, { step: defaultStep })
     } catch (err) {
@@ -285,7 +305,7 @@ function App() {
       setSeriesData(refined)
     }
     setSeriesError(refinementNote(refined, { usedFallbackStep }))
-    if (sample?.exampleZip && sample.originalQuery === encodeInputs(nextInputs) && !usedFallbackStep) {
+    if (sample?.exampleZip && matchesOriginalSample(sample, nextInputs) && !usedFallbackStep) {
       void writeSampleChart(cacheKey, refined)
     }
   }
@@ -390,7 +410,7 @@ function App() {
         >
           {catalogMatch && !sample && <p>These inputs match a chart from PolicyEngine’s 2024 synthetic US population. The sample catalog supplies the state. The chart uses an example ZIP and applies {metadata.year} rules to the original dollar amounts.</p>}
           <ResultsPanel
-            sample={sample}
+            sample={matchesOriginalSample(sample, combinedInputs) ? sample : null}
             metadata={metadata}
             inputs={combinedInputs}
             seriesData={seriesData}

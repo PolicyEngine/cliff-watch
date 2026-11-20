@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import nextConstants from "next/constants.js";
+import { materializeSampleCurves } from "./scripts/materializeSampleCurves.mjs";
 
 const defaultBasePath = process.env.VERCEL_ENV === "preview"
   ? ""
@@ -39,4 +41,9 @@ const nextConfig = {
     : {}),
 };
 
-export default nextConfig;
+export default function config(phase) {
+  if (phase === nextConstants.PHASE_DEVELOPMENT_SERVER || phase === nextConstants.PHASE_PRODUCTION_BUILD) {
+    materializeSampleCurves();
+  }
+  return nextConfig;
+}

@@ -1,10 +1,10 @@
 // Enumerate the same catalog slots, normalization and chart windows as the app.
 // Identical model inputs share one primary curve and its bounded refinements.
-import { deepStrictEqual } from 'node:assert'
+import { deepStrictEqual, ok } from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import { buildSeriesPayload, hasCompleteRequiredInputs } from '../src/dataLookup.js'
-import { sampleRequestDigest } from '../src/sampleSeries.js'
+import { matchesOriginalSample, sampleRequestDigest } from '../src/sampleSeries.js'
 import {
   cliffRefinementStep, getRefinementWindows, refinementWindowKey, validateRefinement,
 } from '../src/utils/seriesRefine.js'
@@ -36,6 +36,10 @@ for (const stateCode of states) {
       const decoded = decodeInputs(encodeInputs(inputs))
       const reopened = combineDraftAndScenarioToInputs(
         inputsToDraft(decoded), inputsToScenario(decoded, metadata), metadata,
+      )
+      ok(
+        matchesOriginalSample({ originalInputs: inputs, originalQuery: encodeInputs(inputs) }, reopened),
+        `Shared URL loses the public sample identity for ${sample.id}`,
       )
       deepStrictEqual(
         buildSeriesPayload(reopened, metadata, primaryOptions), payload,
