@@ -39,10 +39,10 @@ async function copyTextToClipboard(text) {
   copyTextFallback(text)
 }
 
-function ShareButton({ inputs }) {
+function ShareButton({ inputs, sample }) {
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
-  const shareUrl = buildShareUrl(inputs)
+  const shareUrl = buildShareUrl(inputs, sample)
 
   const handleClick = async () => {
     try {
@@ -107,6 +107,7 @@ function CountyNote({ context, location, onCountyChange }) {
 }
 
 function ResultsPanel({
+  sample,
   metadata,
   inputs,
   seriesData,
@@ -116,12 +117,14 @@ function ResultsPanel({
   error,
   seriesError,
   onCountyChange,
+  onRetry,
 }) {
   if (error) {
     return (
       <section className="results-panel">
         <div className="error">
           {error}
+          {hasCalculated && <button type="button" className="reset-btn" onClick={onRetry}>Retry calculation</button>}
         </div>
       </section>
     )
@@ -147,7 +150,7 @@ function ResultsPanel({
         <div className="chart-container full-width">
           <div className="chart-header-row">
             <h3>Cliff chart</h3>
-            <ShareButton inputs={inputs} />
+            <ShareButton inputs={inputs} sample={sample} />
           </div>
           <p className="chart-subtitle">
             {householdSummary(inputs, metadata, county.countyName)}
@@ -197,7 +200,10 @@ function ResultsPanel({
           ) : (
             <>
               {seriesError && <p className="chart-note warning">{seriesError}</p>}
-              <div className="chart-empty">The cliff chart is unavailable right now.</div>
+              <div className="chart-empty">
+                The cliff chart is unavailable right now.{' '}
+                <button type="button" className="reset-btn" onClick={onRetry}>Retry calculation</button>
+              </div>
             </>
           )}
         </div>

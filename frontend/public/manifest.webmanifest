@@ -9,13 +9,13 @@
   "theme_color": "#2C6496",
   "icons": [
     {
-      "src": "/us/cliff-watch/favicon.svg",
+      "src": "./favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/us/cliff-watch/policyengine-logo.png",
+      "src": "./policyengine-logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }

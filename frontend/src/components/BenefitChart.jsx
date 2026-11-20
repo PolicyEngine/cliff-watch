@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 import { niceTicks } from '../utils/niceTicks'
+import { formatCurrency } from '../dataLookup'
 import { buildCliffReport, filterMaterialCliffDrivers } from '../utils/cliffReport'
 import {
   COMPOSITION_OPTIONS,
@@ -174,7 +175,9 @@ function BenefitChart({
       }
     }
 
-    const xMax = Math.max(...points.map((point) => point.earnings))
+    const earnings = points.map((point) => point.earnings)
+    const xMin = Math.min(...earnings)
+    const xMax = Math.max(...earnings)
     const netMax = isVisible(NET_LINE.key)
       ? Math.max(0, ...points.map((point) => Math.max(0, point.net)))
       : 0
@@ -208,7 +211,7 @@ function BenefitChart({
       : []
 
     return {
-      xTicks: niceTicks(xMax),
+      xTicks: niceTicks(xMax - xMin).map(offset => xMin + offset),
       netTicks: niceTicks(netMax),
       detailTicks: signedNiceTicks(detailMin, detailMax),
       mtr: mtrAxisFor(points, mtrKeys),
@@ -297,6 +300,7 @@ function BenefitChart({
   }
 
   const lineType = isMtr ? 'stepBefore' : 'linear'
+  const fixedWages = axes.xTicks[0]
   const zeroLineEmphasized = isByProgram || (isMtr && axes.mtr.domain[0] < 0)
 
   const wrapperClassName = [
@@ -311,6 +315,12 @@ function BenefitChart({
         <div>
           <h4>{copy.title}</h4>
           <p>{copy.description}</p>
+          {hasRealData && fixedWages > 0 && (
+            <p>
+              Other household members earn {formatCurrency(fixedWages, Number.isInteger(fixedWages) ? 0 : 2)} per year.
+              Their wages stay fixed as Adult 1’s wages change.
+            </p>
+          )}
         </div>
         <div className="chart-view-toggles">
           <div className="chart-view-toggle" role="tablist" aria-label="Measure">
@@ -414,7 +424,7 @@ function BenefitChart({
             <XAxis
               dataKey="earnings"
               type="number"
-              domain={[0, axes.xTicks[axes.xTicks.length - 1]]}
+              domain={[axes.xTicks[0], axes.xTicks[axes.xTicks.length - 1]]}
               ticks={axes.xTicks}
               tickFormatter={fmtUsd}
               label={{ value: 'Annual household wages and salaries', position: 'bottom', offset: -5, fill: '#6b7280', fontSize: 11 }}

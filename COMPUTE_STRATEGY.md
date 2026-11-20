@@ -28,7 +28,7 @@ Use a hybrid runtime model:
 1. Keep the repo shape familiar: `frontend/`, `scripts/`, `docs/`, and lightweight deployment config.
 2. Serve a static React frontend, but compute household results on demand through API handlers.
 3. Cache repeated household, state-comparison, and income-series requests in memory by input signature.
-4. Precompute only lightweight metadata: states and the modeled benefit bundle.
+4. Precompute the earnings curve and narrow cliff intervals for each published sample at its example ZIP. A full request digest and the model revision identify each curve. The live API handles custom households and any missing intervals.
 
 ## v1 Modeled Bundle
 

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import base64
+import csv
+import hashlib
 import json
-from dataclasses import asdict
+import os
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler
-from importlib.metadata import version
+from importlib.metadata import distribution, version
+from pathlib import Path
 from typing import Any, Callable
 
 from cliff_watch.calculator import (
@@ -13,9 +17,13 @@ from cliff_watch.calculator import (
     HouseholdInput,
     calculate_household,
     calculate_household_types,
-    calculate_income_series,
-    household_input_from_dict,
-    household_location,
+)
+from cliff_watch.series_request import (
+    _serialize_payload,
+    _series_cached as _series_cached,
+    compute_series as compute_series,
+    compute_series_request as compute_series_request,
+    parse_household_payload,
 )
 from cliff_watch.config import (
     CCDF_MODELED_STATES,
@@ -36,14 +44,6 @@ from cliff_watch.config import (
 )
 
 
-def _serialize_payload(payload: HouseholdInput) -> str:
-    return json.dumps(asdict(payload), sort_keys=True)
-
-
-def parse_household_payload(raw_payload: dict[str, Any]) -> HouseholdInput:
-    return household_input_from_dict(raw_payload)
-
-
 def engine_versions() -> dict[str, str]:
     """Installed engine packages, so a deployment can be checked from outside."""
     return {
@@ -52,10 +52,62 @@ def engine_versions() -> dict[str, str]:
     }
 
 
+def _engine_record(name: str) -> list[tuple[str, str]] | None:
+    package = distribution(name)
+    origin = json.loads(package.read_text("direct_url.json") or "{}")
+    if "dir_info" in origin:
+        return None
+    prefix = name.replace("-", "_") + "/"
+    rows = csv.reader((package.read_text("RECORD") or "").splitlines())
+    files = sorted(
+        (path, checksum)
+        for path, checksum, _ in rows
+        if path.startswith(prefix) and checksum.startswith("sha256=")
+    )
+    # A Vercel deployment has an immutable filesystem. On a developer's
+    # machine a file can be edited in place without rebuilding the wheel.
+    if os.environ.get("VERCEL") != "1":
+        for path, checksum in files:
+            try:
+                actual = hashlib.sha256(package.locate_file(path).read_bytes()).digest()
+            except OSError:
+                return None
+            if base64.urlsafe_b64encode(actual).rstrip(b"=").decode() != checksum[7:]:
+                return None
+    return files or None
+
+
+@lru_cache(maxsize=1)
+def series_revision() -> str | None:
+    """Bind saved sample charts to the code, engine and geography that made them."""
+    root = Path(__file__).resolve().parents[1]
+    versions = engine_versions()
+    digest = hashlib.sha256(json.dumps(versions, sort_keys=True).encode())
+    for name in sorted(versions):
+        records = _engine_record(name)
+        if not records:
+            return None
+        digest.update(json.dumps(records, separators=(",", ":")).encode())
+    for source in (
+        "cliff_watch/series_request.py",
+        "cliff_watch/calculator.py",
+        "cliff_watch/config.py",
+        "cliff_watch/zip_county.py",
+        "cliff_watch/data/zip_county.json.gz",
+    ):
+        digest.update(hashlib.sha256((root / source).read_bytes()).digest())
+    return digest.hexdigest()
+
+
 def metadata_response() -> dict[str, Any]:
     return {
         "year": DEFAULT_YEAR,
         "engine": engine_versions(),
+        # An explicit source checkout can contain unpublished formulas while
+        # the installed package still reports the version used for the bundle.
+        "series_revision": (
+            None if os.environ.get("POLICYENGINE_US_REPO") else series_revision()
+        ),
         "states": STATE_INFO,
         "household_types": HOUSEHOLD_TYPES,
         "programs": PROGRAM_DEFINITIONS,
@@ -90,22 +142,6 @@ def _household_cached(serialized_payload: str) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=128)
-def _series_cached(
-    serialized_payload: str,
-    max_earned_income: int,
-    step: int,
-    min_earned_income: int | None,
-) -> dict[str, Any]:
-    payload = parse_household_payload(json.loads(serialized_payload))
-    return calculate_income_series(
-        payload,
-        max_earned_income=max_earned_income,
-        step=step,
-        min_earned_income=min_earned_income,
-    )
-
-
-@lru_cache(maxsize=128)
 def _household_types_cached(serialized_payload: str) -> list[dict[str, Any]]:
     payload = parse_household_payload(json.loads(serialized_payload))
     return calculate_household_types(payload)
@@ -113,47 +149,6 @@ def _household_types_cached(serialized_payload: str) -> list[dict[str, Any]]:
 
 def compute_household(payload: HouseholdInput) -> dict[str, Any]:
     return _household_cached(_serialize_payload(payload))
-
-
-def compute_series(
-    payload: HouseholdInput,
-    *,
-    max_earned_income: int = DEFAULT_SERIES_MAX_EARNINGS,
-    step: int = DEFAULT_SERIES_STEP,
-    min_earned_income: int | None = None,
-) -> dict[str, Any]:
-    series = _series_cached(
-        _serialize_payload(payload),
-        max_earned_income,
-        step,
-        min_earned_income,
-    )
-    data = series["data"]
-    return {
-        "data": data,
-        "step_annual": series["step_annual"],
-        "requested_step_annual": series["requested_step_annual"],
-        "max_earned_income": series["max_earned_income"],
-        "requested_max_earned_income": series["requested_max_earned_income"],
-        "truncated": series["truncated"],
-        "truncation_reason": series["truncation_reason"],
-        "point_count": series["point_count"],
-        "max_net_resources": max(
-            (item["net_resources"] for item in data),
-            default=0,
-        ),
-        "location": household_location(payload),
-    }
-
-
-def compute_series_request(raw: dict[str, Any]) -> dict[str, Any]:
-    lower = raw.get("min_earned_income")
-    return compute_series(
-        parse_household_payload(raw),
-        max_earned_income=int(raw.get("max_earned_income", DEFAULT_SERIES_MAX_EARNINGS)),
-        step=int(raw.get("step", DEFAULT_SERIES_STEP)),
-        min_earned_income=int(lower) if lower is not None else None,
-    )
 
 
 def compute_household_types(payload: HouseholdInput) -> dict[str, Any]:

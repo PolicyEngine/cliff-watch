@@ -1,6 +1,6 @@
 # Benefit Cliff Calculator
 
-This repo is a dynamic benefit cliff calculator for comparing modeled household resources across earnings levels and across states using individually entered household members and ages. It keeps the lightweight repo shape of [`tanf-calculator`](https://github.com/PolicyEngine/tanf-calculator), but swaps the static precompute grid for an on-demand PolicyEngine-backed API.
+CliffWatch compares modeled household resources across earnings levels and states. Users can open a precomputed chart for a sampled household or enter their own household for an on-demand PolicyEngine calculation.
 
 ## What This Repo Does
 
@@ -33,17 +33,18 @@ Because differencing is linear, the marginal tax rate decomposes exactly: each p
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 18, Vite 5, Recharts, react-simple-maps |
+| Frontend | Next.js static export, React, Recharts |
 | Runtime calculations | Python, [PolicyEngine US](https://github.com/PolicyEngine/policyengine-us) |
 | Local API | built-in `http.server` wrapper around shared compute helpers |
 | Deploy target | static frontend + serverless-style `api/` handlers |
 
-The important product constraint is that we do **not** precompute every state, income point, and program combination. Instead:
+CliffWatch calculates custom households on demand and caches repeated requests in memory by input signature.
 
-1. the frontend stays static
-2. household, state, and series requests are computed on demand
-3. repeated requests are cached in memory by input signature
-4. only metadata is effectively static
+**Try a sample household** opens a chart from the shared wizard’s 2024 US microdata catalog. The catalog supplies the state. CliffWatch uses an editable example ZIP from that state or keeps the user’s ZIP if it matches. An example ZIP is the most populous single-county residential ZIP in the state that the wizard recognizes, using the bundled 2020 Census lookup.
+
+For a sample with an example ZIP, CliffWatch downloads the selected household’s earnings curve, including the more closely spaced observations around each cliff. Its share link opens the same chart. The browser checks the calculation inputs and model revision. It can reopen a finished chart from browser storage. For an older link without a sample ID, the browser looks for a match locally using the state’s chart file. Custom inputs, missing intervals and model revisions without matching results use the live calculator.
+
+After changing the model, ZIP data, sample catalog or refinement intervals, install the frontend dependencies and run `uv run python -m scripts.build_sample_charts` from the repository root. Commit the regenerated state bundles with the change. The frontend extracts individual chart files from those bundles during development and production builds. CI checks that every catalog slot and every requested cliff interval has a saved result.
 
 More detail is in [COMPUTE_STRATEGY.md](COMPUTE_STRATEGY.md).
 
@@ -68,7 +69,7 @@ uv sync --extra dev
 
 `pyproject.toml` pins the engine (`policyengine-us`, `policyengine-core`, `spm-calculator`) exactly, with the reason for each pin, and `uv.lock` locks the rest. `GET /api/metadata` reports the deployed versions under `engine`. Bump a pin on purpose: engine releases change displayed numbers, so compare `/api/series` output before and after.
 
-If you already have a local `policyengine-us` checkout, you can point this repo at it:
+To calculate with a local `policyengine-us` checkout, set the environment variable below. CliffWatch then calculates sample charts with that checkout as well.
 
 ```bash
 export POLICYENGINE_US_REPO=../policyengine-us

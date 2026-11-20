@@ -3,7 +3,10 @@ import { test } from 'vitest'
 
 import {
   COARSE_SAMPLING_NOTE,
+  cliffRefinementStep,
+  getRefinementWindows,
   refineCliffZones,
+  refinementWindowKey,
   refinementFailureNote,
   refinementNote,
 } from './seriesRefine.js'
@@ -17,7 +20,7 @@ const netResources = (income) => (
   10000 + 0.4 * income - 3000 * CLIFFS.filter((cliff) => income >= cliff).length
 )
 
-const metadata = { programs: [] }
+const metadata = { programs: [{ key: 'snap', label: 'SNAP' }] }
 const inputs = { state: 'GA' }
 
 function seriesPoints(min, max, step) {
@@ -29,6 +32,7 @@ function seriesPoints(min, max, step) {
     points.push({
       earned_income: income,
       net_resources: net,
+      snap: 6000 - 3000 * CLIFFS.filter(cliff => income >= cliff).length,
       is_cliff: drop > 0,
       cliff_drop_annual: drop,
     })
@@ -83,6 +87,32 @@ test('refineCliffZones refines every cliff zone and reports no failures', async 
   }
   assert.equal(refinementNote(refined), null)
   assert.equal(refinementNote(refined, { usedFallbackStep: true }), COARSE_SAMPLING_NOTE)
+})
+
+test('saved windows produce the same merged points and cliff drivers as live refinements', async () => {
+  const coarse = coarseSeries()
+  const refineStep = cliffRefinementStep(coarse.step_annual)
+  const windows = getRefinementWindows(coarse, refineStep)
+  const recorded = fakeCalculateSeries()
+  const expected = await refineWith(recorded.fn)
+  assert.equal(expected.data.find(point => point.is_cliff).cliff_drivers[0].key, 'snap')
+  assert.deepEqual(windows.map(window => window.request), recorded.calls)
+  const saved = Object.fromEntries(recorded.calls.map(request => [
+    refinementWindowKey(request),
+    seriesPoints(request.minEarnedIncome, request.maxEarnedIncome, request.step),
+  ]))
+  for (const unavailable of ['none', 'missing', 'invalid']) {
+    const sampleRefinements = { ...saved }
+    const secondKey = refinementWindowKey(windows[1].request)
+    if (unavailable === 'missing') delete sampleRefinements[secondKey]
+    if (unavailable === 'invalid') sampleRefinements[secondKey] = [{ earned_income: -1 }]
+    const live = fakeCalculateSeries()
+    const result = await refineCliffZones({
+      coarseSeries: coarse, inputs, metadata, refineStep, sampleRefinements, calculateSeriesFn: live.fn,
+    })
+    assert.deepEqual(result, expected)
+    assert.deepEqual(live.calls, unavailable === 'none' ? [] : [windows[1].request])
+  }
 })
 
 test('refineCliffZones reports a zone whose refinement request fails', async () => {

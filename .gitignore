@@ -20,6 +20,8 @@ docs/
 frontend/dist/
 frontend/.next/
 frontend/out/
+/frontend/public/sample-charts/curves/
+/frontend/.sample-chart-assets-*/
 
 # Environment
 .env
