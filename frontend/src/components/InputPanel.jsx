@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   getZipState,
   hasCompleteRequiredInputs,
@@ -17,11 +17,15 @@ import {
 } from 'policyengine-household-wizard'
 import {
   combineDraftAndScenarioToInputs,
+  createInitialScenario,
 } from '../wizard/cliffWatchDraft.js'
 
 const sanitizeZip = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 5)
 const MIN_ADULT_AGE = 18
 const MAX_AGE = 120
+
+// Round in monthly cents: an annual $148.14 is $12.345 per month.
+const monthlyExpense = annual => Math.round(annual * (100 / 12)) / 100
 
 const clampAdultAge = (age) => {
   if (age === '' || age === null || age === undefined) return ''
@@ -150,14 +154,38 @@ function CurrencyField({
   min = 0,
   tooltip,
 }) {
+  const inputRef = useRef(null)
+  const lastUnit = useRef(unit)
+  const displayValue = value ? String(value) : ''
+
+  useLayoutEffect(() => {
+    const field = inputRef.current
+    const changedUnit = lastUnit.current !== unit
+    lastUnit.current = unit
+    if (changedUnit && !field.validity.valid) return
+    if (changedUnit || field !== field.ownerDocument.activeElement) {
+      field.value = displayValue
+    }
+  }, [displayValue, unit])
+
   const input = (
     <input
+      ref={inputRef}
       type="number"
+      inputMode="decimal"
       id={id}
       min={min}
       step="any"
-      value={value ?? 0}
-      onChange={(event) => onChange(Number(event.target.value) || 0)}
+      placeholder={min === 0 ? '0' : undefined}
+      defaultValue={displayValue}
+      onChange={({ currentTarget: field }) => {
+        // The browser owns incomplete number tokens, which can expose an
+        // empty .value while validity.badInput distinguishes them from a clear.
+        if (field.validity.valid) onChange(field.value === '' ? 0 : field.valueAsNumber)
+      }}
+      onBlur={({ currentTarget: field }) => {
+        if (field.validity.valid) field.value = displayValue
+      }}
     />
   )
 
@@ -743,7 +771,9 @@ function InputPanel({
                       label="Chart max wages"
                       min={10000}
                       value={inputs.chart_max_earned_income}
-                      onChange={(value) => onScenarioChange({ chart_max_earned_income: value || 100000 })}
+                      onChange={(value) => onScenarioChange({
+                        chart_max_earned_income: value || createInitialScenario(metadata).chart_max_earned_income,
+                      })}
                       tooltip="Optional upper bound for the wage chart."
                     />
                     <div className="form-group">
@@ -814,7 +844,7 @@ function InputPanel({
                         label={field.label}
                         unit={expensePeriod === 'month' ? '$/month' : '$/year'}
                         value={expensePeriod === 'month'
-                          ? Number((inputs[field.key] / 12).toFixed(2))
+                          ? monthlyExpense(inputs[field.key])
                           : inputs[field.key]}
                         onChange={value => onScenarioChange({
                           [field.key]: expensePeriod === 'month' ? Number((value * 12).toFixed(2)) : value,
