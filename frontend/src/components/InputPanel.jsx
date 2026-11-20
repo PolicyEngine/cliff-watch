@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   getZipState,
   hasCompleteRequiredInputs,
@@ -17,11 +17,15 @@ import {
 } from 'policyengine-household-wizard'
 import {
   combineDraftAndScenarioToInputs,
+  createInitialScenario,
 } from '../wizard/cliffWatchDraft.js'
 
 const sanitizeZip = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 5)
 const MIN_ADULT_AGE = 18
 const MAX_AGE = 120
+
+// Round in monthly cents: an annual $148.14 is $12.345 per month.
+const monthlyExpense = annual => Math.round(annual * (100 / 12)) / 100
 
 const clampAdultAge = (age) => {
   if (age === '' || age === null || age === undefined) return ''
@@ -146,24 +150,49 @@ function CurrencyField({
   value,
   onChange,
   compact = false,
-  step = 500,
+  unit = '$/year',
+  min = 0,
   tooltip,
 }) {
+  const inputRef = useRef(null)
+  const lastUnit = useRef(unit)
+  const displayValue = value ? String(value) : ''
+
+  useLayoutEffect(() => {
+    const field = inputRef.current
+    const changedUnit = lastUnit.current !== unit
+    lastUnit.current = unit
+    if (changedUnit && !field.validity.valid) return
+    if (changedUnit || field !== field.ownerDocument.activeElement) {
+      field.value = displayValue
+    }
+  }, [displayValue, unit])
+
   const input = (
     <input
+      ref={inputRef}
       type="number"
+      inputMode="decimal"
       id={id}
-      min="0"
-      step={step}
-      value={value ?? 0}
-      onChange={(event) => onChange(Number(event.target.value) || 0)}
+      min={min}
+      step="any"
+      placeholder={min === 0 ? '0' : undefined}
+      defaultValue={displayValue}
+      onChange={({ currentTarget: field }) => {
+        // The browser owns incomplete number tokens, which can expose an
+        // empty .value while validity.badInput distinguishes them from a clear.
+        if (field.validity.valid) onChange(field.value === '' ? 0 : field.valueAsNumber)
+      }}
+      onBlur={({ currentTarget: field }) => {
+        if (field.validity.valid) field.value = displayValue
+      }}
     />
   )
 
   if (compact) {
     return (
       <label className="compact-field">
-        <span>{label}</span>
+        <span>{label} ({unit})</span>
         {input}
       </label>
     )
@@ -172,7 +201,7 @@ function CurrencyField({
   return (
     <div className="form-group">
       <label htmlFor={id}>
-        {label} ($/year)
+        {label} ({unit})
         {tooltip ? <InfoTooltip text={tooltip} /> : null}
       </label>
       {input}
@@ -208,6 +237,7 @@ function InputPanel({
   onReset,
 }) {
   const [currentStepId, setCurrentStepId] = useState('location')
+  const [expensePeriod, setExpensePeriod] = useState('year')
   const inputs = useMemo(
     () => (metadata && draft && scenario
       ? combineDraftAndScenarioToInputs(draft, scenario, metadata)
@@ -396,6 +426,7 @@ function InputPanel({
   }
 
   const resetWizard = () => {
+    setExpensePeriod('year')
     onReset()
     goToStep('location')
   }
@@ -419,6 +450,10 @@ function InputPanel({
         aria-label="Household setup progress"
       />
       <form
+        onInvalidCapture={event => {
+          const details = event.target.closest('details')
+          if (details) details.open = true
+        }}
         onSubmit={(event) => {
           event.preventDefault()
           if (!currentStepComplete) return
@@ -734,9 +769,11 @@ function InputPanel({
                     <CurrencyField
                       id="chart_max_earned_income"
                       label="Chart max wages"
-                      step={10000}
+                      min={10000}
                       value={inputs.chart_max_earned_income}
-                      onChange={(value) => onScenarioChange({ chart_max_earned_income: value || 100000 })}
+                      onChange={(value) => onScenarioChange({
+                        chart_max_earned_income: value || createInitialScenario(metadata).chart_max_earned_income,
+                      })}
                       tooltip="Optional upper bound for the wage chart."
                     />
                     <div className="form-group">
@@ -778,6 +815,7 @@ function InputPanel({
                     <CurrencyField
                       id="liquid_assets"
                       label="Checking and savings"
+                      unit="$"
                       value={inputs.liquid_assets}
                       onChange={(value) => onScenarioChange({ liquid_assets: value })}
                       tooltip="Counts toward SNAP, TANF and SSI asset limits where modeled."
@@ -787,14 +825,30 @@ function InputPanel({
 
                 <section className="advanced-section">
                   <h3 className="advanced-section-title">Budget costs</h3>
+                  <div className="form-group">
+                    <label htmlFor="expense-period">Enter expenses</label>
+                    <select
+                      id="expense-period"
+                      value={expensePeriod}
+                      onChange={event => setExpensePeriod(event.target.value)}
+                    >
+                      <option value="year">Per year</option>
+                      <option value="month">Per month</option>
+                    </select>
+                  </div>
                   <div className="advanced-field-grid">
                     {EXPENSE_FIELDS.map((field) => (
                       <CurrencyField
                         key={field.key}
                         id={field.key}
                         label={field.label}
-                        value={inputs[field.key]}
-                        onChange={(value) => onScenarioChange({ [field.key]: value })}
+                        unit={expensePeriod === 'month' ? '$/month' : '$/year'}
+                        value={expensePeriod === 'month'
+                          ? monthlyExpense(inputs[field.key])
+                          : inputs[field.key]}
+                        onChange={value => onScenarioChange({
+                          [field.key]: expensePeriod === 'month' ? Number((value * 12).toFixed(2)) : value,
+                        })}
                         tooltip={field.tooltip}
                       />
                     ))}

@@ -1,0 +1,1 @@
+The household form accepts dollars and cents, including when Advanced inputs is closed. Households can enter monthly or yearly expenses. CliffWatch uses annual amounts for calculations and shared links.

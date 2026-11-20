@@ -51,3 +51,10 @@ test('links without a household do not invent a marital status', () => {
   const decoded = decodeInputs('?s=NC')
   assert.equal(decoded.marital_status, undefined)
 })
+
+test('sharing retains dollar and cent amounts for wages and annual costs', () => {
+  const inputs = decodeInputs('?s=GA&zip=30303&p=30:a::0,32:a::12345.67&rent=10800.48')
+  const decoded = decodeInputs(encodeInputs(inputs))
+  assert.equal(decoded.people[1].earned_income, 12345.67)
+  assert.equal(decoded.rent_annual, 10800.48)
+})
