@@ -139,3 +139,19 @@ test('an invalid chart limit stays visible on blur and clearing restores the con
   await submit()
   assert.equal(calculateSeries.mock.lastCall[0].chart_max_earned_income, 160000)
 })
+
+test('switching to monthly entry keeps invalid rent visible until corrected', async () => {
+  const rent = host.querySelector('#rent_annual')
+  const annual = current().rent_annual
+  await input(rent, '-5')
+  await blur(rent)
+  await changePeriod('month')
+  assert.equal(rent.value, '-5')
+  assert.equal(current().rent_annual, annual)
+  const count = calculateSeries.mock.calls.length
+  await submit()
+  assert.equal(calculateSeries.mock.calls.length, count)
+  await input(rent, '800')
+  await submit()
+  assert.equal(calculateSeries.mock.lastCall[0].rent_annual, 9600)
+})
